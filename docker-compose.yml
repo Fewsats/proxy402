@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: linkshrink_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-linkshrink}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-linkshrink}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    container_name: linkshrink_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-user}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      DB_NAME: ${DB_NAME:-linkshrink}
+      JWT_SECRET: ${JWT_SECRET:-your-very-secret-key} # CHANGE THIS IN PRODUCTION
+      APP_PORT: 8080
+
+      X402_PRICE: ${X402_PRICE:-0.00001}
+      X402_PAYMENT_ADDRESS: ${X402_PAYMENT_ADDRESS:-0x745FDB84dA6f0BE028d2dA9eFF20e4C5ac063755}
+      X402_FACILITATOR_URL: ${X402_FACILITATOR_URL:-https://x402.org/facilitator}
+      X402_RESOURCE_URL: ${X402_RESOURCE_URL:-http://localhost:8080/shrink}
+    depends_on:
+      db:
+        condition: service_healthy
+    # volumes:
+    #  # Mount source code for development (optional, allows live reload)
+    #  - .:/app # <-- Commented out to use the binary from the image
+
+volumes:
+  postgres_data:
+    driver: local
