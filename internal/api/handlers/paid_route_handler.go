@@ -3,8 +3,7 @@ package handlers
 import (
 	"errors" // Import errors package
 	"fmt"
-
-	// "math/big" // Not used yet
+	"math/big" // Need big.Float for price parsing
 	"net/http"
 	"strconv"
 
@@ -13,9 +12,9 @@ import (
 
 	"linkshrink/internal/api/middleware" // To get user ID
 	"linkshrink/internal/auth"           // To get Claims type
-
-	// "linkshrink/internal/config" // Not used yet
+	"linkshrink/internal/config"         // Need for X402 config
 	"linkshrink/internal/core/services"
+	"linkshrink/internal/x402" // Import local x402 package
 	// "linkshrink/internal/x402" // Import local x402 when verification is added
 )
 
@@ -80,7 +79,7 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 }
 
 // HandlePaidRoute handles requests to the dynamic /:shortCode endpoints.
-// This performs DB lookup, method check, (TODO: payment verification), and redirects.
+// This performs DB lookup, method check, payment verification, and redirects.
 func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	shortCode := ctx.Param("shortCode")
 	// fmt.Printf("[DEBUG] HandlePaidRoute received shortCode: '%s'\n", shortCode)
@@ -89,7 +88,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	route, err := h.paidRouteService.FindEnabledRouteByShortCode(shortCode)
 	if err != nil {
 		// Use errors.Is for robust check against gorm.ErrRecordNotFound
-		if errors.Is(err, gorm.ErrRecordNotFound) || err.Error() == "route not found or not enabled" {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Route not found or is disabled."})
 		} else {
 			ctx.Error(err) // Log unexpected errors
@@ -98,28 +97,52 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		return
 	}
 
-	// 2. Check Method (Optional for Redirects, but keep for consistency for now)
-	// Note: Browsers might change method to GET on 301/302 redirects.
-	// Use 307/308 for strict method preservation if needed, but GET is typical.
+	// 2. Check Method
 	if ctx.Request.Method != route.Method {
 		ctx.JSON(http.StatusMethodNotAllowed, gin.H{"error": fmt.Sprintf("Method %s not allowed for this route. Allowed: %s", ctx.Request.Method, route.Method)})
 		return
 	}
 
-	// --- TODO: Payment Verification Step ---
-	// ... (Parsing price, calling VerifyX402Payment, etc.) ...
-	// If payment fails, the verification function should handle the 402 response.
-	// If payment succeeds, we continue to the redirect.
-	// --- END TODO: Payment Verification ---
+	// --- Payment Verification Step ---
 
-	// Increment payment count (Best effort after successful access/verification)
+	// 3. Parse route.Price string to *big.Float
+	priceFloat, ok := new(big.Float).SetString(route.Price)
+	if !ok {
+		ctx.Error(fmt.Errorf("invalid price format stored for route %s: %s", shortCode, route.Price))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route price."})
+		return
+	}
+
+	// 4. Prepare options for the x402.Payment function
+	// Construct the resource URL the user is actually accessing
+	accessURL := fmt.Sprintf("http://%s/%s", ctx.Request.Host, route.ShortCode)
+
+	// Note: The x402 package option functions are now exported (start with uppercase).
+	// We can call them directly.
+
+	// 5. Call x402.Payment function (treating it as a pre-handler check)
+	x402.Payment(ctx, priceFloat, config.AppConfig.X402PaymentAddress,
+		// Use the exported option functions (uppercase)
+		x402.OptionWithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
+		x402.OptionWithTestnet(true), // TODO: Make configurable
+		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
+		x402.OptionWithResource(accessURL),
+		// Add other options like OptionWithMaxTimeoutSeconds if needed
+	)
+
+	// 6. Check if the payment function aborted the request
+	if ctx.IsAborted() {
+		fmt.Printf("Payment check failed or required for %s, request aborted by x402.Payment\n", shortCode)
+		return // Stop processing, response already sent by x402.Payment
+	}
+	// If we get here, payment verification within x402.Payment presumably succeeded and called ctx.Next()
+	// --- END Payment Verification ---
+
+	// Increment payment count only after successful verification check
 	h.paidRouteService.IncrementPaymentCount(shortCode)
 
 	// --- Perform the Redirect ---
-	// Use StatusFound (302) for temporary redirect. Use StatusMovedPermanently (301) if appropriate.
 	ctx.Redirect(http.StatusFound, route.TargetURL)
-
-	// --- Proxy code removed ---
 }
 
 // Helper function to copy headers, excluding hop-by-hop headers - REMOVED (No longer needed for redirect)
