@@ -6,6 +6,8 @@
     <!-- Include htmx -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+    <!-- Include Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         body { 
@@ -184,6 +186,80 @@
         .copy-success.show {
             opacity: 1;
         }
+        
+        /* Custom tooltip styles */
+        .tooltip {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 220px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-weight: normal;
+            font-size: 14px;
+            line-height: 1.4;
+            pointer-events: none;
+        }
+        
+        .tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+        
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .info-icon {
+            color: #0066ff;
+            margin-left: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .info-icon i {
+            color: #0066ff;
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Adjust copy button tooltip position */
+        .copy-btn .tooltip-text {
+            bottom: auto;
+            left: auto;
+            right: -10px;
+            top: -40px;
+            transform: none;
+        }
+
+        .copy-btn .tooltip-text::after {
+            top: 100%;
+            left: auto;
+            right: 10px;
+            transform: none;
+        }
     </style>
 </head>
 <body>
@@ -249,8 +325,34 @@
                             <th>URL</th>
                             <th>Short URL</th>
                             <th>Method</th>
-                            <th>Price</th>
-                            <th>Access Count</th>
+                            <th>Price (USDC)</th>
+                            <th>
+                                <span class="tooltip">
+                                    Attempts
+                                    <span class="info-icon">
+                                        <i width="16" height="16" data-lucide="help-circle"></i>
+                                    </span>
+                                    <span class="tooltip-text">Number of times someone tried to access your URL without a payment header</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="tooltip">
+                                    Payments
+                                    <span class="info-icon">
+                                        <i width="16" height="16" data-lucide="help-circle"></i>
+                                    </span>
+                                    <span class="tooltip-text">Number of times someone successfully paid for access</span>
+                                </span>
+                            </th>
+                            <th>
+                                <span class="tooltip">
+                                    Accesses
+                                    <span class="info-icon">
+                                        <i width="16" height="16" data-lucide="help-circle"></i>
+                                    </span>
+                                    <span class="tooltip-text">Number of times someone accessed your URL with a valid payment header</span>
+                                </span>
+                            </th>
                             <th></th>
                         </tr>
                     </thead>
@@ -261,17 +363,20 @@
                             <td>
                                 <div class="short-url-container">
                                     <a href="/{{.ShortCode}}" target="_blank">{{$.baseURL}}/{{.ShortCode}}</a>
-                                    <button class="copy-btn" title="Copy URL" data-url="{{$.baseURL}}/{{.ShortCode}}">
+                                    <button class="copy-btn tooltip" title="Copy URL" data-url="{{$.baseURL}}/{{.ShortCode}}">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                                         </svg>
+                                        <span class="tooltip-text">Copy the short URL</span>
                                     </button>
                                 </div>
                             </td>
                             <td>{{.Method}}</td>
                             <td>${{.Price}}</td>
+                            <td>{{.AttemptCount}}</td>
                             <td>{{.PaymentCount}}</td>
+                            <td>{{.AccessCount}}</td>
                             <td>
                                 <button class="delete-btn"
                                     hx-delete="/links/{{.ID}}"
@@ -380,6 +485,11 @@
             } catch (error) {
                 console.error('Failed to copy:', error);
             }
+        });
+
+        // Initialize Lucide icons when the document loads
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
         });
     </script>
 </body>

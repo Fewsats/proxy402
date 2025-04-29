@@ -19,12 +19,12 @@ type PaidRoute struct {
 	ShortCode string `gorm:"uniqueIndex;not null" json:"short_code"`
 	TargetURL string `gorm:"not null" json:"target_url"`
 	Method    string `gorm:"not null" json:"method"` // GET, POST, PUT, DELETE, PATCH
-	// Store price as string for precision, map to NUMERIC in DB.
-	// Assumed to be the crypto amount (e.g., ETH) required by facilitator.
-	// TODO change into base units which is 10^6
-	Price        string `gorm:"type:numeric;not null" json:"price"`
-	UserID       uint   `gorm:"not null" json:"-"` // User who owns/created this route
-	User         User   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
-	IsEnabled    bool   `gorm:"default:true" json:"is_enabled"`
-	PaymentCount int64  `gorm:"default:0" json:"payment_count"` // Track successful payments/accesses
+	// Store price as int64 representing base units (USDC * 10^6)
+	Price        int64 `gorm:"not null" json:"price"`
+	UserID       uint  `gorm:"not null" json:"-"` // User who owns/created this route
+	User         User  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
+	IsEnabled    bool  `gorm:"default:true" json:"is_enabled"`
+	AttemptCount int64 `gorm:"default:0" json:"attempt_count"` // Track payment attempts (no payment header provided)
+	PaymentCount int64 `gorm:"default:0" json:"payment_count"` // Track successful payments (payment for x402)
+	AccessCount  int64 `gorm:"default:0" json:"access_count"`  // Track successful accesses (payment header provided)
 }

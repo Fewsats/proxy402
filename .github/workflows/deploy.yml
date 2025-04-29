@@ -1,0 +1,33 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -e
+            cd /home/service/linkshrink  # Update this to your server's path
+            git pull origin main
+            
+
+            # Build and start containers
+            docker-compose build
+            docker-compose down
+            docker-compose up -d
+            
+            # Wait for service to start
+            sleep 10
+            
+            # Verify service is responding properly
+            timeout 10 curl -s http://localhost:8080/ || (echo "API health check failed" && exit 1)
+            
+            echo "Deployment successful" 

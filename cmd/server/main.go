@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"html/template"
 	"log"
 	"net/http"
 
@@ -11,10 +10,8 @@ import (
 	"linkshrink/internal/api/handlers"
 	"linkshrink/internal/api/middleware"
 	"linkshrink/internal/config"
-	"linkshrink/internal/core/models"
 	"linkshrink/internal/core/services"
 	"linkshrink/internal/store"
-	// No longer importing x402 directly here
 )
 
 //go:embed templates
@@ -39,14 +36,16 @@ func main() {
 	// Create handlers
 	// userHandler := handlers.NewUserHandler(userService)
 	oauthHandler := handlers.NewOAuthHandler(userService)
-
-	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService) // Add PaidRouteHandler
+	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService)
+	uiHandler := handlers.NewUIHandler(paidRouteService, templatesFS)
 
 	// Setup Gin router
 	router := gin.Default() // Includes Logger and Recovery middleware
 
+	// Set up UI routes
+	uiHandler.SetupRoutes(router)
+
 	// Public routes
-	// TODO probably remove these
 
 	// --- Paid Route Proxy ---
 	// This route handles all methods for the dynamic short codes
@@ -70,49 +69,6 @@ func main() {
 			linksGroup.DELETE("/:linkID", paidRouteHandler.DeleteUserPaidRoute) // Note: Param is still :linkID
 		}
 	}
-
-	// Parse HTML templates
-	tmpl, err := template.ParseFS(templatesFS, "templates/*.html")
-	if err != nil {
-		log.Fatalf("failed to parse HTML templates: %v", err)
-	}
-	router.SetHTMLTemplate(tmpl)
-
-	// Main UI route
-	router.GET("/", middleware.AuthMiddleware(), func(c *gin.Context) {
-		// Check if user is authenticated
-		user, exists := c.Get(middleware.UserKey)
-
-		var links []models.PaidRoute
-		var err error
-
-		if exists {
-			// Get user's links if authenticated
-			userID := user.(gin.H)["id"].(uint)
-			links, err = paidRouteService.ListUserRoutes(userID)
-			if err != nil {
-				c.HTML(http.StatusInternalServerError, "main.html", gin.H{
-					"error": "Unable to fetch links",
-				})
-				return
-			}
-		}
-
-		// Get the scheme and host for generating full URLs
-		scheme := "http"
-		if c.Request.TLS != nil {
-			scheme = "https"
-		}
-		host := c.Request.Host
-		baseURL := scheme + "://" + host
-
-		c.HTML(http.StatusOK, "main.html", gin.H{
-			"user":    user,
-			"links":   links,
-			"host":    host,
-			"baseURL": baseURL,
-		})
-	})
 
 	// Logout route
 	router.GET("/logout", func(c *gin.Context) {

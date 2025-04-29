@@ -3,8 +3,8 @@ package services
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"linkshrink/internal/core/models"
@@ -44,15 +44,17 @@ func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, u
 		return nil, errors.New("invalid HTTP method provided")
 	}
 
-	// 3. Validate Price String
-	priceFloat, ok := new(big.Float).SetString(priceStr)
-	if !ok {
-		return nil, errors.New("invalid price format provided")
+	// 3. Parse and Validate Price String (decimal string representing USDC, to be converted to integer * 10^6)
+	priceFloat, err := strconv.ParseFloat(priceStr, 64)
+	if err != nil {
+		return nil, errors.New("invalid price format: must be a decimal number")
 	}
-	if priceFloat.Sign() < 0 { // Check if price is negative
-		return nil, errors.New("price cannot be negative")
+	if priceFloat < 0 {
+		return nil, errors.New("price must be greater or equal to 0")
 	}
-	// We store the original validated string `priceStr`
+
+	// Convert to integer (USDC * 10^6)
+	priceInt := int64(priceFloat * 1000000)
 
 	// 4. Generate Unique Short Code
 	const maxShortCodeGenerationRetries = 10
@@ -81,7 +83,7 @@ func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, u
 		ShortCode: shortCode,
 		TargetURL: targetURL,
 		Method:    upperMethod,
-		Price:     priceStr, // Store the original validated string
+		Price:     priceInt, // Store as int64
 		UserID:    userID,
 		IsEnabled: true, // Default to enabled
 	}
@@ -134,5 +136,3 @@ func (s *PaidRouteService) DeleteRoute(routeID uint, userID uint) error {
 	}
 	return nil
 }
-
-// TODO: Add services for Update etc. later.

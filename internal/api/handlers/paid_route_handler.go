@@ -38,6 +38,11 @@ type CreatePaidRouteRequest struct {
 	// Asset field removed as per user request
 }
 
+// formatPrice converts price from integer (USDC * 10^6) to a decimal string
+func (h *PaidRouteHandler) formatPrice(priceInt int64) string {
+	return fmt.Sprintf("%.6f", float64(priceInt)/1000000)
+}
+
 // CreatePaidRouteHandler handles POST requests to create new paid routes.
 // NOTE: Currently doesn't enforce specific auth/admin checks, assumes authenticated user.
 func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
@@ -72,9 +77,11 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 		"access_url":    accessURL,
 		"target_url":    route.TargetURL,
 		"method":        route.Method,
-		"price":         route.Price,
+		"price":         h.formatPrice(route.Price),
 		"is_enabled":    route.IsEnabled,
+		"attempt_count": route.AttemptCount,
 		"payment_count": route.PaymentCount,
+		"access_count":  route.AccessCount,
 		"created_at":    route.CreatedAt,
 	})
 }
@@ -156,9 +163,11 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(ctx *gin.Context) {
 			"access_url":    accessURL,
 			"target_url":    route.TargetURL,
 			"method":        route.Method,
-			"price":         route.Price,
+			"price":         h.formatPrice(route.Price),
 			"is_enabled":    route.IsEnabled,
+			"attempt_count": route.AttemptCount,
 			"payment_count": route.PaymentCount,
+			"access_count":  route.AccessCount,
 			"created_at":    route.CreatedAt,
 			"updated_at":    route.UpdatedAt, // Include updated_at for listing
 		}
