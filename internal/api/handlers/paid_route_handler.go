@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	// Needed for potential body buffering if required later
 	"errors" // Import errors package
 	"fmt"
 	"math/big" // Need big.Float for price parsing
 	"net/http"
+	"net/http/httputil" // Import for Reverse Proxy
+	"net/url"           // Import for URL parsing
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +18,6 @@ import (
 	"linkshrink/internal/config"         // Need for X402 config
 	"linkshrink/internal/core/services"
 	"linkshrink/internal/x402" // Import local x402 package
-	// "linkshrink/internal/x402" // Import local x402 when verification is added
 )
 
 // PaidRouteHandler handles HTTP requests related to paid routes.
@@ -86,19 +88,17 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 }
 
 // HandlePaidRoute handles requests to the dynamic /:shortCode endpoints.
-// This performs DB lookup, method check, payment verification, and redirects.
+// This performs DB lookup, method check, payment verification, and then proxies the request.
 func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	shortCode := ctx.Param("shortCode")
-	// fmt.Printf("[DEBUG] HandlePaidRoute received shortCode: '%s'\n", shortCode)
 
 	// 1. Find route in DB
 	route, err := h.paidRouteService.FindEnabledRouteByShortCode(shortCode)
 	if err != nil {
-		// Use errors.Is for robust check against gorm.ErrRecordNotFound
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Route not found or is disabled."})
 		} else {
-			ctx.Error(err) // Log unexpected errors
+			ctx.Error(err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving route configuration."})
 		}
 		return
@@ -111,7 +111,6 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	}
 
 	// --- Payment Verification Step ---
-
 	// 3. Parse route.Price string to *big.Float
 	// Convert int64 price to string and then to *big.Float
 	priceFloat, ok := new(big.Float).SetString(strconv.FormatInt(route.Price, 10))
@@ -121,16 +120,9 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		return
 	}
 
-	// 4. Prepare options for the x402.Payment function
-	// Construct the resource URL the user is actually accessing
 	accessURL := fmt.Sprintf("http://%s/%s", ctx.Request.Host, route.ShortCode)
 
-	// Note: The x402 package option functions are now exported (start with uppercase).
-	// We can call them directly.
-
-	// 5. Call x402.Payment function (treating it as a pre-handler check)
 	x402.Payment(ctx, priceFloat, config.AppConfig.X402PaymentAddress,
-		// Use the exported option functions (uppercase)
 		x402.OptionWithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
 		x402.OptionWithTestnet(true), // TODO: Make configurable
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
@@ -141,16 +133,85 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	// 6. Check if the payment function aborted the request
 	if ctx.IsAborted() {
 		fmt.Printf("Payment check failed or required for %s, request aborted by x402.Payment\n", shortCode)
+		// If aborted with 402, increment attempt count
+		if ctx.Writer.Status() == http.StatusPaymentRequired {
+			err := h.paidRouteService.IncrementAttemptCount(shortCode)
+			if err != nil {
+				// Log error, but don't overwrite the original 402 response
+				fmt.Printf("Error incrementing attempt count for %s after 402: %v\n", shortCode, err)
+			}
+		}
 		return // Stop processing, response already sent by x402.Payment
 	}
-	// If we get here, payment verification within x402.Payment presumably succeeded and called ctx.Next()
+	// If we get here, payment verification within x402.Payment succeeded.
 	// --- END Payment Verification ---
 
-	// Increment payment count only after successful verification check
+	// Increment access count *after* successful verification check
+	if err := h.paidRouteService.IncrementAccessCount(shortCode); err != nil {
+		// Log the error, but proceed with proxying? Or return 500?
+		// Let's log and return 500 for now, as failing to count access is an internal issue.
+		ctx.Error(fmt.Errorf("failed to increment access count for %s after successful payment verification: %w", shortCode, err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request after payment."})
+		return
+	}
+
 	h.paidRouteService.IncrementPaymentCount(shortCode)
 
-	// --- Perform the Redirect ---
-	ctx.Redirect(http.StatusFound, route.TargetURL)
+	// --- Perform Reverse Proxy ---
+
+	// 7. Parse the target URL
+	targetURL, err := url.Parse(route.TargetURL)
+	if err != nil {
+		ctx.Error(fmt.Errorf("failed to parse target URL for route %s: %w", shortCode, err))
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route target."})
+		return
+	}
+
+	// 8. Create the reverse proxy
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+
+	// 9. Define the Director to modify the request before forwarding
+	originalDirector := proxy.Director // Keep original director for basic setup
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req) // Apply default modifications (Scheme, Host, Path)
+		// Ensure the Host header is set correctly for the target server
+		req.Host = targetURL.Host
+
+		// Optional: Clean up headers specific to the incoming request if needed
+		// req.Header.Del("X-Forwarded-For")
+
+		// Note: The default reverse proxy handles X-Forwarded-For etc. automatically.
+		// We mostly just need to ensure req.Host is correct.
+		// The original ctx.Request.URL path should be preserved by default director.
+	}
+
+	// Optional: Modify response *before* sending to client (e.g., remove headers)
+	/*
+		proxy.ModifyResponse = func(resp *http.Response) error {
+			// Example: Remove a header sent by the target
+			// resp.Header.Del("X-Powered-By")
+			return nil
+		}
+	*/
+
+	// Optional: Custom error handling
+	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
+		fmt.Printf("Reverse proxy error for %s to %s: %v\n", shortCode, route.TargetURL, err)
+		rw.WriteHeader(http.StatusBadGateway)
+		// Avoid writing detailed errors to the client unless necessary
+		// rw.Write([]byte("Proxy error"))
+	}
+
+	// 10. Serve the request using the proxy
+	// This forwards the request (method, headers, body) to the targetURL
+	// and streams the response back to the original client (ctx.Writer).
+	fmt.Printf("Proxying request for %s to %s\n", shortCode, route.TargetURL)
+	proxy.ServeHTTP(ctx.Writer, ctx.Request)
+
+	// --- END Reverse Proxy ---
+
+	// Remove the old redirect logic
+	// ctx.Redirect(http.StatusFound, route.TargetURL)
 }
 
 // Helper function to copy headers, excluding hop-by-hop headers - REMOVED (No longer needed for redirect)
@@ -193,7 +254,7 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(ctx *gin.Context) {
 			"payment_count": route.PaymentCount,
 			"access_count":  route.AccessCount,
 			"created_at":    route.CreatedAt,
-			"updated_at":    route.UpdatedAt, // Include updated_at for listing
+			"updated_at":    route.UpdatedAt,
 		}
 	}
 
