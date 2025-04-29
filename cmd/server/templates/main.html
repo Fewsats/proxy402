@@ -16,6 +16,7 @@
             margin: 0 auto; 
             padding: 20px;
             line-height: 1.5;
+            position: relative;
         }
         h1 { color: #333; }
         input, button, select {
@@ -260,6 +261,100 @@
             right: 10px;
             transform: none;
         }
+
+        /* User menu styles */
+        .user-menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+
+        .user-menu-trigger {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 40px;
+            padding: 6px 8px 6px 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: all 0.2s ease;
+        }
+
+        .user-menu-trigger:hover {
+            background: #f9f9f9;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .user-avatar {
+            width: 30px;
+            height: 30px;
+            background: #0066ff;
+            border-radius: 50%;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 15px;
+            text-transform: uppercase;
+        }
+
+        .user-menu-dropdown {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            min-width: 180px;
+            display: none;
+            z-index: 101;
+            overflow: hidden;
+        }
+
+        .user-menu-dropdown.show {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-menu-item {
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: #333;
+            transition: background 0.15s ease;
+        }
+
+        .user-menu-item:hover {
+            background: #f5f7fa;
+        }
+
+        .user-menu-item i {
+            color: #444;
+        }
+
+        .user-email-display {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            color: #666;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: #f9f9f9;
+        }
     </style>
 </head>
 <body>
@@ -279,10 +374,23 @@
         <a href="/auth/login" class="login-btn">Login with Google</a>
     </div>
     
+    <!-- User menu for authenticated users -->
+    <div class="user-menu" {{if not .user}}style="display:none"{{end}}>
+        <div class="user-menu-trigger" id="user-menu-trigger">
+            <div class="user-avatar">{{if .user}}{{slice .user.email 0 1 }}{{end}}</div>
+            <i data-lucide="chevron-down" width="16" height="16"></i>
+        </div>
+        <div class="user-menu-dropdown" id="user-menu-dropdown">
+            <div class="user-email-display" id="user-email-display">{{.user.email}}</div>
+            <a href="/logout" class="user-menu-item">
+                <i data-lucide="log-out" width="16" height="16"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+    
     <!-- Authenticated state -->
     <div id="auth-section" {{if not .user}}style="display:none"{{end}}>
-        <p>Welcome back, <span id="user-email">{{.user.email}}</span> | <a href="/logout">Logout</a></p>
-        
         <!-- Link creation form -->
         <div class="create-link">
             <!-- Error message container -->
@@ -487,8 +595,26 @@
             }
         });
 
-        // Initialize Lucide icons when the document loads
+        // User menu toggle
         document.addEventListener('DOMContentLoaded', function() {
+            const trigger = document.getElementById('user-menu-trigger');
+            const dropdown = document.getElementById('user-menu-dropdown');
+            
+            if (trigger && dropdown) {
+                trigger.addEventListener('click', function(e) {
+                    dropdown.classList.toggle('show');
+                    e.stopPropagation();
+                });
+                
+                // Close when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+                        dropdown.classList.remove('show');
+                    }
+                });
+            }
+            
+            // Initialize Lucide icons
             lucide.createIcons();
         });
     </script>
