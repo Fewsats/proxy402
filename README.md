@@ -1,26 +1,28 @@
-# LinkShrink URL Shortener
+# LinkShrink - Paid API Proxy Service
 
-LinkShrink is a simple URL shortening service written in Go. It allows registered users to create short links that redirect to original URLs. The service uses PostgreSQL to store user and link data, and JWT for user authentication.
+LinkShrink acts as a configurable, paid proxy for other API endpoints. Registered users can define routes consisting of a target URL, HTTP method, and a price. Accessing the generated short link for a route requires an L402 payment (verification currently pending implementation) before the request is proxied to the target URL.
+
+The service uses Go, Gin, PostgreSQL (with GORM), and JWT for authentication.
 
 ## Features
 
-*   User registration and login
-*   JWT-based authentication for protected endpoints
-*   URL shortening (`/shrink` endpoint)
-*   Redirection from short code to original URL (`/:shortCode` endpoint)
-*   Link expiration (optional)
-*   Visit count tracking
-*   List user's links (`/links` endpoint)
-*   Delete user's links (`/links/:linkID` endpoint)
+*   User registration (`POST /register`) and login (`POST /login`).
+*   JWT-based authentication for protected endpoints.
+*   **Paid Route Creation:** Define target endpoints with associated methods and prices (`POST /links/shrink`).
+*   **Proxying:** Requests to `/<shortCode>` are proxied to the configured target URL and method.
+*   **Payment Enforcement (TODO):** Intended to verify L402 payments via a facilitator before proxying.
+*   **Payment Count Tracking:** Tracks the number of successful accesses/payments for each route.
+*   **Route Management:** List (`GET /links`) and delete (`DELETE /links/:linkID`) configured routes.
 
 ## Tech Stack
 
-*   **Language:** Go
+*   **Language:** Go (1.23.3)
 *   **Web Framework:** Gin Gonic
 *   **Database:** PostgreSQL
 *   **ORM:** GORM
 *   **Authentication:** JWT (golang-jwt/jwt)
 *   **Password Hashing:** bcrypt
+*   **Payment Protocol (Partial):** L402 (using vendored code from `github.com/coinbase/x402`)
 *   **Containerization:** Docker & Docker Compose
 
 ## Local Setup & Running (Docker)
@@ -41,12 +43,14 @@ This project uses Docker Compose to simplify local development and testing.
     ```
 
 2.  **Create Environment File:**
-    Copy the example environment file and **edit it to set a secure `JWT_SECRET`**.
+    Copy the example environment file and edit it.
     ```bash
     cp .env.example .env
     nano .env # Or use your preferred editor
     ```
-    *Important:* Change `JWT_SECRET` to a long, random, and secure string. You can also adjust database credentials or ports if needed, but the defaults work with the `docker-compose.yml` setup.
+    *   **Crucial:** Set a secure `JWT_SECRET`.
+    *   **Crucial:** Set `X402_PAYMENT_ADDRESS` to your wallet address where payments should be sent.
+    *   You can adjust `X402_PRICE` (default crypto amount for `/links/shrink`), `X402_FACILITATOR_URL`, database credentials, or ports if needed. Defaults work with Docker Compose host networking.
 
 3.  **Build and Run:**
     Use Docker Compose to build the application image and start the application and database containers.
@@ -54,10 +58,10 @@ This project uses Docker Compose to simplify local development and testing.
     docker compose build
     docker compose up -d # -d runs the containers in detached mode (background)
     ```
-    The application should now be running and accessible, typically at `http://localhost:8080` (or the `APP_PORT` you specified in `.env`).
+    *   **Note:** This setup uses `network_mode: host`. Ensure ports `5432` and `8080` (or `APP_PORT`) are free on your host machine.
+    *   The application should be accessible at `http://localhost:8080`.
 
 4.  **View Logs (Optional):**
-    If you ran with `-d`, you can view the logs:
     ```bash
     docker compose logs -f app # View application logs
     docker compose logs -f db  # View database logs
@@ -71,11 +75,28 @@ This project uses Docker Compose to simplify local development and testing.
 
 ## API Usage
 
-Once the service is running, you can interact with it using tools like `curl`, Postman, or Insomnia.
-
 *   **Register:** `POST /register` (Body: `{"username": "user", "password": "pass"}`)
 *   **Login:** `POST /login` (Body: `{"username": "user", "password": "pass"}`) -> Returns a JWT token.
-*   **Shrink URL:** `POST /shrink` (Requires `Authorization: Bearer <token>` header. Body: `{"original_url": "https://example.com"}`)
-*   **Redirect:** `GET /<shortCode>` (e.g., `GET /aBc1De2`)
-*   **Get User Links:** `GET /links` (Requires `Authorization: Bearer <token>` header)
-*   **Delete Link:** `DELETE /links/<linkID>` (Requires `Authorization: Bearer <token>` header)
+
+*   **(Authenticated)** **Create Paid Route:** `POST /links/shrink`
+    *   Requires `Authorization: Bearer <token>` header.
+    *   Body: `{"target_url": "https://api.example.com/data", "method": "POST", "price": "0.00001"}`
+    *   Returns details of the created route including `short_code` and `access_url`.
+
+*   **(Authenticated)** **List Paid Routes:** `GET /links`
+    *   Requires `Authorization: Bearer <token>` header.
+    *   Returns a list of routes created by the user.
+
+*   **(Authenticated)** **Delete Paid Route:** `DELETE /links/:linkID`
+    *   Requires `Authorization: Bearer <token>` header.
+    *   Deletes the route with the specified ID (if owned by the user).
+
+*   **Access Paid Route:** `ANY /<shortCode>` (e.g., `POST /aBc1De2`)
+    *   Requires appropriate L402 payment header (`Authorization: L402 ...` or legacy `X-PAYMENT`) - **Verification logic is currently placeholder/incomplete.**
+    *   If payment is valid (or verification skipped), proxies the request (method, headers, body) to the configured `target_url`.
+    *   Returns the response from the target service.
+
+## Development Notes
+
+*   The core payment verification logic in `internal/api/handlers/paid_route_handler.go` (`HandlePaidRoute`) and the L402 token parsing/handling in `internal/x402/middleware.go` (`VerifyX402Payment`) need implementation.
+*   The current implementation assumes the `price` stored for a route is the direct crypto amount (e.g., ETH). Real-world use might require conversion from other currencies (e.g., USD) using an oracle/price feed.

@@ -3,7 +3,7 @@ module linkshrink
 go 1.23.3
 
 require (
-	github.com/coinbase/x402 v0.0.0-20250410214130-922a3089a71a
+	// github.com/coinbase/x402/go v0.0.0-20250428220849-b157b587b932
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/joho/godotenv v1.5.1
@@ -48,4 +48,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/coinbase/x402 => /tmp/x402/packages/go/x402
+// replace github.com/coinbase/x402 => /tmp/x402/go

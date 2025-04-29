@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	x402gin "github.com/coinbase/x402/pkg/x402/gin" // Comment out original import
+	// x402gin "github.com/coinbase/x402/go/pkg/gin" // Comment out original import
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/internal/api/handlers"
@@ -11,6 +11,7 @@ import (
 	"linkshrink/internal/config"
 	"linkshrink/internal/core/services"
 	"linkshrink/internal/store"
+	// No longer importing x402 directly here
 )
 
 func main() {
@@ -23,15 +24,15 @@ func main() {
 
 	// Create stores
 	userStore := store.NewUserStore(db)
-	linkStore := store.NewLinkStore(db)
+	paidRouteStore := store.NewPaidRouteStore(db) // Add PaidRouteStore
 
 	// Create services
 	userService := services.NewUserService(userStore)
-	linkService := services.NewLinkService(linkStore)
+	paidRouteService := services.NewPaidRouteService(paidRouteStore) // Add PaidRouteService
 
 	// Create handlers
 	userHandler := handlers.NewUserHandler(userService)
-	linkHandler := handlers.NewLinkHandler(linkService)
+	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService) // Add PaidRouteHandler
 
 	// Setup Gin router
 	router := gin.Default() // Includes Logger and Recovery middleware
@@ -39,28 +40,27 @@ func main() {
 	// Public routes
 	router.POST("/register", userHandler.Register)
 	router.POST("/login", userHandler.Login)
-	router.GET("/:shortCode", linkHandler.RedirectLink) // Matches any path at the root
+
+	// --- Paid Route Proxy ---
+	// This route handles all methods for the dynamic short codes
+	router.Any("/:shortCode", paidRouteHandler.HandlePaidRoute)
 
 	// Group routes that require authentication
 	authRequired := router.Group("/")
 	authRequired.Use(middleware.AuthMiddleware())
 	{
+		// Original /shrink endpoint for simple link shortening (kept for now?)
+		// Consider if this is still needed or if everything should be a paid route.
+		// Rerouting /links/shrink to create a PaidRoute instead of a standard Link
+		authRequired.POST("/links/shrink", paidRouteHandler.CreatePaidRouteHandler)
 
-		authRequired.POST("/shrink",
-			x402gin.PaymentMiddleware( // Assuming PaymentMiddleware is here
-				config.AppConfig.X402Price,
-				config.AppConfig.X402PaymentAddress,
-				x402gin.WithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
-				x402gin.WithResource(config.AppConfig.X402ResourceURL),
-			),
-			linkHandler.CreateLink, // Then the actual handler
-		)
-
-		// User-specific link management
-		linksGroup := authRequired.Group("/links")
+		// User-specific link management (standard links)
+		// These might become obsolete if only PaidRoutes are used
+		// Renaming group to /routes might be clearer, but keeping /links for now.
+		linksGroup := authRequired.Group("/links") // Or rename to "/routes"?
 		{
-			linksGroup.GET("", linkHandler.GetUserLinks)          // Get all links for the user
-			linksGroup.DELETE("/:linkID", linkHandler.DeleteLink) // Delete a specific link
+			linksGroup.GET("", paidRouteHandler.GetUserPaidRoutes)
+			linksGroup.DELETE("/:linkID", paidRouteHandler.DeleteUserPaidRoute) // Note: Param is still :linkID
 		}
 	}
 
