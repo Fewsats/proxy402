@@ -25,10 +25,8 @@ type Config struct {
 	JWTExpirationHours time.Duration
 
 	// x402 Config
-	X402Price          *big.Float
 	X402PaymentAddress string
 	X402FacilitatorURL string
-	X402ResourceURL    string
 
 	// OAuth Config
 	GoogleOAuth *oauth2.Config
@@ -53,10 +51,8 @@ func LoadConfig() {
 		JWTExpirationHours: getEnvDuration("JWT_EXPIRATION_HOURS", 72*time.Hour),
 
 		// Load x402 Config
-		X402Price:          getEnvBigFloatOrFatal("X402_PRICE"),
 		X402PaymentAddress: getEnvOrFatal("X402_PAYMENT_ADDRESS"),
 		X402FacilitatorURL: getEnv("X402_FACILITATOR_URL", "https://x402.org/facilitator"), // Default facilitator
-		X402ResourceURL:    getEnv("X402_RESOURCE_URL", ""),                                // Optional, middleware might detect
 	}
 
 	// Basic validation for essential x402 config

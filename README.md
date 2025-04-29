@@ -49,8 +49,6 @@ This project uses Docker Compose to simplify local development and testing.
     nano .env # Or use your preferred editor
     ```
     *   **Crucial:** Set a secure `JWT_SECRET`.
-    *   **Crucial:** Set `X402_PAYMENT_ADDRESS` to your wallet address where payments should be sent.
-    *   You can adjust `X402_PRICE` (default crypto amount for `/links/shrink`), `X402_FACILITATOR_URL`, database credentials, or ports if needed. Defaults work with Docker Compose host networking.
 
 3.  **Build and Run:**
     Use Docker Compose to build the application image and start the application and database containers.

@@ -15,19 +15,35 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             set -e
-            cd /home/service/linkshrink  # Update this to your server's path
+            cd /home/service/linkshrink
             git pull origin main
             
-
-            # Build and start containers
-            docker-compose build
+            # Build the application with detailed output for debugging
+            echo "Building Docker containers..."
+            docker-compose build --progress=plain app 2>&1 || {
+              echo "⚠️ Build failed! Check the logs above for errors."
+              exit 1
+            }
+            
+            # Stop and restart services
+            echo "Stopping existing containers..."
             docker-compose down
+            
+            echo "Starting containers..."
             docker-compose up -d
             
             # Wait for service to start
+            echo "Waiting for service to start..."
             sleep 10
             
             # Verify service is responding properly
-            timeout 10 curl -s http://localhost:8080/ || (echo "API health check failed" && exit 1)
+            echo "Verifying service is responding..."
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ | grep -q "200"; then
+              echo "✅ Service is running correctly"
+            else
+              echo "❌ Service health check failed"
+              docker-compose logs app
+              exit 1
+            fi
             
-            echo "Deployment successful" 
+            echo "✅ Deployment successful" 

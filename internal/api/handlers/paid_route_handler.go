@@ -113,9 +113,10 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	// --- Payment Verification Step ---
 
 	// 3. Parse route.Price string to *big.Float
-	priceFloat, ok := new(big.Float).SetString(route.Price)
+	// Convert int64 price to string and then to *big.Float
+	priceFloat, ok := new(big.Float).SetString(strconv.FormatInt(route.Price, 10))
 	if !ok {
-		ctx.Error(fmt.Errorf("invalid price format stored for route %s: %s", shortCode, route.Price))
+		ctx.Error(fmt.Errorf("invalid price format stored for route %s: %d", shortCode, route.Price))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route price."})
 		return
 	}
