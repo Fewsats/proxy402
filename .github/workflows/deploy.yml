@@ -7,28 +7,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy to server
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Build binary
+        run: |
+          go build -o linkshrink-${{ github.sha }} .
+          
+      - name: Copy binary to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "linkshrink-${{ github.sha }}"
+          target: "/home/service/linkshrink/bin"
+          
+      - name: Deploy on server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            set -e
-            cd /home/service/linkshrink 
-            git fetch origin main
-            git reset --hard origin/main
+            cd /home/service/linkshrink
             
-
-            # Build and start containers
-            docker compose build
-            docker compose down
-            docker compose up -d
+            # Make the new binary executable
+            chmod +x bin/linkshrink-${{ github.sha }}
+            
+            # Create/update symlink to new binary
+            ln -sf bin/linkshrink-${{ github.sha }} bin/linkshrink
+            
+            # Restart the service (assuming systemd service exists)
+            sudo systemctl restart linkshrink.service
+            
+            # Check service status
+            sudo systemctl status linkshrink.service --no-pager
+            
+            # Verify service is active (will exit with non-zero if not active)
+            sudo systemctl is-active --quiet linkshrink.service || (echo "Service failed to start" && exit 1)
             
             # Wait for service to start
-            sleep 10
+            sleep 5
             
-            # Verify service is responding properly
-            timeout 10 curl -s http://localhost:5302/ || (echo "API health check failed" && exit 1)
+            # Verify service is responding properly and DB is healthy
+            timeout 10 curl -s http://localhost:8089/health | grep -q '"status":"ok"' || (echo "Health check failed" && exit 1)
             
             echo "Deployment successful" 

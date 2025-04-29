@@ -42,6 +42,22 @@ func main() {
 	// Setup Gin router
 	router := gin.Default() // Includes Logger and Recovery middleware
 
+	// Health endpoint
+	router.GET("/health", func(c *gin.Context) {
+		sqlDB, err := db.DB()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Database connection error"})
+			return
+		}
+
+		if err := sqlDB.Ping(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Failed to ping database"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Service is healthy"})
+	})
+
 	// Set up UI routes
 	uiHandler.SetupRoutes(router)
 
