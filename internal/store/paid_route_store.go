@@ -2,11 +2,15 @@ package store
 
 import (
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
 	"linkshrink/internal/core/models"
 )
+
+// ErrRouteNotFound is returned when a route is not found.
+var ErrRouteNotFound = errors.New("route not found")
 
 // PaidRouteStore defines methods for interacting with paid route data.
 type PaidRouteStore struct {
@@ -83,6 +87,38 @@ func (s *PaidRouteStore) Delete(routeID uint, userID uint) error {
 	if result.RowsAffected == 0 {
 		// Either the route doesn't exist, or the user doesn't own it
 		return gorm.ErrRecordNotFound // Or a more specific permission error
+	}
+	return nil
+}
+
+// IncrementAttemptCount increments the attempt_count for a route identified by shortCode.
+func (s *PaidRouteStore) IncrementAttemptCount(shortCode string) error {
+	result := s.db.Model(&models.PaidRoute{}).
+		Where("short_code = ?", shortCode).
+		UpdateColumn("attempt_count", gorm.Expr("attempt_count + 1"))
+
+	if result.Error != nil {
+		return fmt.Errorf("db error incrementing attempt count for %s: %w", shortCode, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		// Use the defined error
+		return fmt.Errorf("route %s not found or no change needed for attempt count: %w", shortCode, ErrRouteNotFound)
+	}
+	return nil
+}
+
+// IncrementAccessCount increments the access_count for a route identified by shortCode.
+func (s *PaidRouteStore) IncrementAccessCount(shortCode string) error {
+	result := s.db.Model(&models.PaidRoute{}).
+		Where("short_code = ?", shortCode).
+		UpdateColumn("access_count", gorm.Expr("access_count + 1"))
+
+	if result.Error != nil {
+		return fmt.Errorf("db error incrementing access count for %s: %w", shortCode, result.Error)
+	}
+	if result.RowsAffected == 0 {
+		// Use the defined error
+		return fmt.Errorf("route %s not found or no change needed for access count: %w", shortCode, ErrRouteNotFound)
 	}
 	return nil
 }

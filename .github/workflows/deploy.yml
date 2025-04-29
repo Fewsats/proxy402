@@ -15,7 +15,7 @@ jobs:
           
       - name: Build binary
         run: |
-          go build -o linkshrink-${{ github.sha }} .
+          go build -o linkshrink-${{ github.sha }} ./cmd/server
           
       - name: Copy binary to server
         uses: appleboy/scp-action@master

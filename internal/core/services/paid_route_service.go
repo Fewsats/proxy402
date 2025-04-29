@@ -108,18 +108,47 @@ func (s *PaidRouteService) FindEnabledRouteByShortCode(shortCode string) (*model
 	return route, nil
 }
 
-// IncrementPaymentCount attempts to increment the count for a given short code.
-// It ignores not found errors, as the route might have been disabled/deleted.
-func (s *PaidRouteService) IncrementPaymentCount(shortCode string) {
-	// Best effort: ignore error if record not found or already disabled
+// IncrementPaymentCount increments the payment count for a given short code.
+func (s *PaidRouteService) IncrementPaymentCount(shortCode string) error {
+	// Delegate to the store layer
 	err := s.routeStore.IncrementPaymentCount(shortCode)
-	if err != nil && !errors.Is(err, errors.New("record not found")) { // Check for gorm.ErrRecordNotFound maybe?
-		// Log other errors if needed
-		fmt.Printf("Error incrementing payment count for %s: %v\n", shortCode, err)
+	if err != nil {
+		// Handle specific errors like not found if needed, otherwise wrap
+		if errors.Is(err, store.ErrRouteNotFound) { // Assuming store defines ErrRouteNotFound
+			return fmt.Errorf("cannot increment payment count, route %s not found: %w", shortCode, err)
+		}
+		return fmt.Errorf("failed to increment payment count for %s: %w", shortCode, err)
 	}
+	return nil
 }
 
-// ListUserRoutes retrieves all paid routes for a specific user.
+// IncrementAttemptCount increments the attempt count for a given short code.
+func (s *PaidRouteService) IncrementAttemptCount(shortCode string) error {
+	// Delegate to the store layer
+	err := s.routeStore.IncrementAttemptCount(shortCode)
+	if err != nil {
+		if errors.Is(err, store.ErrRouteNotFound) { // Assuming store defines ErrRouteNotFound
+			return fmt.Errorf("cannot increment attempt count, route %s not found: %w", shortCode, err)
+		}
+		return fmt.Errorf("failed to increment attempt count for %s: %w", shortCode, err)
+	}
+	return nil
+}
+
+// IncrementAccessCount increments the access count for a given short code.
+func (s *PaidRouteService) IncrementAccessCount(shortCode string) error {
+	// Delegate to the store layer
+	err := s.routeStore.IncrementAccessCount(shortCode)
+	if err != nil {
+		if errors.Is(err, store.ErrRouteNotFound) { // Assuming store defines ErrRouteNotFound
+			return fmt.Errorf("cannot increment access count, route %s not found: %w", shortCode, err)
+		}
+		return fmt.Errorf("failed to increment access count for %s: %w", shortCode, err)
+	}
+	return nil
+}
+
+// ListUserRoutes retrieves all routes associated with a specific user ID.
 func (s *PaidRouteService) ListUserRoutes(userID uint) ([]models.PaidRoute, error) {
 	return s.routeStore.ListByUserID(userID)
 }
