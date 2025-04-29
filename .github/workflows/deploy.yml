@@ -33,27 +33,28 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
+            set -e
             cd /home/service/linkshrink
             
             # Make the new binary executable
             chmod +x bin/linkshrink-${{ github.sha }}
             
             # Create/update symlink to new binary
-            ln -sf bin/linkshrink-${{ github.sha }} bin/linkshrink
+            ln -sf /home/service/linkshrink/bin/linkshrink-${{ github.sha }} /home/service/linkshrink/bin/linkshrink
             
-            # Restart the service (assuming systemd service exists)
-            sudo systemctl restart linkshrink.service
+            # Restart the service
+            systemctl --user restart linkshrink.service
             
             # Check service status
-            sudo systemctl status linkshrink.service --no-pager
+            systemctl --user status linkshrink.service --no-pager
             
-            # Verify service is active (will exit with non-zero if not active)
-            sudo systemctl is-active --quiet linkshrink.service || (echo "Service failed to start" && exit 1)
+            # Verify service is active
+            systemctl --user is-active --quiet linkshrink.service || { echo "Service failed to start"; exit 1; }
             
             # Wait for service to start
             sleep 5
             
-            # Verify service is responding properly and DB is healthy
-            timeout 10 curl -s http://localhost:8089/health | grep -q '"status":"ok"' || (echo "Health check failed" && exit 1)
+            # Verify service is responding
+            timeout 10 curl -s http://localhost:8089/health | grep -q '"status":"ok"' || { echo "Health check failed"; exit 1; }
             
             echo "Deployment successful" 
