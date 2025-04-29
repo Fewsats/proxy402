@@ -98,9 +98,19 @@ func main() {
 			}
 		}
 
+		// Get the scheme and host for generating full URLs
+		scheme := "http"
+		if c.Request.TLS != nil {
+			scheme = "https"
+		}
+		host := c.Request.Host
+		baseURL := scheme + "://" + host
+
 		c.HTML(http.StatusOK, "main.html", gin.H{
-			"user":  user,
-			"links": links,
+			"user":    user,
+			"links":   links,
+			"host":    host,
+			"baseURL": baseURL,
 		})
 	})
 

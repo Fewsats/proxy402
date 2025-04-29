@@ -10,7 +10,7 @@
     <style>
         body { 
             font-family: system-ui, -apple-system, sans-serif; 
-            max-width: 800px; 
+            max-width: 1200px; 
             margin: 0 auto; 
             padding: 20px;
             line-height: 1.5;
@@ -77,6 +77,113 @@
         .url-input {
             flex-grow: 1;
         }
+        .htmx-indicator {
+            display: none;
+            animation: spin 1s linear infinite;
+        }
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+        @keyframes spin {
+            from {transform:rotate(0deg);}
+            to {transform:rotate(360deg);}
+        }
+        .form-group {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .form-group label {
+            width: 120px;
+            margin-right: 10px;
+            text-align: right;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select {
+            flex-grow: 1;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-row label {
+            margin-right: 5px;
+            white-space: nowrap;
+        }
+        
+        .url-input {
+            flex: 2;
+            min-width: 200px;
+        }
+        
+        .price-input {
+            width: 100px;
+        }
+        
+        #method-select {
+            width: 150px;
+        }
+        
+        .add-btn {
+            margin-left: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-row label {
+                margin-bottom: 5px;
+            }
+            
+            .url-input, .price-input, #method-select, .add-btn {
+                width: 100%;
+            }
+        }
+        
+        .short-url-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .copy-btn {
+            background: none;
+            border: none;
+            color: #0066ff;
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .copy-btn:hover {
+            background: #eee;
+        }
+        
+        .copy-success {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        
+        .copy-success.show {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -102,21 +209,34 @@
         
         <!-- Link creation form -->
         <div class="create-link">
+            <!-- Error message container -->
+            <div id="form-error" class="error"></div>
+            
             <form id="link-form" class="url-form"
                 hx-post="/links/shrink"
                 hx-ext="json-enc"
-                hx-swap="none"
-                hx-on::after-request="this.reset(); location.reload();">
+                hx-indicator="#spinner">
                 
-                <input type="url" name="target_url" placeholder="URL to monetize" required class="url-input">
-                <input type="text" name="price" placeholder="Price" required>
-                <select name="method" required>
-                    <option value="">Select an option</option>
-                    <option value="GET">GET</option>
-                    <option value="PUT">PUT</option>
-                    <option value="POST">POST</option>
-                </select>
-                <button type="submit">Add URL</button>
+                <div class="form-row">
+                    <label for="target-url">URL to Monetize</label>
+                    <input type="url" id="target-url" name="target_url" placeholder="https://example.com" required class="url-input" 
+                           title="The URL you want to monetize">
+                           
+                    <label for="price-input">Price (USDC)</label>
+                    <input type="text" id="price-input" name="price" placeholder="1.0" required 
+                           pattern="[0-9]*\.?[0-9]+" title="Enter price in USDC (e.g., 1.0)" class="price-input">
+                           
+                    <label for="method-select">HTTP Method</label>
+                    <select id="method-select" name="method" required title="The HTTP method clients will use to access this URL">
+                        <option value="GET">GET</option>
+                        <option value="PUT">PUT</option>
+                        <option value="POST">POST</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                    </select> 
+                    
+                    <button type="submit" title="Create a monetized link" class="add-btn">Add URL <span id="spinner" class="htmx-indicator">↻</span></button>
+                </div>
             </form>
         </div>
         
@@ -138,7 +258,17 @@
                         {{range .links}}
                         <tr>
                             <td>{{.TargetURL}}</td>
-                            <td><a href="/{{.ShortCode}}" target="_blank">/{{.ShortCode}}</a></td>
+                            <td>
+                                <div class="short-url-container">
+                                    <a href="/{{.ShortCode}}" target="_blank">{{$.baseURL}}/{{.ShortCode}}</a>
+                                    <button class="copy-btn" title="Copy URL" data-url="{{$.baseURL}}/{{.ShortCode}}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
                             <td>{{.Method}}</td>
                             <td>${{.Price}}</td>
                             <td>{{.PaymentCount}}</td>
@@ -158,5 +288,99 @@
             {{end}}
         </div>
     </div>
+
+    <script>
+        // Handle form submission success and errors
+        document.body.addEventListener('htmx:afterRequest', function(event) {
+            const form = document.getElementById('link-form');
+            const errorDiv = document.getElementById('form-error');
+            
+            // Only process events from our form
+            if (event.detail.elt !== form) return;
+            
+            if (event.detail.successful) {
+                // Clear any previous errors
+                errorDiv.textContent = '';
+                
+                // Reset the form and reload on success
+                form.reset();
+                window.location.reload();
+            } else {
+                // Handle error response
+                try {
+                    // Try to parse JSON error
+                    const response = JSON.parse(event.detail.xhr.responseText);
+                    if (response && response.error) {
+                        errorDiv.textContent = response.error;
+                    } else {
+                        errorDiv.textContent = 'An error occurred';
+                    }
+                } catch (e) {
+                    // If not JSON, display the raw response text
+                    errorDiv.textContent = event.detail.xhr.responseText || 'An error occurred';
+                }
+            }
+        });
+        
+        // Also handle delete button errors
+        document.body.addEventListener('htmx:responseError', function(event) {
+            const errorMessage = event.detail.xhr.status === 0 
+                ? 'Connection error' 
+                : event.detail.xhr.responseText;
+                
+            if (event.detail.elt && event.detail.elt.matches('button.delete-btn')) {
+                try {
+                    const json = JSON.parse(errorMessage);
+                    alert(json.error || 'Failed to delete item');
+                } catch (e) {
+                    alert(errorMessage || 'Failed to delete item');
+                }
+            }
+        });
+        
+        // Add clipboard functionality to copy buttons
+        document.addEventListener('click', async function(e) {
+            if (!e.target.closest('.copy-btn')) return;
+            
+            const button = e.target.closest('.copy-btn');
+            const url = button.getAttribute('data-url');
+            
+            try {
+                // Use the modern Clipboard API when available
+                if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(url);
+                } else {
+                    // Fallback to older method
+                    const tempInput = document.createElement('input');
+                    tempInput.value = url;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                }
+                
+                // Show success message
+                const message = document.createElement('span');
+                message.classList.add('copy-success');
+                message.textContent = 'Copied!';
+                button.appendChild(message);
+                
+                // Position the message
+                const rect = button.getBoundingClientRect();
+                message.style.top = `${rect.height}px`;
+                message.style.left = '50%';
+                message.style.transform = 'translateX(-50%)';
+                
+                // Show then hide the message
+                setTimeout(() => message.classList.add('show'), 10);
+                setTimeout(() => {
+                    message.classList.remove('show');
+                    setTimeout(() => button.removeChild(message), 300);
+                }, 2000);
+            } catch (error) {
+                console.error('Failed to copy:', error);
+            }
+        });
+    </script>
 </body>
 </html> 
