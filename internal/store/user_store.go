@@ -24,20 +24,6 @@ func (s *UserStore) Create(user *models.User) error {
 	return result.Error
 }
 
-// FindByUsername retrieves a user by their username.
-// Returns gorm.ErrRecordNotFound if the user doesn't exist.
-func (s *UserStore) FindByUsername(username string) (*models.User, error) {
-	var user models.User
-	result := s.db.Where("username = ?", username).First(&user)
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, gorm.ErrRecordNotFound
-		}
-		return nil, result.Error // Return other potential errors
-	}
-	return &user, nil
-}
-
 // FindByID retrieves a user by their ID.
 // Returns gorm.ErrRecordNotFound if the user doesn't exist.
 func (s *UserStore) FindByID(id uint) (*models.User, error) {
@@ -50,4 +36,24 @@ func (s *UserStore) FindByID(id uint) (*models.User, error) {
 		return nil, result.Error
 	}
 	return &user, nil
+}
+
+// FindByGoogleID retrieves a user by their Google ID.
+// Returns gorm.ErrRecordNotFound if the user doesn't exist.
+func (s *UserStore) FindByGoogleID(googleID string) (*models.User, error) {
+	var user models.User
+	result := s.db.Where("google_id = ?", googleID).First(&user)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+// Update updates a user in the database.
+func (s *UserStore) Update(user *models.User) error {
+	result := s.db.Save(user)
+	return result.Error
 }

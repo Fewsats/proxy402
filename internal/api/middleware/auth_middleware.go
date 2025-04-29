@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -10,41 +9,48 @@ import (
 )
 
 const (
-	AuthorizationHeaderKey  = "Authorization"
-	AuthorizationTypeBearer = "Bearer"
 	AuthorizationPayloadKey = "authorization_payload"
+	UserKey                 = "user"
+	JWTCookie               = "jwt"
 )
 
 // AuthMiddleware creates a Gin middleware for JWT authentication.
 func AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		authorizationHeader := ctx.GetHeader(AuthorizationHeaderKey)
-		if len(authorizationHeader) == 0 {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is not provided"})
+		// Get JWT from cookie
+		token, err := ctx.Cookie(JWTCookie)
+
+		// For root path, render without user data if no valid token
+		if err != nil || token == "" {
+			if ctx.FullPath() == "/" {
+				ctx.Next()
+				return
+			}
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
 		}
 
-		fields := strings.Fields(authorizationHeader)
-		if len(fields) < 2 {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
-			return
-		}
-
-		authorizationType := fields[0]
-		if authorizationType != AuthorizationTypeBearer {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unsupported authorization type"})
-			return
-		}
-
-		accessToken := fields[1]
-		payload, err := auth.ValidateJWT(accessToken)
+		// Validate the token
+		claims, err := auth.ValidateJWT(token)
 		if err != nil {
+			// Clear invalid cookie
+			ctx.SetCookie(JWTCookie, "", -1, "/", "", false, true)
+
+			if ctx.FullPath() == "/" {
+				ctx.Next()
+				return
+			}
+
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
 
-		// Set the payload in the context for downstream handlers
-		ctx.Set(AuthorizationPayloadKey, payload)
+		// Set user info in the context for downstream handlers
+		ctx.Set(AuthorizationPayloadKey, claims)
+		ctx.Set(UserKey, gin.H{
+			"id":    claims.UserID,
+			"email": claims.Email,
+		})
 		ctx.Next()
 	}
 }

@@ -32,7 +32,8 @@ WORKDIR /app
 COPY --from=builder /app/linkshrink .
 
 # Copy potentially needed non-code files (e.g., .env, templates - adjust as needed)
-# COPY .env .
+COPY .env .
+COPY templates/ /app/templates/
 
 # Expose port 8080 to the outside world
 EXPOSE 8080

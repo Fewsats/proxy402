@@ -6,7 +6,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"linkshrink/internal/auth"
 	"linkshrink/internal/core/models"
 	"linkshrink/internal/store"
 )
@@ -21,54 +20,41 @@ func NewUserService(userStore *store.UserStore) *UserService {
 	return &UserService{userStore: userStore}
 }
 
-// Register creates a new user, hashes their password, and saves them.
-func (s *UserService) Register(username, password string) (*models.User, error) {
-	// Check if username already exists
-	_, err := s.userStore.FindByUsername(username)
+// FindOrCreateUser finds a user by Google ID or creates a new one.
+func (s *UserService) FindOrCreateUser(email, name, googleID string) (*models.User, error) {
+	// Try to find user by Google ID
+	user, err := s.userStore.FindByGoogleID(googleID)
 	if err == nil {
-		// User found, username is taken
-		return nil, errors.New("username already taken")
+		// User found, return it
+		return user, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		// A different error occurred during lookup
-		return nil, fmt.Errorf("error checking username: %w", err)
+		return nil, fmt.Errorf("error checking Google user: %w", err)
 	}
-	// User not found, proceed with registration
 
-	hashedPassword, err := auth.HashPassword(password)
+	// User not found, create a new one
+	newUser := &models.User{
+		Email:    email,
+		Name:     name,
+		GoogleID: googleID,
+	}
+
+	err = s.userStore.Create(newUser)
 	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
-	}
-
-	user := &models.User{
-		Username: username,
-		Password: hashedPassword,
-	}
-
-	if err := s.userStore.Create(user); err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
-	return user, nil
+	return newUser, nil
 }
 
-// Login authenticates a user and generates a JWT if successful.
-func (s *UserService) Login(username, password string) (string, error) {
-	user, err := s.userStore.FindByUsername(username)
+// GetUserByID retrieves a user by their ID.
+func (s *UserService) GetUserByID(userID uint) (*models.User, error) {
+	user, err := s.userStore.FindByID(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", errors.New("invalid username or password")
+			return nil, fmt.Errorf("user not found")
 		}
-		return "", fmt.Errorf("error finding user: %w", err)
+		return nil, fmt.Errorf("error finding user: %w", err)
 	}
-
-	if !auth.CheckPasswordHash(password, user.Password) {
-		return "", errors.New("invalid username or password")
-	}
-
-	token, err := auth.GenerateJWT(user.ID, user.Username)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate token: %w", err)
-	}
-
-	return token, nil
+	return user, nil
 }

@@ -1,18 +1,24 @@
 package main
 
 import (
+	"embed"
+	"html/template"
 	"log"
+	"net/http"
 
-	// x402gin "github.com/coinbase/x402/go/pkg/gin" // Comment out original import
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/internal/api/handlers"
 	"linkshrink/internal/api/middleware"
 	"linkshrink/internal/config"
+	"linkshrink/internal/core/models"
 	"linkshrink/internal/core/services"
 	"linkshrink/internal/store"
 	// No longer importing x402 directly here
 )
+
+//go:embed templates
+var templatesFS embed.FS
 
 func main() {
 	// Load configuration
@@ -31,15 +37,16 @@ func main() {
 	paidRouteService := services.NewPaidRouteService(paidRouteStore) // Add PaidRouteService
 
 	// Create handlers
-	userHandler := handlers.NewUserHandler(userService)
+	// userHandler := handlers.NewUserHandler(userService)
+	oauthHandler := handlers.NewOAuthHandler(userService)
+
 	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService) // Add PaidRouteHandler
 
 	// Setup Gin router
 	router := gin.Default() // Includes Logger and Recovery middleware
 
 	// Public routes
-	router.POST("/register", userHandler.Register)
-	router.POST("/login", userHandler.Login)
+	// TODO probably remove these
 
 	// --- Paid Route Proxy ---
 	// This route handles all methods for the dynamic short codes
@@ -63,6 +70,48 @@ func main() {
 			linksGroup.DELETE("/:linkID", paidRouteHandler.DeleteUserPaidRoute) // Note: Param is still :linkID
 		}
 	}
+
+	// Parse HTML templates
+	tmpl, err := template.ParseFS(templatesFS, "templates/*.html")
+	if err != nil {
+		log.Fatalf("failed to parse HTML templates: %v", err)
+	}
+	router.SetHTMLTemplate(tmpl)
+
+	// Main UI route
+	router.GET("/", middleware.AuthMiddleware(), func(c *gin.Context) {
+		// Check if user is authenticated
+		user, exists := c.Get(middleware.UserKey)
+
+		var links []models.PaidRoute
+		var err error
+
+		if exists {
+			// Get user's links if authenticated
+			userID := user.(gin.H)["id"].(uint)
+			links, err = paidRouteService.ListUserRoutes(userID)
+			if err != nil {
+				c.HTML(http.StatusInternalServerError, "main.html", gin.H{
+					"error": "Unable to fetch links",
+				})
+				return
+			}
+		}
+
+		c.HTML(http.StatusOK, "main.html", gin.H{
+			"user":  user,
+			"links": links,
+		})
+	})
+
+	// Logout route
+	router.GET("/logout", func(c *gin.Context) {
+		c.SetCookie("jwt", "", -1, "/", "", false, true)
+		c.Redirect(http.StatusFound, "/")
+	})
+	// OAuth routes
+	router.GET("/auth/login", oauthHandler.Login)
+	router.GET("/auth/callback", oauthHandler.Callback)
 
 	// Start server
 	appPort := ":" + config.AppConfig.AppPort

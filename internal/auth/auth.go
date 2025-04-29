@@ -13,8 +13,8 @@ import (
 
 // Claims defines the structure of the JWT claims.
 type Claims struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
+	UserID uint   `json:"user_id"`
+	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
@@ -30,12 +30,12 @@ func CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-// GenerateJWT creates a new JWT for a given user ID and username.
-func GenerateJWT(userID uint, username string) (string, error) {
+// GenerateJWT creates a new JWT for a given user ID and email.
+func GenerateJWT(userID uint, email string) (string, error) {
 	expirationTime := time.Now().Add(config.AppConfig.JWTExpirationHours)
 	claims := &Claims{
-		UserID:   userID,
-		Username: username,
+		UserID: userID,
+		Email:  email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

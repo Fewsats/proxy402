@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LinkShrink x402</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Include htmx -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            line-height: 1.5;
+        }
+        h1 { color: #333; }
+        input, button, select {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input, select {
+            border: 1px solid #ddd;
+            margin-right: 10px;
+        }
+        button {
+            background: #0066ff;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0052cc;
+        }
+        .login-btn {
+            display: inline-block;
+            background: #4285F4;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: #f8f8f8;
+        }
+        .delete-btn {
+            background: #ff4444;
+            font-size: 12px;
+            padding: 4px 8px;
+        }
+        .error {
+            color: #ff4444;
+            font-weight: bold;
+        }
+        .success {
+            color: #22bb33;
+            font-weight: bold;
+        }
+        .url-form {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .url-input {
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>LinkShrink x402</h1>
+    
+    {{if .error}}
+    <div class="error">{{.error}}</div>
+    {{end}}
+    
+    {{if .message}}
+    <div class="success">{{.message}}</div>
+    {{end}}
+    
+    <!-- Non-authenticated state -->
+    <div id="non-auth-section" {{if .user}}style="display:none"{{end}}>
+        <p>Welcome to LinkShrink. Please log in to create shortened links.</p>
+        <a href="/auth/login" class="login-btn">Login with Google</a>
+    </div>
+    
+    <!-- Authenticated state -->
+    <div id="auth-section" {{if not .user}}style="display:none"{{end}}>
+        <p>Welcome back, <span id="user-email">{{.user.email}}</span> | <a href="/logout">Logout</a></p>
+        
+        <!-- Link creation form -->
+        <div class="create-link">
+            <form id="link-form" class="url-form"
+                hx-post="/links/shrink"
+                hx-ext="json-enc"
+                hx-swap="none"
+                hx-on::after-request="this.reset(); location.reload();">
+                
+                <input type="url" name="target_url" placeholder="URL to monetize" required class="url-input">
+                <input type="text" name="price" placeholder="Price" required>
+                <select name="method" required>
+                    <option value="">Select an option</option>
+                    <option value="GET">GET</option>
+                    <option value="PUT">PUT</option>
+                    <option value="POST">POST</option>
+                </select>
+                <button type="submit">Add URL</button>
+            </form>
+        </div>
+        
+        <!-- User's links -->
+        <div class="user-links">
+            {{if .links}}
+                <table id="links-table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th>Short URL</th>
+                            <th>Method</th>
+                            <th>Price</th>
+                            <th>Access Count</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .links}}
+                        <tr>
+                            <td>{{.TargetURL}}</td>
+                            <td><a href="/{{.ShortCode}}" target="_blank">/{{.ShortCode}}</a></td>
+                            <td>{{.Method}}</td>
+                            <td>${{.Price}}</td>
+                            <td>{{.PaymentCount}}</td>
+                            <td>
+                                <button class="delete-btn"
+                                    hx-delete="/links/{{.ID}}"
+                                    hx-confirm="Are you sure you want to delete this link?"
+                                    hx-swap="outerHTML"
+                                    hx-target="closest tr">🗑️</button>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            {{else}}
+                <p>You don't have any shortened links yet.</p>
+            {{end}}
+        </div>
+    </div>
+</body>
+</html> 

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 // Config holds application configuration values.
@@ -27,6 +29,9 @@ type Config struct {
 	X402PaymentAddress string
 	X402FacilitatorURL string
 	X402ResourceURL    string
+
+	// OAuth Config
+	GoogleOAuth *oauth2.Config
 }
 
 var AppConfig *Config
@@ -57,6 +62,18 @@ func LoadConfig() {
 	// Basic validation for essential x402 config
 	if AppConfig.X402PaymentAddress == "" {
 		log.Fatal("FATAL: X402_PAYMENT_ADDRESS environment variable is not set.")
+	}
+
+	// Initialize Google OAuth config
+	AppConfig.GoogleOAuth = &oauth2.Config{
+		ClientID:     getEnvOrFatal("GOOGLE_CLIENT_ID"),
+		ClientSecret: getEnvOrFatal("GOOGLE_CLIENT_SECRET"),
+		RedirectURL:  getEnvOrFatal("GOOGLE_REDIRECT_URL"),
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
 	}
 
 	log.Println("Configuration loaded.")
