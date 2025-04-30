@@ -297,7 +297,9 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(ctx *gin.Context) {
 		return
 	}
 
-	ctx.Status(http.StatusNoContent) // Success, no content to return
+	// Return 200 OK with empty body instead of 204 No Content
+	// This allows htmx to perform the swap and remove the element
+	ctx.Status(http.StatusOK)
 }
 
 // savePurchaseRecord asynchronously saves a purchase record to the database

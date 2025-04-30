@@ -7,6 +7,8 @@
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <!-- Include Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Add Chart.js for the graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- External CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
     <!-- Custom JS -->
@@ -53,6 +55,32 @@
         {{if .message}}
         <div class="success">{{.message}}</div>
         {{end}}
+
+        <!-- Dashboard Stats Section -->
+        <div class="dashboard-stats" id="dashboard-stats">
+            <div class="stats-container">
+                <!-- Stats Cards -->
+                <div class="stats-card total-earnings">
+                    <div class="card-header">
+                        <h3>Total Earnings</h3>
+                        <i data-lucide="dollar-sign" width="24" height="24"></i>
+                    </div>
+                    <div class="card-value" id="total-earnings-value">
+                        <div class="loading-placeholder">Loading...</div>
+                    </div>
+                </div>
+                
+                <!-- Chart Container -->
+                <div class="stats-chart">
+                    <div class="chart-header">
+                        <h3>Daily Earnings</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="purchases-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Link creation form -->
         <div class="create-link-form">
@@ -162,10 +190,8 @@
                                 <button 
                                     class="delete-btn" 
                                     hx-delete="/links/{{.ID}}"
-                                    hx-headers='{"Content-Type": "application/json"}'
                                     hx-confirm="Are you sure you want to delete this link?"
-                                    hx-target="#links-table"
-                                    hx-trigger="click"
+                                    hx-target="closest tr"
                                     hx-swap="outerHTML">
                                     <i data-lucide="trash-2" width="16" height="16" class="action-icon"></i>
                                 </button>
@@ -190,7 +216,145 @@
         // Initialize Lucide icons
         document.addEventListener("DOMContentLoaded", function() {
             lucide.createIcons();
+            
+            // Fetch dashboard stats
+            fetchDashboardStats();
         });
+        
+        // Function to fetch dashboard stats from API
+        function fetchDashboardStats() {
+            fetch('/dashboard/stats')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch dashboard stats');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Update total earnings
+                    const totalEarnings = formatUSDC(data.total_earnings);
+                    document.getElementById('total-earnings-value').textContent = totalEarnings;
+                    
+                    // Prepare data for chart
+                    const chartData = prepareChartData(data.daily_purchases);
+                    
+                    // Create chart
+                    createPurchasesChart(chartData);
+                })
+                .catch(error => {
+                    console.error('Error fetching dashboard stats:', error);
+                    document.getElementById('total-earnings-value').textContent = '$0.00 USDC';
+                });
+        }
+        
+        // Helper function to format price in USDC
+        function formatUSDC(price) {
+            const value = parseFloat(price) / 1000000;
+            return `$${value.toFixed(2)} USDC`;
+        }
+        
+        // Function to prepare data for the chart
+        function prepareChartData(dailyPurchases) {
+            // Get current date and past 7 days
+            const today = new Date();
+            const dates = [];
+            const earnings = [];
+            
+            // Create an array of the last 7 days (most recent first)
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+                dates.unshift(dateStr); // Add to beginning of array
+                earnings.unshift(0); // Initialize with zero earnings
+            }
+            
+            // Fill in actual earnings data where available
+            if (dailyPurchases && dailyPurchases.length > 0) {
+                // Create a map of date -> earnings
+                const earningsMap = {};
+                dailyPurchases.forEach(day => {
+                    earningsMap[day.date] = day.earnings;
+                });
+                
+                // Update the earnings array with actual data
+                dates.forEach((date, index) => {
+                    if (earningsMap[date]) {
+                        earnings[index] = earningsMap[date] / 1000000; // Convert to USDC
+                    }
+                });
+            }
+            
+            return {
+                labels: dates.map(d => formatDateLabel(d)),
+                datasets: [
+                    {
+                        label: 'Earnings (USDC)',
+                        data: earnings,
+                        backgroundColor: 'rgba(56, 189, 248, 0.5)',
+                        borderColor: 'rgba(56, 189, 248, 1)',
+                        borderWidth: 1,
+                    }
+                ]
+            };
+        }
+        
+        // Helper function to format date label
+        function formatDateLabel(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        
+        // Function to create purchases chart
+        function createPurchasesChart(data) {
+            const ctx = document.getElementById('purchases-chart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Earnings (USDC)'
+                            },
+                            grid: {
+                                color: 'rgba(200, 200, 200, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    return tooltipItems[0].label;
+                                },
+                                label: function(context) {
+                                    return `$${context.raw.toFixed(2)} USDC`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html> 
