@@ -45,6 +45,17 @@ type CreatePaidRouteRequest struct {
 	IsTest    bool   `json:"is_test" binding:"omitempty"`      // Optional, defaults to true if omitted
 }
 
+// getRequestScheme determines the scheme (http/https) based on the request.
+func getRequestScheme(ctx *gin.Context) string {
+	scheme := "http"
+	if proto := ctx.GetHeader("X-Forwarded-Proto"); proto == "https" {
+		scheme = "https"
+	} else if ctx.Request.TLS != nil {
+		scheme = "https"
+	}
+	return scheme
+}
+
 // formatPrice converts price from integer (USDC * 10^6) to a decimal string
 func (h *PaidRouteHandler) formatPrice(priceInt int64) string {
 	return fmt.Sprintf("%.6f", float64(priceInt)/1000000)
@@ -75,8 +86,9 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Construct the full access URL
-	accessURL := fmt.Sprintf("http://%s/%s", ctx.Request.Host, route.ShortCode)
+	// Construct the full access URL using the determined scheme
+	scheme := getRequestScheme(ctx)
+	accessURL := fmt.Sprintf("%s://%s/%s", scheme, ctx.Request.Host, route.ShortCode)
 
 	ctx.JSON(http.StatusCreated, gin.H{
 		"id":            route.ID,
@@ -127,7 +139,8 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		return
 	}
 
-	accessURL := fmt.Sprintf("http://%s/%s", ctx.Request.Host, route.ShortCode)
+	scheme := getRequestScheme(ctx)
+	accessURL := fmt.Sprintf("%s://%s/%s", scheme, ctx.Request.Host, route.ShortCode)
 
 	// Select payment address based on IsTest flag
 	paymentAddress := config.AppConfig.X402TestnetPaymentAddress // Default to testnet (renamed variable)
@@ -247,7 +260,8 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(ctx *gin.Context) {
 	// Format the response (similar to Create response, maybe factor out a helper)
 	responseRoutes := make([]gin.H, len(routes))
 	for i, route := range routes {
-		accessURL := fmt.Sprintf("http://%s/%s", ctx.Request.Host, route.ShortCode)
+		scheme := getRequestScheme(ctx)
+		accessURL := fmt.Sprintf("%s://%s/%s", scheme, ctx.Request.Host, route.ShortCode)
 		responseRoutes[i] = gin.H{
 			"id":            route.ID,
 			"short_code":    route.ShortCode,
