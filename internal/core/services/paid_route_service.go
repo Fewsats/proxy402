@@ -86,7 +86,7 @@ func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, i
 		Price:     priceInt, // Store as int64
 		IsTest:    isTest,   // Save the test flag
 		UserID:    userID,
-		IsEnabled: true, // Default to enabled
+		IsEnabled: true,
 	}
 
 	if err := s.routeStore.Create(route); err != nil {

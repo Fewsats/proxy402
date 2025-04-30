@@ -26,6 +26,15 @@ func NewOAuthHandler(userService *services.UserService) *OAuthHandler {
 
 // Login initiates Google OAuth flow
 func (h *OAuthHandler) Login(c *gin.Context) {
+	// Check if user already has a valid JWT
+	cookie, err := c.Cookie("jwt")
+	if err == nil && cookie != "" {
+		// Already authenticated, redirect to dashboard
+		c.Redirect(http.StatusFound, "/dashboard")
+		return
+	}
+
+	// Not authenticated, proceed with OAuth flow
 	url := config.AppConfig.GoogleOAuth.AuthCodeURL("state-token")
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
@@ -34,27 +43,39 @@ func (h *OAuthHandler) Login(c *gin.Context) {
 func (h *OAuthHandler) Callback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
-		c.HTML(http.StatusBadRequest, "main.html", gin.H{"error": "Missing code parameter"})
+		c.HTML(http.StatusBadRequest, "landing.html", gin.H{
+			"error":   "Missing code parameter",
+			"baseURL": c.Request.Host,
+		})
 		return
 	}
 
 	token, err := config.AppConfig.GoogleOAuth.Exchange(c.Request.Context(), code)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "main.html", gin.H{"error": "Failed to exchange token"})
+		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+			"error":   "Failed to exchange token",
+			"baseURL": c.Request.Host,
+		})
 		return
 	}
 
 	client := config.AppConfig.GoogleOAuth.Client(c.Request.Context(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "main.html", gin.H{"error": "Failed to get user info"})
+		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+			"error":   "Failed to get user info",
+			"baseURL": c.Request.Host,
+		})
 		return
 	}
 	defer resp.Body.Close()
 
 	userData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "main.html", gin.H{"error": "Failed to read user data"})
+		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+			"error":   "Failed to read user data",
+			"baseURL": c.Request.Host,
+		})
 		return
 	}
 
@@ -64,21 +85,30 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 		ID    string `json:"id"`
 	}
 	if err := json.Unmarshal(userData, &userInfo); err != nil {
-		c.HTML(http.StatusInternalServerError, "main.html", gin.H{"error": "Failed to parse user data"})
+		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+			"error":   "Failed to parse user data",
+			"baseURL": c.Request.Host,
+		})
 		return
 	}
 
 	// Find or create user
 	user, err := h.userService.FindOrCreateUser(userInfo.Email, userInfo.Name, userInfo.ID)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "main.html", gin.H{"error": "Failed to create or find user"})
+		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+			"error":   "Failed to create or find user",
+			"baseURL": c.Request.Host,
+		})
 		return
 	}
 
 	// Generate JWT token
 	signedToken, err := auth.GenerateJWT(user.ID, user.Email)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "main.html", gin.H{"error": "Failed to generate token"})
+		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+			"error":   "Failed to generate token",
+			"baseURL": c.Request.Host,
+		})
 		return
 	}
 
@@ -86,6 +116,6 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 	maxAge := int(config.AppConfig.JWTExpirationHours.Seconds())
 	c.SetCookie("jwt", signedToken, maxAge, "/", "", false, true)
 
-	// Redirect to home page
-	c.Redirect(http.StatusFound, "/")
+	// Redirect to dashboard instead of home page
+	c.Redirect(http.StatusFound, "/dashboard")
 }

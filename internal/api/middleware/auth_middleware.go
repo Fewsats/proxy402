@@ -20,13 +20,12 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Get JWT from cookie
 		token, err := ctx.Cookie(JWTCookie)
 
-		// For root path, render without user data if no valid token
+		// Redirect to landing page if no valid token
 		if err != nil || token == "" {
-			if ctx.FullPath() == "/" {
-				ctx.Next()
-				return
-			}
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+			// Special handling for root path was here but no longer needed
+			// since we have separate routes now
+			ctx.Redirect(http.StatusFound, "/")
+			ctx.Abort()
 			return
 		}
 
@@ -36,12 +35,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			// Clear invalid cookie
 			ctx.SetCookie(JWTCookie, "", -1, "/", "", false, true)
 
-			if ctx.FullPath() == "/" {
-				ctx.Next()
-				return
-			}
-
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			// Redirect to landing on invalid token
+			ctx.Redirect(http.StatusFound, "/")
+			ctx.Abort()
 			return
 		}
 
