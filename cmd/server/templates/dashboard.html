@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proxy402</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Include htmx only for delete functionality -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <!-- Include Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Custom JS -->
+    <script src="/static/js/main.js" defer></script>
+    <style>
+        /* Toggle switch styles */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+        
+        .toggle-switch-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            background-color: #ccc;
+            border-radius: 20px;
+            margin-right: 8px;
+            transition: .4s;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            border-radius: 50%;
+            transition: .4s;
+        }
+        
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #4caf50;
+        }
+        
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        
+        .toggle-text {
+            font-size: 14px;
+            user-select: none;
+        }
+        
+        .toggle-text .tooltip {
+            margin-left: 5px;
+        }
+
+        /* Mode indicators */
+        .mode-test {
+            color: #4caf50;
+            font-weight: 500;
+        }
+        
+        .mode-live {
+            color: #f59e0b;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="/dashboard" class="logo">Proxy402</a>
+        </div>
+        <div class="navbar-menu">
+            <div class="user-menu">
+                <div class="user-menu-trigger" id="user-menu-trigger">
+                    <div class="user-avatar">{{slice .user.email 0 1 }}</div>
+                    <span class="user-email-short">{{.user.email}}</span>
+                    <i data-lucide="chevron-down" width="16" height="16"></i>
+                </div>
+                <div class="user-menu-dropdown" id="user-menu-dropdown">
+                    <div class="user-email-display" id="user-email-display">{{.user.email}}</div>
+                    <a href="/logout" class="user-menu-item">
+                        <i data-lucide="log-out" width="16" height="16"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="main-container">
+        <div class="page-header">
+            <h2>Your Monetized Links</h2>
+        </div>
+        
+        {{if .error}}
+        <div class="error">{{.error}}</div>
+        {{end}}
+        
+        {{if .message}}
+        <div class="success">{{.message}}</div>
+        {{end}}
+
+        <!-- Link creation form -->
+        <div class="create-link-form">
+            <!-- Error message container -->
+            <div id="form-error" class="error" style="display: none;"></div>
+            
+            <form id="link-form" class="url-form">
+                <div class="form-group">
+                    <input type="url" id="target-url" name="target_url" placeholder="Enter URL to monetize" required class="url-input">
+                    
+                    <div class="form-controls">
+                        <div class="input-with-tooltip">
+                            <input type="text" id="price-input" name="price" placeholder="Price USDC" required>
+                            <span class="tooltip" data-tooltip="Price in USDC (e.g., 0.10 for 10 cents)">
+                                <i data-lucide="help-circle" width="16" height="16"></i>
+                            </span>
+                        </div>
+                        
+                        <select id="method-select" name="method" required>
+                            <option value="GET">GET</option>
+                            <option value="PUT">PUT</option>
+                            <option value="POST">POST</option>
+                            <option value="DELETE">DELETE</option>
+                            <option value="PATCH">PATCH</option>
+                        </select> 
+                        
+                        <div class="toggle-switch">
+                            <label class="toggle-switch-label">
+                                <input type="checkbox" id="is-test-input" name="is_test">
+                                <span class="toggle-slider"></span>
+                                <span class="toggle-text">Test Mode
+                                    <span class="tooltip" data-tooltip="When enabled, uses test USDC on base sepolia network">
+                                        <i data-lucide="help-circle" width="16" height="16"></i>
+                                    </span>
+                                </span>
+                            </label>
+                        </div>
+                        
+                        <button type="submit" class="btn">Add URL <span id="spinner" class="htmx-indicator">↻</span></button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- User's links table -->
+        <div class="data-table-container">
+            {{if .links}}
+                <table id="links-table" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Target URL</th>
+                            <th>Proxy URL</th>
+                            <th>Method</th>
+                            <th>Price</th>
+                            <th class="th-with-tooltip">
+                                <span>Attempts</span>
+                                <span class="tooltip th-tooltip" data-tooltip="Total times payment was attempted">
+                                    <i data-lucide="help-circle" width="14" height="14"></i>
+                                </span>
+                            </th>
+                            <th class="th-with-tooltip">
+                                <span>Payments</span>
+                                <span class="tooltip th-tooltip" data-tooltip="Total successful payments">
+                                    <i data-lucide="help-circle" width="14" height="14"></i>
+                                </span>
+                            </th>
+                            <th class="th-with-tooltip">
+                                <span>Accesses</span>
+                                <span class="tooltip th-tooltip" data-tooltip="Total times the target URL was accessed after payment">
+                                    <i data-lucide="help-circle" width="14" height="14"></i>
+                                </span>
+                            </th>
+                            <th class="th-with-tooltip">
+                                <span>Mode</span>
+                                <span class="tooltip th-tooltip" data-tooltip="Test mode uses testnet USDC, Live mode uses real USDC">
+                                    <i data-lucide="help-circle" width="14" height="14"></i>
+                                </span>
+                            </th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{range .links}}
+                        <tr>
+                            <td class="ellipsis" data-tooltip="{{.TargetURL}}">{{.TargetURL}}</td>
+                            <td>
+                                <div class="short-url-container">
+                                    <a href="/{{.ShortCode}}" target="_blank">{{$.baseURL}}/{{.ShortCode}}</a>
+                                    <button class="copy-btn" data-url="{{$.baseURL}}/{{.ShortCode}}">
+                                        <i data-lucide="copy" width="16" height="16" class="action-icon"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td>{{.Method}}</td>
+                            <td>${{.Price}} USDC</td>
+                            <td>{{.AttemptCount}}</td>
+                            <td>{{.PaymentCount}}</td>
+                            <td>{{.AccessCount}}</td>
+                            <td>
+                                {{if .IsTest}}
+                                <span class="mode-test">Test</span>
+                                {{else}}
+                                <span class="mode-live">Live</span>
+                                {{end}}
+                            </td>
+                            <td>
+                                <button 
+                                    class="delete-btn" 
+                                    hx-delete="/links/{{.ID}}"
+                                    hx-headers='{"Content-Type": "application/json"}'
+                                    hx-confirm="Are you sure you want to delete this link?"
+                                    hx-target="#links-table"
+                                    hx-trigger="click"
+                                    hx-swap="outerHTML">
+                                    <i data-lucide="trash-2" width="16" height="16" class="action-icon"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {{end}}
+                    </tbody>
+                </table>
+            {{else}}
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <i data-lucide="link" width="48" height="48"></i>
+                    </div>
+                    <h3>No links yet</h3>
+                    <p>Create your first monetized link using the form above.</p>
+                </div>
+            {{end}}
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        document.addEventListener("DOMContentLoaded", function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html> 
