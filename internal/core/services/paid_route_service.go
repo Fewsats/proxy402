@@ -31,7 +31,7 @@ var validMethods = map[string]bool{
 }
 
 // CreatePaidRoute validates input, generates a unique short code, and saves the route.
-func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, userID uint) (*models.PaidRoute, error) {
+func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, isTest bool, userID uint) (*models.PaidRoute, error) {
 	// 1. Validate Target URL
 	parsedURL, err := url.ParseRequestURI(targetURL)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
@@ -84,6 +84,7 @@ func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, u
 		TargetURL: targetURL,
 		Method:    upperMethod,
 		Price:     priceInt, // Store as int64
+		IsTest:    isTest,   // Save the test flag
 		UserID:    userID,
 		IsEnabled: true, // Default to enabled
 	}

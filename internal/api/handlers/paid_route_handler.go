@@ -36,6 +36,7 @@ type CreatePaidRouteRequest struct {
 	TargetURL string `json:"target_url" binding:"required,url"`
 	Method    string `json:"method" binding:"required"`
 	Price     string `json:"price" binding:"required,numeric"` // Validate as numeric string
+	IsTest    *bool  `json:"is_test" binding:"omitempty"`      // Optional, defaults to true if omitted
 	// Asset field removed as per user request
 }
 
@@ -53,6 +54,12 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Default is_test to true if not provided
+	isTestValue := true
+	if req.IsTest != nil {
+		isTestValue = *req.IsTest
+	}
+
 	// Get user ID from the context (set by AuthMiddleware)
 	authPayload, exists := ctx.Get(middleware.AuthorizationPayloadKey)
 	if !exists {
@@ -61,8 +68,8 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 	}
 	payload := authPayload.(*auth.Claims)
 
-	// Call the service to create the route
-	route, err := h.paidRouteService.CreatePaidRoute(req.TargetURL, req.Method, req.Price, payload.UserID)
+	// Call the service to create the route, passing isTestValue
+	route, err := h.paidRouteService.CreatePaidRoute(req.TargetURL, req.Method, req.Price, isTestValue, payload.UserID)
 	if err != nil {
 		// Handle specific validation errors from the service
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -79,6 +86,7 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 		"target_url":    route.TargetURL,
 		"method":        route.Method,
 		"price":         h.formatPrice(route.Price),
+		"is_test":       route.IsTest,
 		"is_enabled":    route.IsEnabled,
 		"attempt_count": route.AttemptCount,
 		"payment_count": route.PaymentCount,
@@ -113,7 +121,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	// --- Payment Verification Step ---
 	// 3. Parse route.Price string to *big.Float
 	// Convert int64 price to string and then to *big.Float
-	priceFloat, ok := new(big.Float).SetString(strconv.FormatInt(route.Price, 10))
+	priceFloat, ok := new(big.Float).SetString(h.formatPrice(route.Price))
 	if !ok {
 		ctx.Error(fmt.Errorf("invalid price format stored for route %s: %d", shortCode, route.Price))
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route price."})
@@ -124,7 +132,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 
 	x402.Payment(ctx, priceFloat, config.AppConfig.X402PaymentAddress,
 		x402.OptionWithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
-		x402.OptionWithTestnet(true), // TODO: Make configurable
+		x402.OptionWithTestnet(route.IsTest), // Use the value from the route
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
 		x402.OptionWithResource(accessURL),
 		// Add other options like OptionWithMaxTimeoutSeconds if needed
@@ -176,6 +184,8 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		originalDirector(req) // Apply default modifications (Scheme, Host, Path)
 		// Ensure the Host header is set correctly for the target server
 		req.Host = targetURL.Host
+		// Explicitly set the path to the target path, overwriting the incoming one
+		req.URL.Path = targetURL.Path
 
 		// Optional: Clean up headers specific to the incoming request if needed
 		// req.Header.Del("X-Forwarded-For")
@@ -249,6 +259,7 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(ctx *gin.Context) {
 			"target_url":    route.TargetURL,
 			"method":        route.Method,
 			"price":         h.formatPrice(route.Price),
+			"is_test":       route.IsTest,
 			"is_enabled":    route.IsEnabled,
 			"attempt_count": route.AttemptCount,
 			"payment_count": route.PaymentCount,

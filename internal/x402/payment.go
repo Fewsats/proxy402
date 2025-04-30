@@ -145,6 +145,7 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 	payment := c.GetHeader("X-PAYMENT")
 	paymentPayload, err := DecodePaymentPayloadFromBase64(payment)
 	if err != nil {
+		fmt.Println("x402 Abort: Failed to decode X-PAYMENT header:", err)
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       "X-PAYMENT header is required",
 			"accepts":     []*PaymentRequirements{paymentRequirements},
@@ -156,6 +157,7 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 	// Verify payment
 	response, err := facilitatorClient.Verify(paymentPayload, paymentRequirements)
 	if err != nil {
+		fmt.Println("x402 Abort: Facilitator Verify call failed:", err)
 		fmt.Println("failed to verify", err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -164,6 +166,7 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 	}
 
 	if !response.IsValid {
+		fmt.Println("x402 Abort: Payment verification failed. Reason:", response.InvalidReason)
 		fmt.Println("Invalid payment: ", response.InvalidReason)
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       response.InvalidReason,
@@ -179,6 +182,7 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 	// Settle payment
 	settleResponse, err := facilitatorClient.Settle(paymentPayload, paymentRequirements)
 	if err != nil {
+		fmt.Println("x402 Abort: Settlement failed:", err)
 		fmt.Println("Settlement failed:", err)
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       err.Error(),

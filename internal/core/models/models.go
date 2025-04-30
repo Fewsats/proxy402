@@ -21,6 +21,7 @@ type PaidRoute struct {
 	Method    string `gorm:"not null" json:"method"` // GET, POST, PUT, DELETE, PATCH
 	// Store price as int64 representing base units (USDC * 10^6)
 	Price        int64 `gorm:"not null" json:"price"`
+	IsTest       bool  `gorm:"not null;default:true" json:"is_test"`
 	UserID       uint  `gorm:"not null" json:"-"` // User who owns/created this route
 	User         User  `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
 	IsEnabled    bool  `gorm:"default:true" json:"is_enabled"`
