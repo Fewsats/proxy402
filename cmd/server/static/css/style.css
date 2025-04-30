@@ -2,14 +2,14 @@
 :root {
     --primary-color: #86b8ff;
     --primary-dark: #5a96b8;
-    --text-color: #f8fafc;
-    --text-muted: rgba(248, 250, 252, 0.7);
-    --bg-color: rgba(23, 41, 77, 0.8);
-    --card-bg: rgba(30, 58, 102, 0.9);
-    --border-color: rgba(80, 110, 160, 0.3);
+    --text-color: #ffffff;
+    --text-muted: rgba(255, 255, 255, 0.85);
+    --bg-color: rgba(30, 50, 90, 0.75);
+    --card-bg: rgba(40, 70, 120, 0.8);
+    --border-color: rgba(120, 150, 200, 0.4);
     --error-color: #ef4444;
     --success-color: #10b981;
-    --row-hover: rgba(134, 184, 255, 0.15);
+    --row-hover: rgba(134, 184, 255, 0.2);
     --test-color: #4caf50;
     --live-color: #f59e0b;
 }
@@ -40,7 +40,7 @@ a {
 }
 
 a:hover {
-    color: var(--primary-dark);
+    color: #a8d1ff;
 }
 
 /* Flow Animation */
@@ -68,7 +68,7 @@ a:hover {
 
 .flow-path {
     fill: none;
-    stroke: rgba(134, 184, 255, 0.35);
+    stroke: rgba(160, 200, 255, 0.4);
     stroke-width: 2.5;
     stroke-dasharray: 1000;
     stroke-dashoffset: 1000;
@@ -81,11 +81,12 @@ a:hover {
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1.5rem;
-    background-color: rgba(23, 41, 77, 0.95);
+    background-color: rgba(30, 50, 90, 0.9);
     border-bottom: 1px solid var(--border-color);
     width: 100%;
     position: relative;
     z-index: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .navbar-brand {
@@ -98,6 +99,7 @@ a:hover {
     font-weight: 700;
     color: white;
     text-decoration: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .navbar-menu {
@@ -129,13 +131,15 @@ h1 {
     margin-bottom: 1.5rem;
     font-weight: 700;
     color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 h2 {
     font-size: 1.75rem;
     margin-bottom: 1.5rem;
     font-weight: 600;
-    color: var(--primary-color);
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .subtitle {
@@ -160,7 +164,7 @@ h2 {
 }
 
 .intro-text a:hover {
-    color: var(--primary-dark);
+    color: #a8d1ff;
 }
 
 /* Page header */
@@ -172,7 +176,7 @@ h2 {
 
 /* Button styles */
 .btn, .login-btn {
-    background-color: transparent;
+    background-color: var(--bg-color);
     color: var(--primary-color);
     border: 1px solid var(--primary-color);
     border-radius: 6px;
@@ -191,23 +195,27 @@ h2 {
     background-color: var(--primary-color);
     color: #17294d;
     border: none;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .btn:hover {
-    background-color: var(--primary-dark);
+    background-color: #a8d1ff;
     transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .login-btn:hover {
-    background-color: rgba(134, 184, 255, 0.1);
+    background-color: rgba(134, 184, 255, 0.2);
     transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Form elements */
 .create-link-form {
     background-color: var(--card-bg);
     border-radius: 8px;
-    padding: 1.25rem;
+    padding: 1.5rem;
     margin-bottom: 2rem;
     border: 1px solid var(--border-color);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -231,15 +239,30 @@ input, select {
     padding: 0.75rem 1rem;
     border-radius: 6px;
     font-size: 0.95rem;
-    background-color: rgba(23, 41, 77, 0.7);
+    background-color: rgba(50, 80, 130, 0.6);
     color: var(--text-color);
     border: 1px solid var(--border-color);
+}
+
+/* Make placeholders much lighter */
+::placeholder {
+    color: rgba(255, 255, 255, 0.8);
+    opacity: 1;
+}
+
+:-ms-input-placeholder {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+::-ms-input-placeholder {
+    color: rgba(255, 255, 255, 0.8);
 }
 
 input:focus, select:focus {
     border-color: var(--primary-color);
     outline: none;
-    box-shadow: 0 0 0 2px rgba(134, 184, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(134, 184, 255, 0.3);
+    background-color: rgba(50, 80, 130, 0.8);
 }
 
 .url-input {
@@ -265,7 +288,7 @@ input:focus, select:focus {
     top: 50%;
     transform: translateY(-50%);
     cursor: help;
-    color: var(--text-muted);
+    color: var(--primary-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -302,7 +325,7 @@ input:focus, select:focus {
     display: inline-block;
     width: 40px;
     height: 20px;
-    background-color: rgba(80, 110, 160, 0.3);
+    background-color: rgba(100, 140, 200, 0.4);
     border-radius: 20px;
     margin-right: 8px;
     transition: .4s;
@@ -340,12 +363,12 @@ input:focus, select:focus {
 /* Mode indicators */
 .mode-test {
     color: var(--test-color);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .mode-live {
     color: var(--live-color);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .checkbox-control {
@@ -392,7 +415,7 @@ input:focus, select:focus {
 }
 
 .data-table th {
-    background-color: rgba(23, 41, 77, 0.9);
+    background-color: rgba(35, 60, 105, 0.95);
     padding: 1rem;
     font-weight: 600;
     font-size: 0.875rem;
@@ -438,7 +461,7 @@ input:focus, select:focus {
 
 .empty-icon {
     color: var(--primary-color);
-    opacity: 0.7;
+    opacity: 0.8;
     margin-bottom: 1rem;
 }
 
@@ -475,6 +498,7 @@ input:focus, select:focus {
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.875rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .user-menu-dropdown {
@@ -506,7 +530,7 @@ input:focus, select:focus {
     border-bottom: 1px solid var(--border-color);
     font-size: 0.85rem;
     color: var(--text-muted);
-    background-color: rgba(23, 41, 77, 0.8);
+    background-color: rgba(35, 60, 105, 0.9);
     font-weight: 500;
 }
 
@@ -559,11 +583,12 @@ input:focus, select:focus {
     cursor: pointer;
     padding: 0.25rem;
     transition: all 0.2s ease;
-    opacity: 0.7;
+    opacity: 0.8;
 }
 
 .copy-btn:hover, .delete-btn:hover {
     opacity: 1;
+    transform: scale(1.1);
 }
 
 .copy-btn i, .action-icon {
@@ -606,14 +631,14 @@ input:focus, select:focus {
 }
 
 .error {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: var(--error-color);
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ff6b6b;
     border-left: 3px solid var(--error-color);
 }
 
 .success {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--success-color);
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #2ecc71;
     border-left: 3px solid var(--success-color);
 }
 
@@ -684,7 +709,7 @@ input:focus, select:focus {
 
 [data-tooltip]::after {
     content: attr(data-tooltip);
-    background-color: rgba(23, 41, 77, 0.95);
+    background-color: rgba(30, 50, 90, 0.95);
     color: var(--text-color);
     font-size: 0.8rem;
     font-weight: 500;
@@ -699,7 +724,7 @@ input:focus, select:focus {
 [data-tooltip]::before {
     content: '';
     border: 5px solid transparent;
-    border-top-color: rgba(23, 41, 77, 0.95);
+    border-top-color: rgba(30, 50, 90, 0.95);
     bottom: calc(100% + 3px);
 }
 
