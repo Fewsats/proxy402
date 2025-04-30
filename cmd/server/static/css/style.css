@@ -4,12 +4,12 @@
     --primary-dark: #5a96b8;
     --text-color: #f8fafc;
     --text-muted: rgba(248, 250, 252, 0.7);
-    --bg-color: rgba(15, 23, 42, 0.8);
-    --card-bg: rgba(30, 41, 59, 0.9);
-    --border-color: rgba(51, 65, 85, 0.5);
+    --bg-color: rgba(23, 41, 77, 0.8);
+    --card-bg: rgba(30, 58, 102, 0.9);
+    --border-color: rgba(80, 110, 160, 0.3);
     --error-color: #ef4444;
     --success-color: #10b981;
-    --row-hover: rgba(134, 184, 255, 0.1);
+    --row-hover: rgba(134, 184, 255, 0.15);
     --test-color: #4caf50;
     --live-color: #f59e0b;
 }
@@ -81,7 +81,7 @@ a:hover {
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem 1.5rem;
-    background-color: var(--card-bg);
+    background-color: rgba(23, 41, 77, 0.95);
     border-bottom: 1px solid var(--border-color);
     width: 100%;
     position: relative;
@@ -135,7 +135,7 @@ h2 {
     font-size: 1.75rem;
     margin-bottom: 1.5rem;
     font-weight: 600;
-    color: white;
+    color: var(--primary-color);
 }
 
 .subtitle {
@@ -210,6 +210,7 @@ h2 {
     padding: 1.25rem;
     margin-bottom: 2rem;
     border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .form-group {
@@ -230,7 +231,7 @@ input, select {
     padding: 0.75rem 1rem;
     border-radius: 6px;
     font-size: 0.95rem;
-    background-color: var(--bg-color);
+    background-color: rgba(23, 41, 77, 0.7);
     color: var(--text-color);
     border: 1px solid var(--border-color);
 }
@@ -238,6 +239,7 @@ input, select {
 input:focus, select:focus {
     border-color: var(--primary-color);
     outline: none;
+    box-shadow: 0 0 0 2px rgba(134, 184, 255, 0.25);
 }
 
 .url-input {
@@ -300,7 +302,7 @@ input:focus, select:focus {
     display: inline-block;
     width: 40px;
     height: 20px;
-    background-color: rgba(204, 204, 204, 0.3);
+    background-color: rgba(80, 110, 160, 0.3);
     border-radius: 20px;
     margin-right: 8px;
     transition: .4s;
@@ -379,6 +381,8 @@ input:focus, select:focus {
     background-color: var(--card-bg);
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
 }
 
 .data-table {
@@ -388,11 +392,11 @@ input:focus, select:focus {
 }
 
 .data-table th {
-    background-color: var(--bg-color);
+    background-color: rgba(23, 41, 77, 0.9);
     padding: 1rem;
     font-weight: 600;
     font-size: 0.875rem;
-    color: var(--text-muted);
+    color: var(--primary-color);
     border-bottom: 1px solid var(--border-color);
     position: relative;
     cursor: default;
@@ -425,6 +429,17 @@ input:focus, select:focus {
     padding: 3rem;
     text-align: center;
     color: var(--text-muted);
+}
+
+.empty-state h3 {
+    color: var(--primary-color);
+    margin: 1rem 0;
+}
+
+.empty-icon {
+    color: var(--primary-color);
+    opacity: 0.7;
+    margin-bottom: 1rem;
 }
 
 /* User menu */
@@ -472,7 +487,7 @@ input:focus, select:focus {
     display: none;
     z-index: 100;
     border: 1px solid var(--border-color);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     overflow: hidden;
 }
 
@@ -491,7 +506,7 @@ input:focus, select:focus {
     border-bottom: 1px solid var(--border-color);
     font-size: 0.85rem;
     color: var(--text-muted);
-    background-color: var(--bg-color);
+    background-color: rgba(23, 41, 77, 0.8);
     font-weight: 500;
 }
 
@@ -510,11 +525,13 @@ input:focus, select:focus {
 }
 
 .user-menu-item i {
-    color: var(--text-muted);
+    color: var(--primary-color);
+    opacity: 0.8;
 }
 
 .user-menu-item:hover i {
     color: var(--primary-color);
+    opacity: 1;
 }
 
 .user-email-short {
@@ -667,22 +684,23 @@ input:focus, select:focus {
 
 [data-tooltip]::after {
     content: attr(data-tooltip);
-    background-color: #334155; /* Use a slightly darker background */
+    background-color: rgba(23, 41, 77, 0.95);
     color: var(--text-color);
     font-size: 0.8rem;
     font-weight: 500;
     padding: 0.4rem 0.75rem;
     border-radius: 4px;
     white-space: nowrap;
-    bottom: calc(100% + 8px); /* Position above the element */
+    bottom: calc(100% + 8px);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
 }
 
 [data-tooltip]::before {
     content: '';
     border: 5px solid transparent;
-    border-top-color: #334155; /* Match tooltip background */
-    bottom: calc(100% + 3px); /* Position just below the text tooltip */
+    border-top-color: rgba(23, 41, 77, 0.95);
+    bottom: calc(100% + 3px);
 }
 
 [data-tooltip]:hover::before,
@@ -692,16 +710,14 @@ input:focus, select:focus {
 
 /* Specific adjustment for icon tooltip */
 .input-with-tooltip .tooltip[data-tooltip]::after {
-    font-size: 0.75rem; /* Slightly smaller for icon */
+    font-size: 0.75rem;
     padding: 0.3rem 0.6rem;
 }
 
 .input-with-tooltip .tooltip {
-    /* Ensure tooltip span itself doesn't block interaction with input */
-    pointer-events: auto; /* Already set, but confirming */
+    pointer-events: auto;
 }
 
-/* Ensure icon within tooltip span is styled */
 .input-with-tooltip .tooltip i {
     display: block;
 }
@@ -709,9 +725,8 @@ input:focus, select:focus {
 /* Adjust tooltip position/style specifically for table headers */
 .th-tooltip[data-tooltip]::before,
 .th-tooltip[data-tooltip]::after {
-    /* Keep general tooltip styles, adjust positioning */
-    left: 50%; /* Center relative to the icon */
-    transform: translateX(-50%); /* Center align */
+    left: 50%;
+    transform: translateX(-50%);
     bottom: calc(100% + 8px); 
 }
 
@@ -720,18 +735,18 @@ input:focus, select:focus {
 }
 
 .th-tooltip {
-    display: inline-block; /* Change to inline-block */
-    vertical-align: middle; /* Align icon vertically */
-    margin-left: 0.3rem; /* Add space after header text */
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.3rem;
     cursor: help; 
     position: relative; 
-    color: var(--text-muted);
-    line-height: 1; /* Prevent extra line height */
+    color: var(--primary-color);
+    line-height: 1;
 }
 
 .th-tooltip i {
     display: block; 
-    vertical-align: middle; /* Ensure icon aligns well */
+    vertical-align: middle;
 }
 
 .status-cell {
@@ -739,10 +754,10 @@ input:focus, select:focus {
 }
 
 .status-icon-test {
-    color: #22c55e; /* Green for test */
+    color: #22c55e;
 }
 
 .status-icon-live {
-    color: var(--text-muted); /* Muted color for live */
+    color: var(--text-muted);
     opacity: 0.6;
 } 
