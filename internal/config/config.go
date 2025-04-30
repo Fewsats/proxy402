@@ -2,7 +2,6 @@ package config
 
 import (
 	"log"
-	"math/big"
 	"os"
 	"strconv"
 	"time"
@@ -25,8 +24,11 @@ type Config struct {
 	JWTExpirationHours time.Duration
 
 	// x402 Config
-	X402PaymentAddress string
-	X402FacilitatorURL string
+	X402TestnetPaymentAddress string `mapstructure:"X402_TESTNET_PAYMENT_ADDRESS"` // Testnet Payment Address
+	X402MainnetPaymentAddress string `mapstructure:"X402_MAINNET_PAYMENT_ADDRESS"` // Mainnet Payment Address
+	X402FacilitatorURL        string `mapstructure:"X402_FACILITATOR_URL"`
+	GoogleClientID            string `mapstructure:"GOOGLE_CLIENT_ID"`
+	GoogleClientSecret        string `mapstructure:"GOOGLE_CLIENT_SECRET"`
 
 	// OAuth Config
 	GoogleOAuth *oauth2.Config
@@ -51,19 +53,27 @@ func LoadConfig() {
 		JWTExpirationHours: getEnvDuration("JWT_EXPIRATION_HOURS", 72*time.Hour),
 
 		// Load x402 Config
-		X402PaymentAddress: getEnvOrFatal("X402_PAYMENT_ADDRESS"),
-		X402FacilitatorURL: getEnv("X402_FACILITATOR_URL", "https://x402.org/facilitator"), // Default facilitator
+		X402TestnetPaymentAddress: getEnvOrFatal("X402_TESTNET_PAYMENT_ADDRESS"),
+		X402MainnetPaymentAddress: getEnvOrFatal("X402_MAINNET_PAYMENT_ADDRESS"),
+		X402FacilitatorURL:        getEnv("X402_FACILITATOR_URL", "https://x402.org/facilitator"),
+
+		// Load Google OAuth config
+		GoogleClientID:     getEnvOrFatal("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: getEnvOrFatal("GOOGLE_CLIENT_SECRET"),
 	}
 
 	// Basic validation for essential x402 config
-	if AppConfig.X402PaymentAddress == "" {
-		log.Fatal("FATAL: X402_PAYMENT_ADDRESS environment variable is not set.")
+	if AppConfig.X402TestnetPaymentAddress == "" {
+		log.Fatal("FATAL: X402_TESTNET_PAYMENT_ADDRESS environment variable is not set.")
+	}
+	if AppConfig.X402MainnetPaymentAddress == "" {
+		log.Fatal("FATAL: X402_MAINNET_PAYMENT_ADDRESS environment variable is not set.")
 	}
 
 	// Initialize Google OAuth config
 	AppConfig.GoogleOAuth = &oauth2.Config{
-		ClientID:     getEnvOrFatal("GOOGLE_CLIENT_ID"),
-		ClientSecret: getEnvOrFatal("GOOGLE_CLIENT_SECRET"),
+		ClientID:     AppConfig.GoogleClientID,
+		ClientSecret: AppConfig.GoogleClientSecret,
 		RedirectURL:  getEnvOrFatal("GOOGLE_REDIRECT_URL"),
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
@@ -101,14 +111,4 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 		log.Printf("Warning: Invalid format for %s environment variable. Using default: %v", key, fallback)
 	}
 	return fallback
-}
-
-// getEnvBigFloatOrFatal retrieves an environment variable as a big.Float or logs fatal error.
-func getEnvBigFloatOrFatal(key string) *big.Float {
-	valueStr := getEnvOrFatal(key) // Ensures the variable exists
-	valueFloat, ok := new(big.Float).SetString(valueStr)
-	if !ok {
-		log.Fatalf("FATAL: Invalid format for %s environment variable. Expected float string, got: %s", key, valueStr)
-	}
-	return valueFloat
 }
