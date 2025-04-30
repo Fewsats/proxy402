@@ -260,7 +260,8 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(ctx *gin.Context) {
 	// Format the response (similar to Create response, maybe factor out a helper)
 	responseRoutes := make([]gin.H, len(routes))
 	for i, route := range routes {
-		accessURL := fmt.Sprintf("http://%s/%s", ctx.Request.Host, route.ShortCode)
+		scheme := getRequestScheme(ctx)
+		accessURL := fmt.Sprintf("%s://%s/%s", scheme, ctx.Request.Host, route.ShortCode)
 		responseRoutes[i] = gin.H{
 			"id":            route.ID,
 			"short_code":    route.ShortCode,
