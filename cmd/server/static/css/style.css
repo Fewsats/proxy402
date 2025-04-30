@@ -1,15 +1,17 @@
 /* Base styles */
 :root {
-    --primary-color: #5a96b8;
-    --primary-dark: #4a7d9b;
+    --primary-color: #86b8ff;
+    --primary-dark: #5a96b8;
     --text-color: #f8fafc;
     --text-muted: rgba(248, 250, 252, 0.7);
-    --bg-color: #0f172a;
-    --card-bg: #1e293b;
-    --border-color: #334155;
+    --bg-color: rgba(15, 23, 42, 0.8);
+    --card-bg: rgba(30, 41, 59, 0.9);
+    --border-color: rgba(51, 65, 85, 0.5);
     --error-color: #ef4444;
-    --success-color: #107bb9;
-    --row-hover: rgba(59, 130, 246, 0.05);
+    --success-color: #10b981;
+    --row-hover: rgba(134, 184, 255, 0.1);
+    --test-color: #4caf50;
+    --live-color: #f59e0b;
 }
 
 * {
@@ -82,6 +84,8 @@ a:hover {
     background-color: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
     width: 100%;
+    position: relative;
+    z-index: 2;
 }
 
 .navbar-brand {
@@ -108,6 +112,8 @@ a:hover {
     max-width: 1600px;
     margin: 2rem auto;
     width: 100%;
+    position: relative;
+    z-index: 1;
 }
 
 /* Welcome section */
@@ -183,7 +189,7 @@ h2 {
 
 .btn {
     background-color: var(--primary-color);
-    color: white;
+    color: #17294d;
     border: none;
 }
 
@@ -193,7 +199,7 @@ h2 {
 }
 
 .login-btn:hover {
-    background-color: rgba(90, 150, 184, 0.1);
+    background-color: rgba(134, 184, 255, 0.1);
     transform: translateY(-2px);
 }
 
@@ -267,6 +273,77 @@ input:focus, select:focus {
 
 .input-with-tooltip .tooltip i {
     display: block;
+}
+
+/* Toggle switch styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+.toggle-switch-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    background-color: rgba(204, 204, 204, 0.3);
+    border-radius: 20px;
+    margin-right: 8px;
+    transition: .4s;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    border-radius: 50%;
+    transition: .4s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: var(--test-color);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+
+.toggle-text {
+    font-size: 14px;
+    user-select: none;
+}
+
+.toggle-text .tooltip {
+    margin-left: 5px;
+}
+
+/* Mode indicators */
+.mode-test {
+    color: var(--test-color);
+    font-weight: 500;
+}
+
+.mode-live {
+    color: var(--live-color);
+    font-weight: 500;
 }
 
 .checkbox-control {
@@ -376,7 +453,7 @@ input:focus, select:focus {
     height: 1.75rem;
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
     border-radius: 50%;
-    color: white;
+    color: #17294d;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -11,80 +11,17 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <!-- Custom JS -->
     <script src="/static/js/main.js" defer></script>
-    <style>
-        /* Toggle switch styles */
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            vertical-align: middle;
-            margin-right: 5px;
-        }
-        
-        .toggle-switch-label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-        }
-        
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        
-        .toggle-slider {
-            position: relative;
-            display: inline-block;
-            width: 40px;
-            height: 20px;
-            background-color: #ccc;
-            border-radius: 20px;
-            margin-right: 8px;
-            transition: .4s;
-        }
-        
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            border-radius: 50%;
-            transition: .4s;
-        }
-        
-        .toggle-switch input:checked + .toggle-slider {
-            background-color: #4caf50;
-        }
-        
-        .toggle-switch input:checked + .toggle-slider:before {
-            transform: translateX(20px);
-        }
-        
-        .toggle-text {
-            font-size: 14px;
-            user-select: none;
-        }
-        
-        .toggle-text .tooltip {
-            margin-left: 5px;
-        }
-
-        /* Mode indicators */
-        .mode-test {
-            color: #4caf50;
-            font-weight: 500;
-        }
-        
-        .mode-live {
-            color: #f59e0b;
-            font-weight: 500;
-        }
-    </style>
 </head>
 <body>
+    <!-- Animated Background -->
+    <div class="flow-container">
+        <svg class="flow-lines" width="100%" height="100%" viewBox="0 0 800 300">
+            <path class="flow-path" d="M0,150 C100,50 200,250 300,100 S500,150 800,70" />
+            <path class="flow-path" d="M0,100 C150,200 250,70 400,150 S600,50 800,180" style="animation-delay: -5s;" />
+            <path class="flow-path" d="M0,200 C120,100 220,180 350,120 S550,200 800,120" style="animation-delay: -10s;" />
+        </svg>
+    </div>
+
     <!-- Navbar -->
     <nav class="navbar">
         <div class="navbar-brand">
@@ -94,7 +31,6 @@
             <div class="user-menu">
                 <div class="user-menu-trigger" id="user-menu-trigger">
                     <div class="user-avatar">{{slice .user.email 0 1 }}</div>
-                    <span class="user-email-short">{{.user.email}}</span>
                     <i data-lucide="chevron-down" width="16" height="16"></i>
                 </div>
                 <div class="user-menu-dropdown" id="user-menu-dropdown">
