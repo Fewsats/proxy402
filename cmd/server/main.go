@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"io/fs"
 	"log"
 	"net/http"
 
@@ -16,6 +17,9 @@ import (
 
 //go:embed templates
 var templatesFS embed.FS
+
+//go:embed static
+var staticFS embed.FS
 
 func main() {
 	// Load configuration
@@ -42,8 +46,12 @@ func main() {
 	// Setup Gin router
 	router := gin.Default() // Includes Logger and Recovery middleware
 
-	// Serve static files
-	router.Static("/static", "./cmd/server/static")
+	// Serve static files from embedded filesystem
+	staticFileSystem, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		log.Fatalf("Failed to create sub filesystem for static files: %v", err)
+	}
+	router.StaticFS("/static", http.FS(staticFileSystem))
 
 	// Health endpoint
 	router.GET("/health", func(c *gin.Context) {
