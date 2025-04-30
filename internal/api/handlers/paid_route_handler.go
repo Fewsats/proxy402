@@ -2,6 +2,7 @@ package handlers
 
 import (
 	// Needed for potential body buffering if required later
+	"encoding/json"
 	"errors" // Import errors package
 	"fmt"
 	"math/big" // Need big.Float for price parsing
@@ -16,6 +17,7 @@ import (
 	"linkshrink/internal/api/middleware" // To get user ID
 	"linkshrink/internal/auth"           // To get Claims type
 	"linkshrink/internal/config"         // Need for X402 config
+	"linkshrink/internal/core/models"
 	"linkshrink/internal/core/services"
 	"linkshrink/internal/x402" // Import local x402 package
 )
@@ -23,12 +25,16 @@ import (
 // PaidRouteHandler handles HTTP requests related to paid routes.
 type PaidRouteHandler struct {
 	paidRouteService *services.PaidRouteService
+	purchaseService  *services.PurchaseService
 	// We might need linkService later if we want to avoid shortCode collisions
 }
 
 // NewPaidRouteHandler creates a new PaidRouteHandler.
-func NewPaidRouteHandler(service *services.PaidRouteService) *PaidRouteHandler {
-	return &PaidRouteHandler{paidRouteService: service}
+func NewPaidRouteHandler(routeService *services.PaidRouteService, purchaseService *services.PurchaseService) *PaidRouteHandler {
+	return &PaidRouteHandler{
+		paidRouteService: routeService,
+		purchaseService:  purchaseService,
+	}
 }
 
 // CreatePaidRouteRequest defines the JSON body for creating a paid route.
@@ -129,7 +135,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		paymentAddress = config.AppConfig.X402MainnetPaymentAddress
 	}
 
-	x402.Payment(ctx, priceFloat, paymentAddress, // Use the selected address
+	paymentPayload, settleResponse := x402.Payment(ctx, priceFloat, paymentAddress, // Use the selected address
 		x402.OptionWithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
 		x402.OptionWithTestnet(route.IsTest), // Use the value from the route
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
@@ -152,6 +158,9 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	}
 	// If we get here, payment verification within x402.Payment succeeded.
 	// --- END Payment Verification ---
+
+	// Save purchase record
+	h.savePurchaseRecord(route, paymentPayload, settleResponse)
 
 	// Increment access count *after* successful verification check
 	if err := h.paidRouteService.IncrementAccessCount(shortCode); err != nil {
@@ -289,4 +298,38 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(ctx *gin.Context) {
 	}
 
 	ctx.Status(http.StatusNoContent) // Success, no content to return
+}
+
+// savePurchaseRecord asynchronously saves a purchase record to the database
+func (h *PaidRouteHandler) savePurchaseRecord(route *models.PaidRoute, paymentPayload *x402.PaymentPayload, settleResponse *x402.SettleResponse) {
+	go func() {
+		// Convert payment payload to JSON string
+		paymentData, err := json.Marshal(paymentPayload)
+		if err != nil {
+			fmt.Printf("Failed to encode payment payload: %v\n", err)
+			return
+		}
+
+		// Get settle response as encoded string
+		settleData, err := json.Marshal(settleResponse)
+		if err != nil {
+			fmt.Printf("Failed to encode settle response: %v\n", err)
+			return
+		}
+
+		// Save purchase info
+		err = h.purchaseService.SavePurchase(
+			route.ShortCode,
+			route.TargetURL,
+			route.Method,
+			route.Price,
+			route.ID,
+			string(paymentData),
+			string(settleData),
+		)
+
+		if err != nil {
+			fmt.Printf("Failed to save purchase record: %v\n", err)
+		}
+	}()
 }

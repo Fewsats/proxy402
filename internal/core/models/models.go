@@ -29,3 +29,16 @@ type PaidRoute struct {
 	PaymentCount int64 `gorm:"default:0" json:"payment_count"` // Track successful payments (payment for x402)
 	AccessCount  int64 `gorm:"default:0" json:"access_count"`  // Track successful accesses (payment header provided)
 }
+
+// Purchase records information about a successful payment transaction
+type Purchase struct {
+	gorm.Model
+	ShortCode      string    `gorm:"index;not null" json:"short_code"`
+	TargetURL      string    `gorm:"not null" json:"target_url"`
+	Method         string    `gorm:"not null" json:"method"`
+	Price          int64     `gorm:"not null" json:"price"`
+	PaymentPayload string    `gorm:"type:jsonb;not null" json:"payment_payload"` // X-Payment header as JSON
+	SettleResponse string    `gorm:"type:jsonb;not null" json:"settle_response"` // Settled response as base64
+	PaidRouteID    uint      `gorm:"index;not null" json:"-"`                    // Associated PaidRoute
+	PaidRoute      PaidRoute `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"-"`
+}

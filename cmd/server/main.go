@@ -31,16 +31,18 @@ func main() {
 
 	// Create stores
 	userStore := store.NewUserStore(db)
-	paidRouteStore := store.NewPaidRouteStore(db) // Add PaidRouteStore
+	paidRouteStore := store.NewPaidRouteStore(db)
+	purchaseStore := store.NewPurchaseStore(db)
 
 	// Create services
 	userService := services.NewUserService(userStore)
-	paidRouteService := services.NewPaidRouteService(paidRouteStore) // Add PaidRouteService
+	paidRouteService := services.NewPaidRouteService(paidRouteStore)
+	purchaseService := services.NewPurchaseService(purchaseStore)
 
 	// Create handlers
 	// userHandler := handlers.NewUserHandler(userService)
 	oauthHandler := handlers.NewOAuthHandler(userService)
-	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService)
+	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService, purchaseService)
 	uiHandler := handlers.NewUIHandler(paidRouteService, templatesFS)
 
 	// Setup Gin router

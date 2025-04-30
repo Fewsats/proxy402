@@ -89,7 +89,7 @@ func OptionWithResourceRootURL(resourceRootURL string) x402Options {
 }
 
 // Amount: the decimal denominated amount to charge (ex: 0.01 for 1 cent)
-func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Options) {
+func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Options) (paymentPayload *PaymentPayload, settleResponse *SettleResponse) {
 	options := &PaymentOptions{
 		FacilitatorURL:    DefaultFacilitatorURL,
 		MaxTimeoutSeconds: 60,
@@ -135,7 +135,8 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 		Extra:             nil,
 	}
 
-	if err := paymentRequirements.SetUSDCInfo(options.Testnet); err != nil {
+	err := paymentRequirements.SetUSDCInfo(options.Testnet)
+	if err != nil {
 		fmt.Println("failed to set USDC info:", err)
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -143,7 +144,7 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 	}
 
 	payment := c.GetHeader("X-PAYMENT")
-	paymentPayload, err := DecodePaymentPayloadFromBase64(payment)
+	paymentPayload, err = DecodePaymentPayloadFromBase64(payment)
 	if err != nil {
 		fmt.Println("x402 Abort: Failed to decode X-PAYMENT header:", err)
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
@@ -180,7 +181,7 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 	c.Next()
 
 	// Settle payment
-	settleResponse, err := facilitatorClient.Settle(paymentPayload, paymentRequirements)
+	settleResponse, err = facilitatorClient.Settle(paymentPayload, paymentRequirements)
 	if err != nil {
 		fmt.Println("x402 Abort: Settlement failed:", err)
 		fmt.Println("Settlement failed:", err)
@@ -198,7 +199,9 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
+		return
 	}
 
 	c.Header("X-PAYMENT-RESPONSE", settleResponseHeader)
+	return
 }
