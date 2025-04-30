@@ -46,7 +46,10 @@ type UIPaidRoute struct {
 // getBaseURL returns the base URL (scheme + host) for the current request
 func (h *UIHandler) getBaseURL(c *gin.Context) string {
 	scheme := "http"
-	if c.Request.TLS != nil {
+	// Check X-Forwarded-Proto first, as we might be behind a proxy
+	if proto := c.GetHeader("X-Forwarded-Proto"); proto == "https" {
+		scheme = "https"
+	} else if c.Request.TLS != nil { // Fallback to checking direct TLS connection
 		scheme = "https"
 	}
 	return scheme + "://" + c.Request.Host
