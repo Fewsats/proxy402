@@ -44,6 +44,7 @@ func main() {
 	oauthHandler := handlers.NewOAuthHandler(userService)
 	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService, purchaseService)
 	uiHandler := handlers.NewUIHandler(paidRouteService, templatesFS)
+	purchaseHandler := handlers.NewPurchaseHandler(purchaseService)
 
 	// Setup Gin router
 	router := gin.Default() // Includes Logger and Recovery middleware
@@ -97,6 +98,9 @@ func main() {
 			linksGroup.GET("", paidRouteHandler.GetUserPaidRoutes)
 			linksGroup.DELETE("/:linkID", paidRouteHandler.DeleteUserPaidRoute) // Note: Param is still :linkID
 		}
+
+		// Dashboard data endpoint
+		authRequired.GET("/dashboard/stats", purchaseHandler.GetDashboardStats)
 	}
 
 	// Logout route

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background with rounded corners -->
+  <rect width="512" height="512" rx="128" fill="#152042"/>
+  
+  <!-- PX text using font -->
+  <text x="40" y="420" font-family="Arial, Helvetica, sans-serif" font-size="480" font-weight="bold" fill="#4a7bdb">P</text>
+  <text x="290" y="420" font-family="Arial, Helvetica, sans-serif" font-size="250" font-weight="bold" fill="#81b8ff">x</text>
+</svg>

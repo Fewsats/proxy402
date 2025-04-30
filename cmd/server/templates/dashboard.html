@@ -3,6 +3,8 @@
 <head>
     <title>Proxy402</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Favicon -->
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
     <!-- Include htmx only for delete functionality -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
     <!-- Include Lucide Icons -->
@@ -60,13 +62,20 @@
         <div class="dashboard-stats" id="dashboard-stats">
             <div class="stats-container">
                 <!-- Stats Cards -->
-                <div class="stats-card total-earnings">
-                    <div class="card-header">
-                        <h3>Total Earnings</h3>
-                        <i data-lucide="dollar-sign" width="24" height="24"></i>
-                    </div>
-                    <div class="card-value" id="total-earnings-value">
-                        <div class="loading-placeholder">Loading...</div>
+                <div class="stats-cards">
+                    <div class="stats-card">
+                        <div class="stats-item">
+                            <h3>Total Earnings</h3>
+                            <div class="value" id="total-earnings-value">
+                                <div class="loading-placeholder">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="stats-item">
+                            <h3>Total Purchases</h3>
+                            <div class="value" id="total-purchases-value">
+                                <div class="loading-placeholder">Loading...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -147,12 +156,12 @@
                                     <i data-lucide="help-circle" width="14" height="14"></i>
                                 </span>
                             </th>
-                            <th class="th-with-tooltip">
+                            <!-- <th class="th-with-tooltip">
                                 <span>Accesses</span>
                                 <span class="tooltip th-tooltip" data-tooltip="Total times the target URL was accessed after payment">
                                     <i data-lucide="help-circle" width="14" height="14"></i>
                                 </span>
-                            </th>
+                            </th> -->
                             <th class="th-with-tooltip">
                                 <span>Mode</span>
                                 <span class="tooltip th-tooltip" data-tooltip="Test mode uses testnet USDC, Live mode uses real USDC">
@@ -178,7 +187,7 @@
                             <td>${{.Price}} USDC</td>
                             <td>{{.AttemptCount}}</td>
                             <td>{{.PaymentCount}}</td>
-                            <td>{{.AccessCount}}</td>
+                            <!-- <td>{{.AccessCount}}</td> -->
                             <td>
                                 {{if .IsTest}}
                                 <span class="mode-test">Test</span>
@@ -235,6 +244,13 @@
                     const totalEarnings = formatUSDC(data.total_earnings);
                     document.getElementById('total-earnings-value').textContent = totalEarnings;
                     
+                    // Update total purchases
+                    let totalPurchases = 0;
+                    data.daily_purchases.forEach(day => {
+                        totalPurchases += day.count;
+                    });
+                    document.getElementById('total-purchases-value').textContent = totalPurchases.toLocaleString();
+                    
                     // Prepare data for chart
                     const chartData = prepareChartData(data.daily_purchases);
                     
@@ -244,6 +260,7 @@
                 .catch(error => {
                     console.error('Error fetching dashboard stats:', error);
                     document.getElementById('total-earnings-value').textContent = '$0.00 USDC';
+                    document.getElementById('total-purchases-value').textContent = '0';
                 });
         }
         
@@ -291,8 +308,8 @@
                     {
                         label: 'Earnings (USDC)',
                         data: earnings,
-                        backgroundColor: 'rgba(56, 189, 248, 0.5)',
-                        borderColor: 'rgba(56, 189, 248, 1)',
+                        backgroundColor: 'rgba(99, 179, 237, 0.7)',
+                        borderColor: 'rgba(99, 179, 237, 1)',
                         borderWidth: 1,
                     }
                 ]
@@ -322,24 +339,31 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Date'
+                                text: 'Date',
+                                color: 'rgba(255, 255, 255, 0.8)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
                             }
                         },
                         y: {
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Earnings (USDC)'
+                                text: 'Earnings (USDC)',
+                                color: 'rgba(255, 255, 255, 0.8)'
                             },
                             grid: {
-                                color: 'rgba(200, 200, 200, 0.1)'
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.8)'
                             }
                         }
                     },
                     plugins: {
                         legend: {
-                            display: true,
-                            position: 'top',
+                            display: false
                         },
                         tooltip: {
                             callbacks: {

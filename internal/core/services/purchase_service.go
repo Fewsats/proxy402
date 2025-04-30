@@ -48,3 +48,8 @@ func (s *PurchaseService) ListPurchasesByShortCode(shortCode string) ([]models.P
 func (s *PurchaseService) ListPurchasesByUserID(userID uint) ([]models.Purchase, error) {
 	return s.purchaseStore.ListByUserID(userID)
 }
+
+// GetDashboardStats retrieves daily purchase stats for the dashboard
+func (s *PurchaseService) GetDashboardStats(userID uint, days int) ([]store.DailyStats, int64, int, error) {
+	return s.purchaseStore.GetDailyStatsByUserID(userID, days)
+}
