@@ -100,19 +100,19 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	shortCode := ctx.Param("shortCode")
 
-	// 1. Find route in DB
+	// Find the enabled route configuration by its short code.
 	route, err := h.paidRouteService.FindEnabledRouteByShortCode(shortCode)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Route not found or is disabled."})
 		} else {
-			ctx.Error(err)
+			fmt.Printf("Error retrieving route config for %s: %v\n", shortCode, err) // Log internal error
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving route configuration."})
 		}
 		return
 	}
 
-	// 2. Check Method
+	// Check if the request method matches the configured method for the route.
 	if ctx.Request.Method != route.Method {
 		ctx.JSON(http.StatusMethodNotAllowed, gin.H{"error": fmt.Sprintf("Method %s not allowed for this route. Allowed: %s", ctx.Request.Method, route.Method)})
 		return
@@ -130,7 +130,13 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 
 	accessURL := fmt.Sprintf("http://%s/%s", ctx.Request.Host, route.ShortCode)
 
-	x402.Payment(ctx, priceFloat, config.AppConfig.X402PaymentAddress,
+	// Select payment address based on IsTest flag
+	paymentAddress := config.AppConfig.X402TestnetPaymentAddress // Default to testnet (renamed variable)
+	if !route.IsTest {
+		paymentAddress = config.AppConfig.X402MainnetPaymentAddress
+	}
+
+	x402.Payment(ctx, priceFloat, paymentAddress, // Use the selected address
 		x402.OptionWithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
 		x402.OptionWithTestnet(route.IsTest), // Use the value from the route
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
@@ -195,15 +201,6 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		// The original ctx.Request.URL path should be preserved by default director.
 	}
 
-	// Optional: Modify response *before* sending to client (e.g., remove headers)
-	/*
-		proxy.ModifyResponse = func(resp *http.Response) error {
-			// Example: Remove a header sent by the target
-			// resp.Header.Del("X-Powered-By")
-			return nil
-		}
-	*/
-
 	// Optional: Custom error handling
 	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
 		fmt.Printf("Reverse proxy error for %s to %s: %v\n", shortCode, route.TargetURL, err)
@@ -219,9 +216,6 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	proxy.ServeHTTP(ctx.Writer, ctx.Request)
 
 	// --- END Reverse Proxy ---
-
-	// Remove the old redirect logic
-	// ctx.Redirect(http.StatusFound, route.TargetURL)
 }
 
 // Helper function to copy headers, excluding hop-by-hop headers - REMOVED (No longer needed for redirect)
