@@ -41,6 +41,7 @@ type UIPaidRoute struct {
 	PaymentCount int64
 	AccessCount  int64
 	CreatedAt    string
+	IsTest       bool
 }
 
 // SetupRoutes registers UI routes to the provided router
@@ -82,6 +83,7 @@ func (h *UIHandler) handleIndex(c *gin.Context) {
 				AttemptCount: link.AttemptCount,
 				PaymentCount: link.PaymentCount,
 				AccessCount:  link.AccessCount,
+				IsTest:       link.IsTest,
 				CreatedAt:    link.CreatedAt.Format("2006-01-02"),
 			})
 		}

@@ -42,6 +42,9 @@ func main() {
 	// Setup Gin router
 	router := gin.Default() // Includes Logger and Recovery middleware
 
+	// Serve static files
+	router.Static("/static", "./cmd/server/static")
+
 	// Health endpoint
 	router.GET("/health", func(c *gin.Context) {
 		sqlDB, err := db.DB()

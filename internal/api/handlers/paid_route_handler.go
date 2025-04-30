@@ -36,8 +36,7 @@ type CreatePaidRouteRequest struct {
 	TargetURL string `json:"target_url" binding:"required,url"`
 	Method    string `json:"method" binding:"required"`
 	Price     string `json:"price" binding:"required,numeric"` // Validate as numeric string
-	IsTest    *bool  `json:"is_test" binding:"omitempty"`      // Optional, defaults to true if omitted
-	// Asset field removed as per user request
+	IsTest    bool   `json:"is_test" binding:"omitempty"`      // Optional, defaults to true if omitted
 }
 
 // formatPrice converts price from integer (USDC * 10^6) to a decimal string
@@ -54,12 +53,6 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Default is_test to true if not provided
-	isTestValue := true
-	if req.IsTest != nil {
-		isTestValue = *req.IsTest
-	}
-
 	// Get user ID from the context (set by AuthMiddleware)
 	authPayload, exists := ctx.Get(middleware.AuthorizationPayloadKey)
 	if !exists {
@@ -69,7 +62,7 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 	payload := authPayload.(*auth.Claims)
 
 	// Call the service to create the route, passing isTestValue
-	route, err := h.paidRouteService.CreatePaidRoute(req.TargetURL, req.Method, req.Price, isTestValue, payload.UserID)
+	route, err := h.paidRouteService.CreatePaidRoute(req.TargetURL, req.Method, req.Price, req.IsTest, payload.UserID)
 	if err != nil {
 		// Handle specific validation errors from the service
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

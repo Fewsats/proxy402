@@ -1,622 +1,286 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LinkShrink x402</title>
+    <title>Proxy402</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Include htmx -->
+    <!-- Include htmx only for delete functionality -->
     <script src="https://unpkg.com/htmx.org@1.9.6"></script>
-    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
     <!-- Include Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
+    <!-- External CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Custom JS -->
+    <script src="/static/js/main.js" defer></script>
     <style>
-        body { 
-            font-family: system-ui, -apple-system, sans-serif; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            padding: 20px;
-            line-height: 1.5;
+        /* Toggle switch styles */
+        .toggle-switch {
             position: relative;
-        }
-        h1 { color: #333; }
-        input, button, select {
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 16px;
-        }
-        input, select {
-            border: 1px solid #ddd;
-            margin-right: 10px;
-        }
-        button {
-            background: #0066ff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #0052cc;
-        }
-        .login-btn {
             display: inline-block;
-            background: #4285F4;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            padding: 10px;
-            text-align: left;
-            border-bottom: 1px solid #eee;
-        }
-        th {
-            background-color: #f8f8f8;
-        }
-        .delete-btn {
-            background: #ff4444;
-            font-size: 12px;
-            padding: 4px 8px;
-        }
-        .error {
-            color: #ff4444;
-            font-weight: bold;
-        }
-        .success {
-            color: #22bb33;
-            font-weight: bold;
-        }
-        .url-form {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .url-input {
-            flex-grow: 1;
-        }
-        .htmx-indicator {
-            display: none;
-            animation: spin 1s linear infinite;
-        }
-        .htmx-request .htmx-indicator {
-            display: inline-block;
-        }
-        @keyframes spin {
-            from {transform:rotate(0deg);}
-            to {transform:rotate(360deg);}
-        }
-        .form-group {
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-        }
-        .form-group label {
-            width: 120px;
-            margin-right: 10px;
-            text-align: right;
-            font-weight: bold;
-        }
-        .form-group input, .form-group select {
-            flex-grow: 1;
-        }
-        .form-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .form-row label {
+            vertical-align: middle;
             margin-right: 5px;
-            white-space: nowrap;
         }
         
-        .url-input {
-            flex: 2;
-            min-width: 200px;
-        }
-        
-        .price-input {
-            width: 100px;
-        }
-        
-        #method-select {
-            width: 150px;
-        }
-        
-        .add-btn {
-            margin-left: auto;
-        }
-        
-        @media (max-width: 768px) {
-            .form-row {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .form-row label {
-                margin-bottom: 5px;
-            }
-            
-            .url-input, .price-input, #method-select, .add-btn {
-                width: 100%;
-            }
-        }
-        
-        .short-url-container {
+        .toggle-switch-label {
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-        
-        .copy-btn {
-            background: none;
-            border: none;
-            color: #0066ff;
             cursor: pointer;
-            padding: 2px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         
-        .copy-btn:hover {
-            background: #eee;
-        }
-        
-        .copy-success {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            z-index: 10;
+        .toggle-switch input {
             opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
+            width: 0;
+            height: 0;
         }
         
-        .copy-success.show {
-            opacity: 1;
-        }
-        
-        /* Custom tooltip styles */
-        .tooltip {
+        .toggle-slider {
             position: relative;
-            display: inline-flex;
-            align-items: center;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            background-color: #ccc;
+            border-radius: 20px;
+            margin-right: 8px;
+            transition: .4s;
         }
         
-        .tooltip .tooltip-text {
-            visibility: hidden;
-            width: 220px;
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 8px;
+        .toggle-slider:before {
             position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-weight: normal;
-            font-size: 14px;
-            line-height: 1.4;
-            pointer-events: none;
-        }
-        
-        .tooltip .tooltip-text::after {
             content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #333 transparent transparent transparent;
-        }
-        
-        .tooltip:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-        }
-        
-        .info-icon {
-            color: #0066ff;
-            margin-left: 4px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .info-icon i {
-            color: #0066ff;
-            width: 16px;
             height: 16px;
-        }
-
-        /* Adjust copy button tooltip position */
-        .copy-btn .tooltip-text {
-            bottom: auto;
-            left: auto;
-            right: -10px;
-            top: -40px;
-            transform: none;
-        }
-
-        .copy-btn .tooltip-text::after {
-            top: 100%;
-            left: auto;
-            right: 10px;
-            transform: none;
-        }
-
-        /* User menu styles */
-        .user-menu {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 100;
-        }
-
-        .user-menu-trigger {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 40px;
-            padding: 6px 8px 6px 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-            transition: all 0.2s ease;
-        }
-
-        .user-menu-trigger:hover {
-            background: #f9f9f9;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .user-avatar {
-            width: 30px;
-            height: 30px;
-            background: #0066ff;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
             border-radius: 50%;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 15px;
-            text-transform: uppercase;
+            transition: .4s;
+        }
+        
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #4caf50;
+        }
+        
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        
+        .toggle-text {
+            font-size: 14px;
+            user-select: none;
+        }
+        
+        .toggle-text .tooltip {
+            margin-left: 5px;
         }
 
-        .user-menu-dropdown {
-            position: absolute;
-            top: calc(100% + 10px);
-            right: 0;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-            min-width: 180px;
-            display: none;
-            z-index: 101;
-            overflow: hidden;
+        /* Mode indicators */
+        .mode-test {
+            color: #4caf50;
+            font-weight: 500;
         }
-
-        .user-menu-dropdown.show {
-            display: block;
-            animation: fadeIn 0.2s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .user-menu-item {
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            color: #333;
-            transition: background 0.15s ease;
-        }
-
-        .user-menu-item:hover {
-            background: #f5f7fa;
-        }
-
-        .user-menu-item i {
-            color: #444;
-        }
-
-        .user-email-display {
-            padding: 12px 16px;
-            border-bottom: 1px solid #eee;
-            font-size: 13px;
-            color: #666;
-            text-align: left;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            background: #f9f9f9;
+        
+        .mode-live {
+            color: #f59e0b;
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
-    <h1>LinkShrink x402</h1>
-    
-    {{if .error}}
-    <div class="error">{{.error}}</div>
-    {{end}}
-    
-    {{if .message}}
-    <div class="success">{{.message}}</div>
-    {{end}}
-    
-    <!-- Non-authenticated state -->
-    <div id="non-auth-section" {{if .user}}style="display:none"{{end}}>
-        <p>Welcome to LinkShrink. Please log in to create shortened links.</p>
-        <a href="/auth/login" class="login-btn">Login with Google</a>
-    </div>
-    
-    <!-- User menu for authenticated users -->
-    <div class="user-menu" {{if not .user}}style="display:none"{{end}}>
-        <div class="user-menu-trigger" id="user-menu-trigger">
-            <div class="user-avatar">{{if .user}}{{slice .user.email 0 1 }}{{end}}</div>
-            <i data-lucide="chevron-down" width="16" height="16"></i>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="/" class="logo">Proxy402</a>
         </div>
-        <div class="user-menu-dropdown" id="user-menu-dropdown">
-            <div class="user-email-display" id="user-email-display">{{.user.email}}</div>
-            <a href="/logout" class="user-menu-item">
-                <i data-lucide="log-out" width="16" height="16"></i>
-                <span>Logout</span>
-            </a>
-        </div>
-    </div>
-    
-    <!-- Authenticated state -->
-    <div id="auth-section" {{if not .user}}style="display:none"{{end}}>
-        <!-- Link creation form -->
-        <div class="create-link">
-            <!-- Error message container -->
-            <div id="form-error" class="error"></div>
-            
-            <form id="link-form" class="url-form"
-                hx-post="/links/shrink"
-                hx-ext="json-enc"
-                hx-indicator="#spinner">
-                
-                <div class="form-row">
-                    <label for="target-url">URL to Monetize</label>
-                    <input type="url" id="target-url" name="target_url" placeholder="https://example.com" required class="url-input" 
-                           title="The URL you want to monetize">
-                           
-                    <label for="price-input">Price (USDC)</label>
-                    <input type="text" id="price-input" name="price" placeholder="1.0" required 
-                           pattern="[0-9]*\.?[0-9]+" title="Enter price in USDC (e.g., 1.0)" class="price-input">
-                           
-                    <label for="method-select">HTTP Method</label>
-                    <select id="method-select" name="method" required title="The HTTP method clients will use to access this URL">
-                        <option value="GET">GET</option>
-                        <option value="PUT">PUT</option>
-                        <option value="POST">POST</option>
-                        <option value="DELETE">DELETE</option>
-                        <option value="PATCH">PATCH</option>
-                    </select> 
-                    
-                    <button type="submit" title="Create a monetized link" class="add-btn">Add URL <span id="spinner" class="htmx-indicator">↻</span></button>
+        <div class="navbar-menu">
+            {{if .user}}
+            <div class="user-menu">
+                <div class="user-menu-trigger" id="user-menu-trigger">
+                    <div class="user-avatar">{{slice .user.email 0 1 }}</div>
+                    <span class="user-email-short">{{.user.email}}</span>
+                    <i data-lucide="chevron-down" width="16" height="16"></i>
                 </div>
-            </form>
-        </div>
-        
-        <!-- User's links -->
-        <div class="user-links">
-            {{if .links}}
-                <table id="links-table">
-                    <thead>
-                        <tr>
-                            <th>URL</th>
-                            <th>Short URL</th>
-                            <th>Method</th>
-                            <th>Price (USDC)</th>
-                            <th>
-                                <span class="tooltip">
-                                    Attempts
-                                    <span class="info-icon">
-                                        <i width="16" height="16" data-lucide="help-circle"></i>
-                                    </span>
-                                    <span class="tooltip-text">Number of times someone tried to access your URL without a payment header</span>
-                                </span>
-                            </th>
-                            <th>
-                                <span class="tooltip">
-                                    Payments
-                                    <span class="info-icon">
-                                        <i width="16" height="16" data-lucide="help-circle"></i>
-                                    </span>
-                                    <span class="tooltip-text">Number of times someone successfully paid for access</span>
-                                </span>
-                            </th>
-                            <th>
-                                <span class="tooltip">
-                                    Accesses
-                                    <span class="info-icon">
-                                        <i width="16" height="16" data-lucide="help-circle"></i>
-                                    </span>
-                                    <span class="tooltip-text">Number of times someone accessed your URL with a valid payment header</span>
-                                </span>
-                            </th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{range .links}}
-                        <tr>
-                            <td>{{.TargetURL}}</td>
-                            <td>
-                                <div class="short-url-container">
-                                    <a href="/{{.ShortCode}}" target="_blank">{{$.baseURL}}/{{.ShortCode}}</a>
-                                    <button class="copy-btn tooltip" title="Copy URL" data-url="{{$.baseURL}}/{{.ShortCode}}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                        </svg>
-                                        <span class="tooltip-text">Copy the short URL</span>
-                                    </button>
-                                </div>
-                            </td>
-                            <td>{{.Method}}</td>
-                            <td>${{.Price}}</td>
-                            <td>{{.AttemptCount}}</td>
-                            <td>{{.PaymentCount}}</td>
-                            <td>{{.AccessCount}}</td>
-                            <td>
-                                <button class="delete-btn"
-                                    hx-delete="/links/{{.ID}}"
-                                    hx-confirm="Are you sure you want to delete this link?"
-                                    hx-swap="outerHTML"
-                                    hx-target="closest tr">🗑️</button>
-                            </td>
-                        </tr>
-                        {{end}}
-                    </tbody>
-                </table>
+                <div class="user-menu-dropdown" id="user-menu-dropdown">
+                    <div class="user-email-display" id="user-email-display">{{.user.email}}</div>
+                    <a href="/logout" class="user-menu-item">
+                        <i data-lucide="log-out" width="16" height="16"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
             {{else}}
-                <p>You don't have any shortened links yet.</p>
+            <a href="/auth/login" class="login-btn">
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" style="margin-right: 10px;">
+                    <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285f4"/>
+                    <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34a853"/>
+                    <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#fbbc05"/>
+                    <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#ea4335"/>
+                </svg>
+                Login with Google
+            </a>
             {{end}}
         </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="main-container">
+        <!-- Non-authenticated state -->
+        <div id="non-auth-section" {{if .user}}style="display:none"{{end}}>
+            <div class="welcome-section">
+                <h1>Monetize any link in seconds</h1>
+                <p class="intro-text">
+                    Turn your URLs into paid content. Set a price, share your link, and collect payments instantly.
+                </p>
+                <p class="intro-text">
+                    Powered by the <a href="https://www.x402.org" target="_blank">x402 protocol</a> for seamless digital payments.
+                </p>
+            </div>
+
+            {{if .error}}
+            <div class="error">{{.error}}</div>
+            {{end}}
+            
+            {{if .message}}
+            <div class="success">{{.message}}</div>
+            {{end}}
+        </div>
+        
+        <!-- Authenticated state -->
+        <div id="auth-section" {{if not .user}}style="display:none"{{end}}>
+            <div class="page-header">
+                <h2>Your Monetized Links</h2>
+            </div>
+            
+            {{if .error}}
+            <div class="error">{{.error}}</div>
+            {{end}}
+            
+            {{if .message}}
+            <div class="success">{{.message}}</div>
+            {{end}}
+
+            <!-- Link creation form -->
+            <div class="create-link-form">
+                <!-- Error message container -->
+                <div id="form-error" class="error" style="display: none;"></div>
+                
+                <form id="link-form" class="url-form">
+                    <div class="form-group">
+                        <input type="url" id="target-url" name="target_url" placeholder="Enter URL to monetize" required class="url-input">
+                        
+                        <div class="form-controls">
+                            <div class="input-with-tooltip">
+                                <input type="text" id="price-input" name="price" placeholder="Price USDC" required>
+                                <span class="tooltip" data-tooltip="Price in USDC (e.g., 0.10 for 10 cents)">
+                                    <i data-lucide="help-circle" width="16" height="16"></i>
+                                </span>
+                            </div>
+                            
+                            <select id="method-select" name="method" required>
+                                <option value="GET">GET</option>
+                                <option value="PUT">PUT</option>
+                                <option value="POST">POST</option>
+                                <option value="DELETE">DELETE</option>
+                                <option value="PATCH">PATCH</option>
+                            </select> 
+                            
+                            <div class="toggle-switch">
+                                <label class="toggle-switch-label">
+                                    <input type="checkbox" id="is-test-input" name="is_test">
+                                    <span class="toggle-slider"></span>
+                                    <span class="toggle-text">Test Mode
+                                        <span class="tooltip" data-tooltip="When enabled, uses test USDC on base sepolia network">
+                                            <i data-lucide="help-circle" width="16" height="16"></i>
+                                        </span>
+                                    </span>
+                                </label>
+                            </div>
+                            
+                            <button type="submit" class="btn">Add URL <span id="spinner" class="htmx-indicator">↻</span></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- User's links table -->
+            <div class="data-table-container">
+                {{if .links}}
+                    <table id="links-table" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Target URL</th>
+                                <th>Proxy URL</th>
+                                <th>Method</th>
+                                <th>Price</th>
+                                <th class="th-with-tooltip">
+                                    <span>Attempts</span>
+                                    <span class="tooltip th-tooltip" data-tooltip="Total times payment was attempted">
+                                        <i data-lucide="help-circle" width="14" height="14"></i>
+                                    </span>
+                                </th>
+                                <th class="th-with-tooltip">
+                                    <span>Payments</span>
+                                    <span class="tooltip th-tooltip" data-tooltip="Total successful payments">
+                                        <i data-lucide="help-circle" width="14" height="14"></i>
+                                    </span>
+                                </th>
+                                <th class="th-with-tooltip">
+                                    <span>Accesses</span>
+                                    <span class="tooltip th-tooltip" data-tooltip="Total times the target URL was accessed after payment">
+                                        <i data-lucide="help-circle" width="14" height="14"></i>
+                                    </span>
+                                </th>
+                                <th class="th-with-tooltip">
+                                    <span>Mode</span>
+                                    <span class="tooltip th-tooltip" data-tooltip="Test mode uses testnet USDC, Live mode uses real USDC">
+                                        <i data-lucide="help-circle" width="14" height="14"></i>
+                                    </span>
+                                </th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range .links}}
+                            <tr>
+                                <td class="ellipsis" data-tooltip="{{.TargetURL}}">{{.TargetURL}}</td>
+                                <td>
+                                    <div class="short-url-container">
+                                        <a href="/{{.ShortCode}}" target="_blank">{{$.baseURL}}/{{.ShortCode}}</a>
+                                        <button class="copy-btn" data-url="{{$.baseURL}}/{{.ShortCode}}">
+                                            <i data-lucide="copy" width="16" height="16" class="action-icon"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>{{.Method}}</td>
+                                <td>${{.Price}}</td>
+                                <td>{{.AttemptCount}}</td>
+                                <td>{{.PaymentCount}}</td>
+                                <td>{{.AccessCount}}</td>
+                                <td class="status-cell">
+                                    {{if .IsTest}}
+                                        <span class="mode-test">Test</span>
+                                    {{else}}
+                                        <span class="mode-live">Live</span>
+                                    {{end}}
+                                </td>
+                                <td>
+                                    <button class="delete-btn"
+                                        hx-delete="/links/{{.ID}}"
+                                        hx-confirm="Are you sure you want to delete this link?"
+                                        hx-swap="outerHTML"
+                                        hx-target="closest tr">
+                                        <i data-lucide="trash-2" width="16" height="16" class="delete-icon"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                {{else}}
+                    <div class="empty-state">
+                        <p>You don't have any proxy links yet. Add your first URL above.</p>
+                    </div>
+                {{end}}
+            </div>
+        </div>
     </div>
-
-    <script>
-        // Handle form submission success and errors
-        document.body.addEventListener('htmx:afterRequest', function(event) {
-            const form = document.getElementById('link-form');
-            const errorDiv = document.getElementById('form-error');
-            
-            // Only process events from our form
-            if (event.detail.elt !== form) return;
-            
-            if (event.detail.successful) {
-                // Clear any previous errors
-                errorDiv.textContent = '';
-                
-                // Reset the form and reload on success
-                form.reset();
-                window.location.reload();
-            } else {
-                // Handle error response
-                try {
-                    // Try to parse JSON error
-                    const response = JSON.parse(event.detail.xhr.responseText);
-                    if (response && response.error) {
-                        errorDiv.textContent = response.error;
-                    } else {
-                        errorDiv.textContent = 'An error occurred';
-                    }
-                } catch (e) {
-                    // If not JSON, display the raw response text
-                    errorDiv.textContent = event.detail.xhr.responseText || 'An error occurred';
-                }
-            }
-        });
-        
-        // Also handle delete button errors
-        document.body.addEventListener('htmx:responseError', function(event) {
-            const errorMessage = event.detail.xhr.status === 0 
-                ? 'Connection error' 
-                : event.detail.xhr.responseText;
-                
-            if (event.detail.elt && event.detail.elt.matches('button.delete-btn')) {
-                try {
-                    const json = JSON.parse(errorMessage);
-                    alert(json.error || 'Failed to delete item');
-                } catch (e) {
-                    alert(errorMessage || 'Failed to delete item');
-                }
-            }
-        });
-        
-        // Add clipboard functionality to copy buttons
-        document.addEventListener('click', async function(e) {
-            if (!e.target.closest('.copy-btn')) return;
-            
-            const button = e.target.closest('.copy-btn');
-            const url = button.getAttribute('data-url');
-            
-            try {
-                // Use the modern Clipboard API when available
-                if (navigator.clipboard) {
-                    await navigator.clipboard.writeText(url);
-                } else {
-                    // Fallback to older method
-                    const tempInput = document.createElement('input');
-                    tempInput.value = url;
-                    document.body.appendChild(tempInput);
-                    tempInput.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(tempInput);
-                }
-                
-                // Show success message
-                const message = document.createElement('span');
-                message.classList.add('copy-success');
-                message.textContent = 'Copied!';
-                button.appendChild(message);
-                
-                // Position the message
-                const rect = button.getBoundingClientRect();
-                message.style.top = `${rect.height}px`;
-                message.style.left = '50%';
-                message.style.transform = 'translateX(-50%)';
-                
-                // Show then hide the message
-                setTimeout(() => message.classList.add('show'), 10);
-                setTimeout(() => {
-                    message.classList.remove('show');
-                    setTimeout(() => button.removeChild(message), 300);
-                }, 2000);
-            } catch (error) {
-                console.error('Failed to copy:', error);
-            }
-        });
-
-        // User menu toggle
-        document.addEventListener('DOMContentLoaded', function() {
-            const trigger = document.getElementById('user-menu-trigger');
-            const dropdown = document.getElementById('user-menu-dropdown');
-            
-            if (trigger && dropdown) {
-                trigger.addEventListener('click', function(e) {
-                    dropdown.classList.toggle('show');
-                    e.stopPropagation();
-                });
-                
-                // Close when clicking outside
-                document.addEventListener('click', function(e) {
-                    if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
-                        dropdown.classList.remove('show');
-                    }
-                });
-            }
-            
-            // Initialize Lucide icons
-            lucide.createIcons();
-        });
-    </script>
 </body>
 </html> 
