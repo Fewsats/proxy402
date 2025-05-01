@@ -308,10 +308,13 @@
                     {
                         label: 'Earnings (USDC)',
                         data: earnings,
-                        backgroundColor: 'rgba(99, 179, 237, 0.7)',
+                        backgroundColor: 'rgba(99, 179, 237, 0.2)',
                         borderColor: 'rgba(99, 179, 237, 1)',
-                        borderWidth: 1,
-                        barThickness: 20,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
                     }
                 ]
             };
@@ -328,11 +331,16 @@
             const ctx = document.getElementById('purchases-chart').getContext('2d');
             
             new Chart(ctx, {
-                type: 'bar',
+                type: 'line',
                 data: data,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                        axis: 'x'
+                    },
                     scales: {
                         x: {
                             grid: {
