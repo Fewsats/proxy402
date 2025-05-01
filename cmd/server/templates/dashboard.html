@@ -366,7 +366,10 @@
                                 color: 'rgba(255, 255, 255, 0.1)'
                             },
                             ticks: {
-                                color: 'rgba(255, 255, 255, 0.8)'
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                callback: function(value) {
+                                    return `$${value.toFixed(6)} USDC`;
+                                }
                             }
                         }
                     },
@@ -380,7 +383,7 @@
                                     return tooltipItems[0].label;
                                 },
                                 label: function(context) {
-                                    return `$${context.raw.toFixed(2)} USDC`;
+                                    return `$${context.raw.toFixed(6)} USDC`;
                                 }
                             }
                         }
