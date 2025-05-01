@@ -26,19 +26,22 @@ This is an example client that demonstrates how to use the `x402-axios` package 
 
 ## Running the Client
 
-Execute the client script using `npm run client`, providing the *full URL* of the LinkShrink paid route you want to access as a command-line argument.
+Execute the client script using `npm run client`, providing the *full URL* of the LinkShrink paid route you want to access as a command-line argument. You can optionally provide `POST` as a second argument to make a POST request; otherwise, it defaults to GET.
 
 ```bash
-npm run client -- <linkshrink_paid_route_url>
+npm run client -- <linkshrink_paid_route_url> [GET|POST]
 ```
 
-**Example:**
+**Examples:**
 
-If your LinkShrink server is running locally on port 8080 and you want to access a route with the short code `aBc1De2`, you would run:
-
-```bash
-npm run client -- http://localhost:8080/aBc1De2
-```
+*   Make a GET request (default):
+    ```bash
+    npm run client -- http://localhost:8080/aBc1De2
+    ```
+*   Make a POST request:
+    ```bash
+    npm run client -- http://localhost:8080/xyz789 POST
+    ```
 
 The client will attempt to make the request, automatically handling the L402 payment flow using the private key from your `.env` file.
 
@@ -47,9 +50,10 @@ The client will attempt to make the request, automatically handling the L402 pay
 The client script (`index.ts`) does the following:
 
 1.  Loads the `PRIVATE_KEY` from the `.env` file.
-2.  Reads the target URL from the command-line arguments.
-3.  Creates a Viem wallet client using the private key.
-4.  Wraps an Axios instance with the `withPaymentInterceptor` from `x402-axios`, providing the wallet client.
-5.  Makes a GET request to the specified URL using the wrapped Axios instance.
-6.  The interceptor handles any L402 challenges by generating and sending the necessary payment.
-7.  Prints the response headers and data upon success, or an error message if the request fails.
+2.  Reads the target URL from the first command-line argument.
+3.  Reads the optional HTTP method (GET/POST) from the second command-line argument, defaulting to GET.
+4.  Creates a Viem wallet client using the private key.
+5.  Wraps an Axios instance with the `withPaymentInterceptor` from `x402-axios`, providing the wallet client.
+6.  Makes a request (using the specified or default method) to the specified URL using the wrapped Axios instance.
+7.  The interceptor handles any L402 challenges by generating and sending the necessary payment.
+8.  Prints the response headers and data upon success, or an error message if the request fails.
