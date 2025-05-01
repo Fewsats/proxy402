@@ -73,12 +73,12 @@ func (s *PurchaseStore) GetDailyStatsByUserID(userID uint, days int) ([]DailySta
 	totalEarnings = totals.Total
 	totalCount = totals.Count
 
-	// Get daily stats grouped by date
+	// Get daily stats grouped by date, ensuring date is formatted as YYYY-MM-DD string
 	result = s.db.Model(&models.Purchase{}).
 		Joins("JOIN paid_routes ON purchases.paid_route_id = paid_routes.id").
 		Where("paid_routes.user_id = ?", userID).
-		Select("DATE(purchases.created_at) as date, COUNT(*) as count, SUM(purchases.price) as earnings").
-		Group("DATE(purchases.created_at)").
+		Select("to_char(purchases.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date, COUNT(*) as count, SUM(purchases.price) as earnings").
+		Group("date"). // Group by the formatted date string
 		Order("date desc").
 		Scan(&stats)
 
