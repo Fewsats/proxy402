@@ -21,13 +21,17 @@ build:
 run: build
     ./linkshrink
 
-# Run the complete application stack in Docker
-docker-up:
-    docker compose up -d
+logs:
+    journalctl --user -u linkshrink --no-pager
 
-# Stop the complete application stack
-docker-down:
-    docker compose down
+status:
+    systemctl --user status linkshrink
+
+restart:
+    systemctl --user start linkshrink
+
+restart:
+    systemctl --user restart linkshrink
 
 # Clean up binaries
 clean:
