@@ -109,6 +109,8 @@ func PaymentMiddleware(amount *big.Float, address string, opts ...Options) gin.H
 			maxAmountRequired, _ = new(big.Float).Mul(amount, big.NewFloat(1e6)).Int(nil)
 		)
 
+		c.Header("Payment-Protocol", "X402")
+
 		if options.Testnet {
 			network = "base-sepolia"
 			usdcAddress = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"

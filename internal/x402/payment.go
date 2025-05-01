@@ -100,6 +100,8 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...x402Opti
 		opt(options)
 	}
 
+	c.Header("Payment-Protocol", "X402")
+
 	var (
 		network              = "base"
 		usdcAddress          = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"

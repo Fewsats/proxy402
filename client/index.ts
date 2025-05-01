@@ -32,10 +32,31 @@ const client = createWalletClient({
   chain: baseSepolia,
 }).extend(publicActions);
 
+// Create a base axios instance for logging
+const baseApi = axios.create({
+  baseURL: targetUrl,
+});
+
+// Log requests before they are sent
+baseApi.interceptors.request.use(request => {
+  console.log('Starting Request:', JSON.stringify(request, null, 2));
+  return request;
+});
+
+// Log responses or errors
+baseApi.interceptors.response.use(response => {
+  console.log('Response:', JSON.stringify(response.status, null, 2));
+  console.log('Response Headers:', JSON.stringify(response.headers, null, 2));
+  return response;
+}, error => {
+  console.error('Response Error:', JSON.stringify(error.response?.status, null, 2));
+  console.error('Response Error Headers:', JSON.stringify(error.response?.headers, null, 2));
+  return Promise.reject(error);
+});
+
+// Apply the payment interceptor to the logging-enabled instance
 const api = withPaymentInterceptor(
-  axios.create({
-    baseURL: targetUrl, // Use the command line URL directly
-  }),
+  baseApi, // Use the instance with logging
   client,
 );
 
@@ -47,5 +68,6 @@ api
     console.log("Response Data:", response.data);
   })
   .catch(error => {
-    console.error("Error:", error.response?.data?.error);
+    console.error("Full Error Object:", JSON.stringify(error, null, 2));
+    console.error("Error:", error.response?.data?.error || error.message || 'Unknown error occurred');
   });
