@@ -7,10 +7,11 @@ import (
 // User represents a registered user in the system.
 type User struct {
 	gorm.Model
-	Email      string      `gorm:"uniqueIndex;not null" json:"email"` // Email is the primary identifier
-	Name       string      `json:"name,omitempty"`                    // User's name from Google
-	GoogleID   string      `gorm:"index;not null" json:"-"`           // Google user ID
-	PaidRoutes []PaidRoute `gorm:"foreignKey:UserID" json:"-"`        // User has many PaidRoutes
+	Email          string      `gorm:"uniqueIndex;not null" json:"email"`             // Email is the primary identifier
+	Name           string      `json:"name,omitempty"`                                // User's name from Google
+	GoogleID       string      `gorm:"index;not null" json:"-"`                       // Google user ID
+	Proxy402Secret string      `gorm:"column:proxy_402_secret;uniqueIndex;" json:"-"` // Secret for forwarded request verification
+	PaidRoutes     []PaidRoute `gorm:"foreignKey:UserID" json:"-"`                    // User has many PaidRoutes
 }
 
 // PaidRoute represents a configurable, paid API route proxied by the service.

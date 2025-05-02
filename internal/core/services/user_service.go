@@ -1,6 +1,8 @@
 package services
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -33,10 +35,19 @@ func (s *UserService) FindOrCreateUser(email, name, googleID string) (*models.Us
 	}
 
 	// User not found, create a new one
+
+	// Generate a unique secret for the new user
+	secretBytes := make([]byte, 16) // 16 bytes = 32 hex characters
+	if _, err := rand.Read(secretBytes); err != nil {
+		return nil, fmt.Errorf("failed to generate proxy secret: %w", err)
+	}
+	proxySecret := hex.EncodeToString(secretBytes)
+
 	newUser := &models.User{
-		Email:    email,
-		Name:     name,
-		GoogleID: googleID,
+		Email:          email,
+		Name:           name,
+		GoogleID:       googleID,
+		Proxy402Secret: proxySecret, // Set the generated secret
 	}
 
 	err = s.userStore.Create(newUser)

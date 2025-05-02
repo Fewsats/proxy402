@@ -26,14 +26,16 @@ import (
 type PaidRouteHandler struct {
 	paidRouteService *services.PaidRouteService
 	purchaseService  *services.PurchaseService
+	userService      *services.UserService
 	// We might need linkService later if we want to avoid shortCode collisions
 }
 
 // NewPaidRouteHandler creates a new PaidRouteHandler.
-func NewPaidRouteHandler(routeService *services.PaidRouteService, purchaseService *services.PurchaseService) *PaidRouteHandler {
+func NewPaidRouteHandler(routeService *services.PaidRouteService, purchaseService *services.PurchaseService, userService *services.UserService) *PaidRouteHandler {
 	return &PaidRouteHandler{
 		paidRouteService: routeService,
 		purchaseService:  purchaseService,
+		userService:      userService,
 	}
 }
 
@@ -207,6 +209,17 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		req.Host = targetURL.Host
 		// Explicitly set the path to the target path, overwriting the incoming one
 		req.URL.Path = targetURL.Path
+
+		// --- Add Proxy402-Secret Header ---
+		user, err := h.userService.GetUserByID(route.UserID)
+		if err != nil {
+			// Log the error, but don't expose details to the client via headers.
+			// The proxy error handler below will catch this if the request fails later.
+			fmt.Printf("Error fetching user %d for Proxy402-Secret: %v\n", route.UserID, err)
+		} else if user != nil && user.Proxy402Secret != "" {
+			req.Header.Set("Proxy402-Secret", user.Proxy402Secret)
+		}
+		// --- End Add Proxy402-Secret Header ---
 
 		// Optional: Clean up headers specific to the incoming request if needed
 		// req.Header.Del("X-Forwarded-For")
