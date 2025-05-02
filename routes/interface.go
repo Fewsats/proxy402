@@ -3,8 +3,6 @@ package routes
 import (
 	"context"
 	"errors"
-
-	"linkshrink/internal/core/models"
 )
 
 // Custom errors for route operations
@@ -17,19 +15,19 @@ var (
 // Store provides access to the paid route storage.
 type Store interface {
 	// CreateRoute inserts a new paid route in the database and returns the route.
-	CreateRoute(ctx context.Context, route *models.PaidRoute) (*models.PaidRoute, error)
+	CreateRoute(ctx context.Context, route *PaidRoute) (*PaidRoute, error)
 
 	// FindRouteByID retrieves a paid route by ID.
-	FindRouteByID(ctx context.Context, id uint) (*models.PaidRoute, error)
+	FindRouteByID(ctx context.Context, id uint) (*PaidRoute, error)
 
 	// FindRouteByShortCode retrieves a paid route by short code.
-	FindRouteByShortCode(ctx context.Context, shortCode string) (*models.PaidRoute, error)
+	FindRouteByShortCode(ctx context.Context, shortCode string) (*PaidRoute, error)
 
 	// FindEnabledRouteByShortCode retrieves an enabled paid route by short code.
-	FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*models.PaidRoute, error)
+	FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*PaidRoute, error)
 
 	// ListUserRoutes retrieves all paid routes for a specific user.
-	ListUserRoutes(ctx context.Context, userID uint) ([]models.PaidRoute, error)
+	ListUserRoutes(ctx context.Context, userID uint) ([]PaidRoute, error)
 
 	// DeleteRoute soft-deletes a paid route.
 	DeleteRoute(ctx context.Context, routeID uint, userID uint) error

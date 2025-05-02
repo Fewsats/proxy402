@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"linkshrink/internal/api/middleware"
+	"linkshrink/auth"
 	"linkshrink/internal/core/services"
 )
 
@@ -68,7 +68,7 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 	router.GET("/", h.handleLandingPage)
 
 	// Dashboard for authenticated users
-	router.GET("/dashboard", middleware.AuthMiddleware(), h.handleDashboard)
+	router.GET("/dashboard", auth.AuthMiddleware(), h.handleDashboard)
 }
 
 // handleLandingPage renders the landing page for non-authenticated users
@@ -90,7 +90,7 @@ func (h *UIHandler) handleLandingPage(gCtx *gin.Context) {
 // handleDashboard handles the main dashboard page for authenticated users
 func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	// User is guaranteed to exist due to middleware
-	user, exists := gCtx.Get(middleware.UserKey)
+	user, exists := gCtx.Get(auth.UserKey)
 	if !exists {
 		gCtx.Redirect(http.StatusFound, "/")
 		return

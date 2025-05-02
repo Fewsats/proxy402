@@ -1,4 +1,4 @@
-package services
+package routes
 
 import (
 	"context"
@@ -8,19 +8,16 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-
-	"linkshrink/internal/core/models"
-	"linkshrink/routes"
 )
 
 // PaidRouteService provides business logic for managing paid routes.
 type PaidRouteService struct {
 	logger *slog.Logger
-	store  routes.Store
+	store  Store
 }
 
 // NewPaidRouteService creates a new PaidRouteService.
-func NewPaidRouteService(logger *slog.Logger, store routes.Store) *PaidRouteService {
+func NewPaidRouteService(logger *slog.Logger, store Store) *PaidRouteService {
 	return &PaidRouteService{logger: logger, store: store}
 }
 
@@ -34,7 +31,7 @@ var validMethods = map[string]bool{
 
 // CreatePaidRoute validates input, generates a unique short code, and saves the route.
 func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
-	method, priceStr string, isTest bool, userID uint) (*models.PaidRoute, error) {
+	method, priceStr string, isTest bool, userID uint) (*PaidRoute, error) {
 	// 1. Validate Target URL
 	parsedURL, err := url.ParseRequestURI(targetURL)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
@@ -60,7 +57,7 @@ func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
 	priceInt := int64(priceFloat * 1000000)
 
 	// Create and Save Route (short code will be generated in the store)
-	route := &models.PaidRoute{
+	route := &PaidRoute{
 		TargetURL: targetURL,
 		Method:    upperMethod,
 		Price:     priceInt, // Store as int64
@@ -79,7 +76,7 @@ func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
 }
 
 // FindEnabledRouteByShortCode retrieves an active route.
-func (s *PaidRouteService) FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*models.PaidRoute, error) {
+func (s *PaidRouteService) FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*PaidRoute, error) {
 	return s.store.FindEnabledRouteByShortCode(ctx, shortCode)
 }
 
@@ -114,7 +111,7 @@ func (s *PaidRouteService) IncrementAccessCount(ctx context.Context, shortCode s
 }
 
 // ListUserRoutes retrieves all routes associated with a specific user ID.
-func (s *PaidRouteService) ListUserRoutes(ctx context.Context, userID uint) ([]models.PaidRoute, error) {
+func (s *PaidRouteService) ListUserRoutes(ctx context.Context, userID uint) ([]PaidRoute, error) {
 	return s.store.ListUserRoutes(ctx, userID)
 }
 
@@ -122,10 +119,10 @@ func (s *PaidRouteService) ListUserRoutes(ctx context.Context, userID uint) ([]m
 func (s *PaidRouteService) DeleteRoute(ctx context.Context, routeID uint, userID uint) error {
 	err := s.store.DeleteRoute(ctx, routeID, userID)
 	if err != nil {
-		if errors.Is(err, routes.ErrRouteNotFound) {
-			return routes.ErrRouteNotFound
-		} else if errors.Is(err, routes.ErrRouteNoPermission) {
-			return routes.ErrRouteNoPermission
+		if errors.Is(err, ErrRouteNotFound) {
+			return ErrRouteNotFound
+		} else if errors.Is(err, ErrRouteNoPermission) {
+			return ErrRouteNoPermission
 		}
 		return fmt.Errorf("error deleting route: %w", err)
 	}

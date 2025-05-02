@@ -1,22 +1,19 @@
-package handlers
+package users
 
 import (
 	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"linkshrink/internal/core/services"
-	"linkshrink/users"
 )
 
-// UserHandler handles HTTP requests related to users.
+// UserHandler handles HTTP requests related to
 type UserHandler struct {
-	userService *services.UserService
+	userService *UserService
 }
 
 // NewUserHandler creates a new UserHandler.
-func NewUserHandler(userService *services.UserService) *UserHandler {
+func NewUserHandler(userService *UserService) *UserHandler {
 	return &UserHandler{userService: userService}
 }
 
@@ -36,7 +33,7 @@ func (h *UserHandler) GetProfile(gCtx *gin.Context) {
 
 	user, err := h.userService.GetUserByID(gCtx.Request.Context(), userIDUint)
 	if err != nil {
-		if errors.Is(err, users.ErrUserNotFound) {
+		if errors.Is(err, ErrUserNotFound) {
 			gCtx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}

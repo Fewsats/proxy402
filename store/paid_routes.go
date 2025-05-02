@@ -7,7 +7,6 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"linkshrink/internal/core/models"
 	"linkshrink/routes"
 	"linkshrink/store/sqlc"
 	"linkshrink/utils"
@@ -22,7 +21,7 @@ const (
 )
 
 // CreateRoute inserts a new paid route in the database and returns the ID.
-func (s *Store) CreateRoute(ctx context.Context, route *models.PaidRoute) (*models.PaidRoute, error) {
+func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*routes.PaidRoute, error) {
 
 	shortCode, err := utils.GenerateSecureShortCode(10)
 	if err != nil {
@@ -49,7 +48,7 @@ func (s *Store) CreateRoute(ctx context.Context, route *models.PaidRoute) (*mode
 }
 
 // FindRouteByID retrieves a paid route by ID.
-func (s *Store) FindRouteByID(ctx context.Context, id uint) (*models.PaidRoute, error) {
+func (s *Store) FindRouteByID(ctx context.Context, id uint) (*routes.PaidRoute, error) {
 	dbRoute, err := s.queries.GetPaidRouteByID(ctx, int64(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -62,7 +61,7 @@ func (s *Store) FindRouteByID(ctx context.Context, id uint) (*models.PaidRoute, 
 }
 
 // FindRouteByShortCode retrieves a paid route by short code.
-func (s *Store) FindRouteByShortCode(ctx context.Context, shortCode string) (*models.PaidRoute, error) {
+func (s *Store) FindRouteByShortCode(ctx context.Context, shortCode string) (*routes.PaidRoute, error) {
 	dbRoute, err := s.queries.GetPaidRouteByShortCode(ctx, shortCode)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -75,7 +74,7 @@ func (s *Store) FindRouteByShortCode(ctx context.Context, shortCode string) (*mo
 }
 
 // FindEnabledRouteByShortCode retrieves an enabled paid route by short code.
-func (s *Store) FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*models.PaidRoute, error) {
+func (s *Store) FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*routes.PaidRoute, error) {
 	dbRoute, err := s.queries.GetEnabledPaidRouteByShortCode(ctx, shortCode)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -88,13 +87,13 @@ func (s *Store) FindEnabledRouteByShortCode(ctx context.Context, shortCode strin
 }
 
 // ListUserRoutes retrieves all paid routes for a specific user.
-func (s *Store) ListUserRoutes(ctx context.Context, userID uint) ([]models.PaidRoute, error) {
+func (s *Store) ListUserRoutes(ctx context.Context, userID uint) ([]routes.PaidRoute, error) {
 	dbRoutes, err := s.queries.ListUserPaidRoutes(ctx, int32(userID))
 	if err != nil {
 		return nil, err
 	}
 
-	routes := make([]models.PaidRoute, len(dbRoutes))
+	routes := make([]routes.PaidRoute, len(dbRoutes))
 	for i, dbRoute := range dbRoutes {
 		routes[i] = *convertToPaidRouteModel(dbRoute)
 	}
@@ -190,8 +189,8 @@ func (s *Store) GenerateUniqueShortCode(ctx context.Context, length int, maxRetr
 }
 
 // Helper function to convert sqlc PaidRoute to models.PaidRoute
-func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *models.PaidRoute {
-	route := &models.PaidRoute{
+func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *routes.PaidRoute {
+	route := &routes.PaidRoute{
 		ShortCode:    dbRoute.ShortCode,
 		TargetURL:    dbRoute.TargetUrl,
 		Method:       dbRoute.Method,

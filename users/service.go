@@ -1,4 +1,4 @@
-package services
+package users
 
 import (
 	"context"
@@ -7,30 +7,27 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-
-	"linkshrink/internal/core/models"
-	"linkshrink/users"
 )
 
 // UserService provides user-related business logic.
 type UserService struct {
 	logger *slog.Logger
-	store  users.Store
+	store  Store
 }
 
 // NewUserService creates a new UserService.
-func NewUserService(logger *slog.Logger, store users.Store) *UserService {
+func NewUserService(logger *slog.Logger, store Store) *UserService {
 	return &UserService{logger: logger, store: store}
 }
 
 // FindOrCreateUser finds a user by Google ID or creates a new one.
-func (s *UserService) FindOrCreateUser(ctx context.Context, email, name, googleID string) (*models.User, error) {
+func (s *UserService) FindOrCreateUser(ctx context.Context, email, name, googleID string) (*User, error) {
 	// Try to find user by Google ID
 	user, err := s.store.FindUserByGoogleID(ctx, googleID)
 	if err == nil {
 		// User found, return it
 		return user, nil
-	} else if !errors.Is(err, users.ErrUserNotFound) {
+	} else if !errors.Is(err, ErrUserNotFound) {
 		// A different error occurred during lookup
 		return nil, fmt.Errorf("error checking Google user: %w", err)
 	}
@@ -44,7 +41,7 @@ func (s *UserService) FindOrCreateUser(ctx context.Context, email, name, googleI
 	}
 	proxySecret := hex.EncodeToString(secretBytes)
 
-	newUser := &models.User{
+	newUser := &User{
 		Email:          email,
 		Name:           name,
 		GoogleID:       googleID,
@@ -61,11 +58,11 @@ func (s *UserService) FindOrCreateUser(ctx context.Context, email, name, googleI
 }
 
 // GetUserByID retrieves a user by their ID.
-func (s *UserService) GetUserByID(ctx context.Context, userID uint) (*models.User, error) {
+func (s *UserService) GetUserByID(ctx context.Context, userID uint) (*User, error) {
 	user, err := s.store.FindUserByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, users.ErrUserNotFound) {
-			return nil, users.ErrUserNotFound
+		if errors.Is(err, ErrUserNotFound) {
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("error finding user: %w", err)
 	}

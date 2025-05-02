@@ -1,23 +1,20 @@
-package handlers
+package purchases
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
-	"linkshrink/internal/api/middleware"
-	"linkshrink/internal/auth"
-	"linkshrink/internal/core/services"
-	"linkshrink/purchases"
+	"linkshrink/auth"
 )
 
 // PurchaseHandler handles HTTP requests related to purchases
 type PurchaseHandler struct {
-	purchaseService *services.PurchaseService
+	purchaseService *PurchaseService
 }
 
 // NewPurchaseHandler creates a new PurchaseHandler
-func NewPurchaseHandler(purchaseService *services.PurchaseService) *PurchaseHandler {
+func NewPurchaseHandler(purchaseService *PurchaseService) *PurchaseHandler {
 	return &PurchaseHandler{
 		purchaseService: purchaseService,
 	}
@@ -28,17 +25,17 @@ type DashboardStats struct {
 	TotalEarnings  int64 `json:"total_earnings"`
 	TotalPurchases int   `json:"total_purchases"`
 
-	TestEarnings   int64                  `json:"test_earnings"`
-	TestPurchases  int                    `json:"test_purchases"`
-	RealEarnings   int64                  `json:"real_earnings"`
-	RealPurchases  int                    `json:"real_purchases"`
-	DailyPurchases []purchases.DailyStats `json:"daily_purchases"`
+	TestEarnings   int64        `json:"test_earnings"`
+	TestPurchases  int          `json:"test_purchases"`
+	RealEarnings   int64        `json:"real_earnings"`
+	RealPurchases  int          `json:"real_purchases"`
+	DailyPurchases []DailyStats `json:"daily_purchases"`
 }
 
 // GetDashboardStats returns purchase statistics for the dashboard
 func (h *PurchaseHandler) GetDashboardStats(gCtx *gin.Context) {
 	// Get user ID from the context (set by AuthMiddleware)
-	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(auth.AuthorizationPayloadKey)
 	if !exists {
 		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return

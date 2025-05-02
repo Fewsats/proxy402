@@ -41,11 +41,3 @@ type Purchase struct {
 	UpdatedAt      time.Time
 }
 
-type User struct {
-	ID        int64
-	Email     string
-	Name      string
-	GoogleID  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}

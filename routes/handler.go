@@ -1,4 +1,4 @@
-package handlers
+package routes
 
 import (
 	// Needed for potential body buffering if required later
@@ -15,27 +15,25 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"linkshrink/internal/api/middleware"
-	"linkshrink/internal/auth"
-	"linkshrink/internal/config"
-	"linkshrink/internal/core/models"
-	"linkshrink/internal/core/services"
-	"linkshrink/internal/x402"
-	"linkshrink/routes"
+	"linkshrink/auth"
+	"linkshrink/config"
+	"linkshrink/purchases"
+	"linkshrink/users"
+	"linkshrink/x402"
 )
 
 // PaidRouteHandler handles HTTP requests related to paid routes.
 type PaidRouteHandler struct {
-	paidRouteService *services.PaidRouteService
-	purchaseService  *services.PurchaseService
-	userService      *services.UserService
+	paidRouteService *PaidRouteService
+	purchaseService  *purchases.PurchaseService
+	userService      *users.UserService
 
 	logger *slog.Logger
 }
 
 // NewPaidRouteHandler creates a new PaidRouteHandler.
-func NewPaidRouteHandler(routeService *services.PaidRouteService,
-	purchaseService *services.PurchaseService, userService *services.UserService,
+func NewPaidRouteHandler(routeService *PaidRouteService,
+	purchaseService *purchases.PurchaseService, userService *users.UserService,
 	logger *slog.Logger) *PaidRouteHandler {
 
 	return &PaidRouteHandler{
@@ -80,7 +78,7 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	}
 
 	// Get user ID from the context (set by AuthMiddleware)
-	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(auth.AuthorizationPayloadKey)
 	if !exists {
 		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
@@ -123,7 +121,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 	// Find the enabled route configuration by its short code.
 	route, err := h.paidRouteService.FindEnabledRouteByShortCode(gCtx.Request.Context(), shortCode)
 	if err != nil {
-		if errors.Is(err, routes.ErrRouteNotFound) {
+		if errors.Is(err, ErrRouteNotFound) {
 			gCtx.JSON(http.StatusNotFound, gin.H{"error": "Route not found or is disabled."})
 		} else {
 			h.logger.Error("Error retrieving route config", "shortCode", shortCode, "error", err)
@@ -256,7 +254,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 // GetUserPaidRoutes handles GET requests to retrieve all paid routes for the authenticated user.
 func (h *PaidRouteHandler) GetUserPaidRoutes(gCtx *gin.Context) {
 	// Get user ID from the context
-	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(auth.AuthorizationPayloadKey)
 	if !exists {
 		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
@@ -306,7 +304,7 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 	}
 
 	// Get user ID from the context
-	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(auth.AuthorizationPayloadKey)
 	if !exists {
 		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
@@ -315,9 +313,9 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 
 	err = h.paidRouteService.DeleteRoute(gCtx.Request.Context(), uint(routeID), payload.UserID)
 	if err != nil {
-		if errors.Is(err, routes.ErrRouteNoPermission) {
+		if errors.Is(err, ErrRouteNoPermission) {
 			gCtx.JSON(http.StatusForbidden, gin.H{"error": "Route not found or you do not have permission to delete it"})
-		} else if errors.Is(err, routes.ErrRouteNotFound) {
+		} else if errors.Is(err, ErrRouteNotFound) {
 			gCtx.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
 		} else {
 			gCtx.Error(err)
@@ -348,15 +346,15 @@ func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context, route *model
 	}
 
 	// Create purchase record
-	_, err = h.purchaseService.CreatePurchase(gCtx, &models.Purchase{
+	_, err = h.purchaseService.CreatePurchase(gCtx, &purchases.Purchase{
 		ShortCode:      route.ShortCode,
-		TargetURL:      route.TargetURL,
+		TargetUrl:      route.TargetURL,
 		Method:         route.Method,
 		Price:          route.Price,
 		IsTest:         route.IsTest,
 		PaidRouteID:    route.ID,
-		PaymentPayload: string(paymentPayloadJson),
-		SettleResponse: string(settleResponseJson),
+		PaymentPayload: paymentPayloadJson,
+		SettleResponse: settleResponseJson,
 	})
 
 	if err != nil {

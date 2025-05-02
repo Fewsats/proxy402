@@ -2,17 +2,10 @@ package main
 
 import (
 	"embed"
-	"io/fs"
-	"log"
 	"log/slog"
-	"net/http"
 
-	"github.com/gin-gonic/gin"
-
-	"linkshrink/internal/api/handlers"
-	"linkshrink/internal/api/middleware"
-	"linkshrink/internal/config"
-	"linkshrink/internal/core/services"
+	"linkshrink/config"
+	"linkshrink/server"
 	storePkg "linkshrink/store"
 	"linkshrink/utils"
 )
@@ -40,7 +33,6 @@ func main() {
 			"Unable to set logger level",
 			"error", err,
 		)
-
 		return
 	}
 
@@ -54,86 +46,40 @@ func main() {
 			"Unable to create store",
 			"error", err,
 		)
-
 		return
 	}
-
-	// Create stores
-	// userStore := store.NewUserStore()
-	// paidRouteStore := store.NewPaidRouteStore(db)
-	// purchaseStore := store.NewPurchaseStore(db)
 
 	// Create services
 	userService := services.NewUserService(logger, store)
 	paidRouteService := services.NewPaidRouteService(logger, store)
 	purchaseService := services.NewPurchaseService(logger, store)
 
-	// Create handlers
-	// userHandler := handlers.NewUserHandler(userService)
-	oauthHandler := handlers.NewOAuthHandler(userService)
-	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService, purchaseService, userService, logger)
-	uiHandler := handlers.NewUIHandler(paidRouteService, templatesFS)
-	purchaseHandler := handlers.NewPurchaseHandler(purchaseService)
+	// Create and configure the server
+	srv := server.NewServer(
+		logger,
+		cfg,
+		userService,
+		paidRouteService,
+		purchaseService,
+		templatesFS,
+		staticFS,
+	)
 
-	// Setup Gin router
-	router := gin.Default() // Includes Logger and Recovery middleware
-
-	// Serve static files from embedded filesystem
-	staticFileSystem, err := fs.Sub(staticFS, "static")
-	if err != nil {
-		log.Fatalf("Failed to create sub filesystem for static files: %v", err)
-	}
-	router.StaticFS("/static", http.FS(staticFileSystem))
-
-	// Health endpoint
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Service is healthy"})
-	})
-
-	// Set up UI routes
-	uiHandler.SetupRoutes(router)
-
-	// Public routes
-
-	// --- Paid Route Proxy ---
-	// This route handles all methods for the dynamic short codes
-	router.Any("/:shortCode", paidRouteHandler.HandlePaidRoute)
-
-	// Group routes that require authentication
-	authRequired := router.Group("/")
-	authRequired.Use(middleware.AuthMiddleware())
-	{
-		// Original /shrink endpoint for simple link shortening (kept for now?)
-		// Consider if this is still needed or if everything should be a paid route.
-		// Rerouting /links/shrink to create a PaidRoute instead of a standard Link
-		authRequired.POST("/links/shrink", paidRouteHandler.CreatePaidRouteHandler)
-
-		// User-specific link management (standard links)
-		// These might become obsolete if only PaidRoutes are used
-		// Renaming group to /routes might be clearer, but keeping /links for now.
-		linksGroup := authRequired.Group("/links") // Or rename to "/routes"?
-		{
-			linksGroup.GET("", paidRouteHandler.GetUserPaidRoutes)
-			linksGroup.DELETE("/:linkID", paidRouteHandler.DeleteUserPaidRoute) // Note: Param is still :linkID
-		}
-
-		// Dashboard data endpoint
-		authRequired.GET("/dashboard/stats", purchaseHandler.GetDashboardStats)
+	// Setup routes
+	if err := srv.SetupRoutes(); err != nil {
+		logger.Error(
+			"Failed to set up routes",
+			"error", err,
+		)
+		return
 	}
 
-	// Logout route
-	router.GET("/logout", func(c *gin.Context) {
-		c.SetCookie("jwt", "", -1, "/", "", false, true)
-		c.Redirect(http.StatusFound, "/")
-	})
-	// OAuth routes
-	router.GET("/auth/login", oauthHandler.Login)
-	router.GET("/auth/callback", oauthHandler.Callback)
-
-	// Start server
-	appPort := ":" + config.AppConfig.AppPort
-	log.Printf("Starting server on port %s", appPort)
-	if err := router.Run(appPort); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	// Start the server
+	if err := srv.Run(); err != nil {
+		logger.Error(
+			"Server failed to start",
+			"error", err,
+		)
+		return
 	}
 }

@@ -1,11 +1,9 @@
-package middleware
+package auth
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"linkshrink/internal/auth"
 )
 
 const (
@@ -30,7 +28,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Validate the token
-		claims, err := auth.ValidateJWT(token)
+		claims, err := ValidateJWT(token)
 		if err != nil {
 			// Clear invalid cookie
 			ctx.SetCookie(JWTCookie, "", -1, "/", "", false, true)

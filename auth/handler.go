@@ -1,4 +1,4 @@
-package handlers
+package auth
 
 import (
 	"encoding/json"
@@ -7,18 +7,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"linkshrink/internal/auth"
-	"linkshrink/internal/config"
-	"linkshrink/internal/core/services"
+	"linkshrink/config"
+	"linkshrink/users"
 )
 
 // OAuthHandler handles OAuth authentication requests
 type OAuthHandler struct {
-	userService *services.UserService
+	userService *users.UserService
 }
 
 // NewOAuthHandler creates a new OAuthHandler
-func NewOAuthHandler(userService *services.UserService) *OAuthHandler {
+func NewOAuthHandler(userService *users.UserService) *OAuthHandler {
 	return &OAuthHandler{
 		userService: userService,
 	}
@@ -103,7 +102,7 @@ func (h *OAuthHandler) Callback(gCtx *gin.Context) {
 	}
 
 	// Generate JWT token
-	signedToken, err := auth.GenerateJWT(user.ID, user.Email)
+	signedToken, err := GenerateJWT(user.ID, user.Email)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to generate token",

@@ -1,5 +1,23 @@
 package purchases
 
+import (
+	"time"
+)
+
+type Purchase struct {
+	ID             int64
+	ShortCode      string
+	TargetUrl      string
+	Method         string
+	Price          int32
+	IsTest         bool
+	PaymentPayload []byte
+	SettleResponse []byte
+	PaidRouteID    int32
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 // DailyStats represents purchase statistics for a single day
 type DailyStats struct {
 	Date         string `json:"date"`

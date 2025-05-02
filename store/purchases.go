@@ -10,16 +10,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"linkshrink/internal/core/models"
 	pkgPurchases "linkshrink/purchases"
 	"linkshrink/store/sqlc"
 )
 
 // Create inserts a new purchase in the database and returns the ID.
-func (s *Store) CreatePurchase(ctx context.Context, purchase *models.Purchase) (uint64, error) {
+func (s *Store) CreatePurchase(ctx context.Context, purchase *pkgPurchases.Purchase) (uint64, error) {
 	params := sqlc.CreatePurchaseParams{
 		ShortCode:      purchase.ShortCode,
-		TargetUrl:      purchase.TargetURL,
+		TargetUrl:      purchase.TargetUrl,
 		Method:         purchase.Method,
 		Price:          int32(purchase.Price),
 		IsTest:         purchase.IsTest,
@@ -37,13 +36,13 @@ func (s *Store) CreatePurchase(ctx context.Context, purchase *models.Purchase) (
 }
 
 // ListByUserID retrieves all purchases for a specific user.
-func (s *Store) ListPurchasesByUserID(ctx context.Context, userID uint) ([]models.Purchase, error) {
+func (s *Store) ListPurchasesByUserID(ctx context.Context, userID uint) ([]pkgPurchases.Purchase, error) {
 	dbPurchases, err := s.queries.ListPurchasesByUserID(ctx, int32(userID))
 	if err != nil {
 		return nil, err
 	}
 
-	purchases := make([]models.Purchase, len(dbPurchases))
+	purchases := make([]pkgPurchases.Purchase, len(dbPurchases))
 	for i, dbPurchase := range dbPurchases {
 		purchases[i] = *convertToPurchaseModel(dbPurchase)
 	}
@@ -52,7 +51,7 @@ func (s *Store) ListPurchasesByUserID(ctx context.Context, userID uint) ([]model
 }
 
 // ListByShortCode retrieves all purchases for a specific shortcode.
-func (s *Store) ListPurchasesByShortCode(ctx context.Context, shortCode string) ([]models.Purchase, error) {
+func (s *Store) ListPurchasesByShortCode(ctx context.Context, shortCode string) ([]pkgPurchases.Purchase, error) {
 	// Using existing query to fetch purchases directly by shortcode
 	rows, err := s.db.Query(ctx,
 		"SELECT * FROM purchases WHERE short_code = $1 ORDER BY created_at DESC",
@@ -62,7 +61,7 @@ func (s *Store) ListPurchasesByShortCode(ctx context.Context, shortCode string) 
 	}
 	defer rows.Close()
 
-	var purchases []models.Purchase
+	var purchases []pkgPurchases.Purchase
 	for rows.Next() {
 		var p sqlc.Purchase
 		if err := rows.Scan(
@@ -191,9 +190,9 @@ func padDailyStats(stats []pkgPurchases.DailyStats, days int) []pkgPurchases.Dai
 	return stats
 }
 
-// Helper function to convert sqlc Purchase to models.Purchase
-func convertToPurchaseModel(dbPurchase sqlc.Purchase) *models.Purchase {
-	purchase := &models.Purchase{
+// Helper function to convert sqlc Purchase to pkgPurchases.Purchase
+func convertToPurchaseModel(dbPurchase sqlc.Purchase) *pkgPurchases.Purchase {
+	purchase := &pkgPurchases.Purchase{
 		ShortCode:      dbPurchase.ShortCode,
 		TargetURL:      dbPurchase.TargetUrl,
 		Method:         dbPurchase.Method,

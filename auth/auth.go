@@ -3,11 +3,10 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"linkshrink/config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-
-	"linkshrink/internal/config"
 )
 
 // Claims defines the structure of the JWT claims.

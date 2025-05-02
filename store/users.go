@@ -7,13 +7,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"linkshrink/internal/core/models"
 	"linkshrink/store/sqlc"
 	"linkshrink/users"
 )
 
 // Create inserts a new user in the database.
-func (s *Store) CreateUser(ctx context.Context, user *models.User) (uint64, error) {
+func (s *Store) CreateUser(ctx context.Context, user *users.User) (uint64, error) {
 	userID, err := s.queries.CreateUser(ctx, sqlc.CreateUserParams{
 		Email:    user.Email,
 		Name:     user.Name,
@@ -27,7 +26,7 @@ func (s *Store) CreateUser(ctx context.Context, user *models.User) (uint64, erro
 }
 
 // FindByID retrieves a user by ID.
-func (s *Store) FindUserByID(ctx context.Context, id uint) (*models.User, error) {
+func (s *Store) FindUserByID(ctx context.Context, id uint) (*users.User, error) {
 	dbUser, err := s.queries.GetUserByID(ctx, int64(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -40,7 +39,7 @@ func (s *Store) FindUserByID(ctx context.Context, id uint) (*models.User, error)
 }
 
 // FindByGoogleID retrieves a user by Google ID.
-func (s *Store) FindUserByGoogleID(ctx context.Context, googleID string) (*models.User, error) {
+func (s *Store) FindUserByGoogleID(ctx context.Context, googleID string) (*users.User, error) {
 	dbUser, err := s.queries.GetUserByGoogleID(ctx, googleID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -52,9 +51,9 @@ func (s *Store) FindUserByGoogleID(ctx context.Context, googleID string) (*model
 	return convertToUserModel(dbUser), nil
 }
 
-// Helper function to convert sqlc User to models.User
-func convertToUserModel(dbUser sqlc.User) *models.User {
-	return &models.User{
+// Helper function to convert sqlc User to users.User
+func convertToUserModel(dbUser sqlc.User) *users.User {
+	return &users.User{
 		Email:     dbUser.Email,
 		Name:      dbUser.Name,
 		GoogleID:  dbUser.GoogleID,
