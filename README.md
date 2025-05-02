@@ -220,4 +220,29 @@ The client will:
 4.  Retry the original request with the paid preimage included in the `Authorization` header.
 5.  Log the final response from the target API.
 
+### 5. Target URL Verification
+
+When the proxy forwards a request to your target URL, it adds a special header that can be used to verify the request came from Proxy402:
+
+* The proxy adds a `Proxy402-Secret` header containing a secret value
+* This secret is unique to your account and is displayed in your user settings
+* You can use this header on your server-side to verify that requests are coming from the Proxy402 service and not directly from clients
+* This provides an additional layer of security to ensure only paid requests reach your API
+
+For example, in a Node.js server handling the target URL:
+
+```javascript
+app.get('/api/data', (req, res) => {
+  const proxySecret = req.headers['proxy402-secret'];
+  
+  // Verify the request is coming from Proxy402
+  if (proxySecret !== 'YOUR_SECRET_FROM_USER_SETTINGS') {
+    return res.status(403).json({ error: 'Unauthorized direct access' });
+  }
+  
+  // Process the authorized request
+  res.json({ data: 'Your protected data' });
+});
+```
+
 ---
