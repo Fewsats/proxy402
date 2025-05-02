@@ -2,10 +2,17 @@ package purchases
 
 import (
 	"context"
+	"errors"
 
 	"linkshrink/internal/core/models"
-	"linkshrink/store"
 )
+
+// Custom errors for purchase operations
+var (
+	ErrPurchaseNotFound = errors.New("purchase not found")
+	ErrNoStats          = errors.New("no purchase statistics available")
+)
+
 
 // Store provides access to the purchase storage.
 type Store interface {
@@ -19,5 +26,5 @@ type Store interface {
 	ListPurchasesByShortCode(ctx context.Context, shortCode string) ([]models.Purchase, error)
 
 	// GetDailyStatsByUserID retrieves daily purchase stats for a user.
-	GetDailyStatsByUserID(ctx context.Context, userID uint, days int) ([]store.DailyStats, int64, int, error)
+	GetDailyStatsByUserID(ctx context.Context, userID uint, days int) ([]DailyStats, int64, int, error)
 }

@@ -44,15 +44,15 @@ type UIPaidRoute struct {
 }
 
 // getBaseURL returns the base URL (scheme + host) for the current request
-func (h *UIHandler) getBaseURL(c *gin.Context) string {
+func (h *UIHandler) getBaseURL(gCtx *gin.Context) string {
 	scheme := "http"
 	// Check X-Forwarded-Proto first, as we might be behind a proxy
-	if proto := c.GetHeader("X-Forwarded-Proto"); proto == "https" {
+	if proto := gCtx.GetHeader("X-Forwarded-Proto"); proto == "https" {
 		scheme = "https"
-	} else if c.Request.TLS != nil { // Fallback to checking direct TLS connection
+	} else if gCtx.Request.TLS != nil { // Fallback to checking direct TLS connection
 		scheme = "https"
 	}
-	return scheme + "://" + c.Request.Host
+	return scheme + "://" + gCtx.Request.Host
 }
 
 // SetupRoutes registers UI routes to the provided router
@@ -72,36 +72,36 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 }
 
 // handleLandingPage renders the landing page for non-authenticated users
-func (h *UIHandler) handleLandingPage(c *gin.Context) {
+func (h *UIHandler) handleLandingPage(gCtx *gin.Context) {
 	// Check if user is already authenticated via cookie
-	cookie, err := c.Cookie("jwt")
+	cookie, err := gCtx.Cookie("jwt")
 	if err == nil && cookie != "" {
 		// User has JWT cookie, redirect to dashboard
-		c.Redirect(http.StatusFound, "/dashboard")
+		gCtx.Redirect(http.StatusFound, "/dashboard")
 		return
 	}
 
 	// Render landing page for non-authenticated users
-	c.HTML(http.StatusOK, "landing.html", gin.H{
-		"baseURL": h.getBaseURL(c),
+	gCtx.HTML(http.StatusOK, "landing.html", gin.H{
+		"baseURL": h.getBaseURL(gCtx),
 	})
 }
 
 // handleDashboard handles the main dashboard page for authenticated users
-func (h *UIHandler) handleDashboard(c *gin.Context) {
+func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	// User is guaranteed to exist due to middleware
-	user, exists := c.Get(middleware.UserKey)
+	user, exists := gCtx.Get(middleware.UserKey)
 	if !exists {
-		c.Redirect(http.StatusFound, "/")
+		gCtx.Redirect(http.StatusFound, "/")
 		return
 	}
 
 	userID := user.(gin.H)["id"].(uint)
 
 	// Get user's links
-	dbLinks, err := h.paidRouteService.ListUserRoutes(userID)
+	dbLinks, err := h.paidRouteService.ListUserRoutes(gCtx.Request.Context(), userID)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{
+		gCtx.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{
 			"error": "Unable to fetch links",
 			"user":  user,
 		})
@@ -127,10 +127,10 @@ func (h *UIHandler) handleDashboard(c *gin.Context) {
 		})
 	}
 
-	baseURL := h.getBaseURL(c)
-	host := c.Request.Host
+	baseURL := h.getBaseURL(gCtx)
+	host := gCtx.Request.Host
 
-	c.HTML(http.StatusOK, "dashboard.html", gin.H{
+	gCtx.HTML(http.StatusOK, "dashboard.html", gin.H{
 		"user":    user,
 		"links":   uiLinks,
 		"host":    host,

@@ -11,19 +11,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"linkshrink/internal/core/models"
+	pkgPurchases "linkshrink/purchases"
 	"linkshrink/store/sqlc"
 )
-
-// DailyStats represents purchase statistics for a single day
-type DailyStats struct {
-	Date         string `json:"date"`
-	Count        int    `json:"count"`
-	Earnings     int64  `json:"earnings"`
-	TestCount    int    `json:"test_count"`
-	TestEarnings int64  `json:"test_earnings"`
-	RealCount    int    `json:"real_count"`
-	RealEarnings int64  `json:"real_earnings"`
-}
 
 // Create inserts a new purchase in the database and returns the ID.
 func (s *Store) CreatePurchase(ctx context.Context, purchase *models.Purchase) (uint64, error) {
@@ -89,11 +79,15 @@ func (s *Store) ListPurchasesByShortCode(ctx context.Context, shortCode string) 
 		return nil, fmt.Errorf("error iterating over purchase rows: %w", err)
 	}
 
+	if len(purchases) == 0 {
+		return nil, pkgPurchases.ErrPurchaseNotFound
+	}
+
 	return purchases, nil
 }
 
 // GetDailyStatsByUserID retrieves daily purchase stats for a user
-func (s *Store) GetDailyStatsByUserID(ctx context.Context, userID uint, days int) ([]DailyStats, int64, int, error) {
+func (s *Store) GetDailyStatsByUserID(ctx context.Context, userID uint, days int) ([]pkgPurchases.DailyStats, int64, int, error) {
 	// Create pgtype.Text for days parameter
 	daysText := pgtype.Text{
 		String: strconv.Itoa(days),
@@ -112,12 +106,12 @@ func (s *Store) GetDailyStatsByUserID(ctx context.Context, userID uint, days int
 	totalStats, err := s.queries.GetTotalStats(ctx, int32(userID))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return []DailyStats{}, 0, 0, nil
+			return []pkgPurchases.DailyStats{}, 0, 0, pkgPurchases.ErrNoStats
 		}
 		return nil, 0, 0, err
 	}
 
-	stats := make([]DailyStats, len(dbStats))
+	stats := make([]pkgPurchases.DailyStats, len(dbStats))
 	for i, dbStat := range dbStats {
 		// Converting TestEarnings and RealEarnings from interface{} to int64
 		var testEarnings, realEarnings int64
@@ -130,7 +124,7 @@ func (s *Store) GetDailyStatsByUserID(ctx context.Context, userID uint, days int
 			realEarnings = re
 		}
 
-		stats[i] = DailyStats{
+		stats[i] = pkgPurchases.DailyStats{
 			Date:         dbStat.Date,
 			Count:        int(dbStat.Count),
 			Earnings:     int64(dbStat.Earnings), // Convert int32 to int64
@@ -155,7 +149,7 @@ func (s *Store) GetDailyStatsByUserID(ctx context.Context, userID uint, days int
 }
 
 // padDailyStats fills in missing days with zero values
-func padDailyStats(stats []DailyStats, days int) []DailyStats {
+func padDailyStats(stats []pkgPurchases.DailyStats, days int) []pkgPurchases.DailyStats {
 	today := time.Now().UTC()
 	existingDates := make(map[string]bool)
 
@@ -168,7 +162,7 @@ func padDailyStats(stats []DailyStats, days int) []DailyStats {
 	for i := 0; i < days; i++ {
 		date := today.AddDate(0, 0, -i).Format("2006-01-02")
 		if !existingDates[date] {
-			stats = append(stats, DailyStats{
+			stats = append(stats, pkgPurchases.DailyStats{
 				Date:         date,
 				Count:        0,
 				Earnings:     0,
@@ -196,8 +190,6 @@ func padDailyStats(stats []DailyStats, days int) []DailyStats {
 
 	return stats
 }
-
-
 
 // Helper function to convert sqlc Purchase to models.Purchase
 func convertToPurchaseModel(dbPurchase sqlc.Purchase) *models.Purchase {

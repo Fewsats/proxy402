@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +13,8 @@ import (
 	"linkshrink/internal/api/middleware"
 	"linkshrink/internal/config"
 	"linkshrink/internal/core/services"
-	"linkshrink/internal/store"
+	storePkg "linkshrink/store"
+	"linkshrink/utils"
 )
 
 //go:embed templates
@@ -22,22 +24,49 @@ var templatesFS embed.FS
 var staticFS embed.FS
 
 func main() {
-	// Load configuration
-	config.LoadConfig()
+	// Use the default logger until the configuration is loaded.
+	logger := slog.Default()
 
-	// Initialize database
-	store.InitDatabase()
-	db := store.DB // Get the GORM DB instance
+	// Load the configuration.
+	cfg := config.LoadConfig(logger)
+
+	logger.Info(
+		"Logger configuration",
+		"level", cfg.LogLevel,
+	)
+
+	if err := cfg.SetLoggerLevel(); err != nil {
+		logger.Error(
+			"Unable to set logger level",
+			"error", err,
+		)
+
+		return
+	}
+
+	cfg.SetGinMode()
+
+	// Initialize the store.
+	clock := utils.NewRealClock()
+	store, err := storePkg.NewStore(logger, &cfg.Store, clock)
+	if err != nil {
+		logger.Error(
+			"Unable to create store",
+			"error", err,
+		)
+
+		return
+	}
 
 	// Create stores
-	userStore := store.NewUserStore(db)
-	paidRouteStore := store.NewPaidRouteStore(db)
-	purchaseStore := store.NewPurchaseStore(db)
+	// userStore := store.NewUserStore()
+	// paidRouteStore := store.NewPaidRouteStore(db)
+	// purchaseStore := store.NewPurchaseStore(db)
 
 	// Create services
-	userService := services.NewUserService(userStore)
-	paidRouteService := services.NewPaidRouteService(paidRouteStore)
-	purchaseService := services.NewPurchaseService(purchaseStore)
+	userService := services.NewUserService(logger, store)
+	paidRouteService := services.NewPaidRouteService(logger, store)
+	purchaseService := services.NewPurchaseService(logger, store)
 
 	// Create handlers
 	// userHandler := handlers.NewUserHandler(userService)
@@ -58,17 +87,6 @@ func main() {
 
 	// Health endpoint
 	router.GET("/health", func(c *gin.Context) {
-		sqlDB, err := db.DB()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Database connection error"})
-			return
-		}
-
-		if err := sqlDB.Ping(); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Failed to ping database"})
-			return
-		}
-
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Service is healthy"})
 	})
 

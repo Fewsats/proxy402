@@ -8,7 +8,7 @@ import (
 	"linkshrink/internal/api/middleware"
 	"linkshrink/internal/auth"
 	"linkshrink/internal/core/services"
-	"linkshrink/internal/store"
+	"linkshrink/purchases"
 )
 
 // PurchaseHandler handles HTTP requests related to purchases
@@ -25,34 +25,54 @@ func NewPurchaseHandler(purchaseService *services.PurchaseService) *PurchaseHand
 
 // DashboardStats contains aggregated purchase data for the dashboard
 type DashboardStats struct {
-	TotalEarnings  int64              `json:"total_earnings"`
-	TotalPurchases int                `json:"total_purchases"`
-	DailyPurchases []store.DailyStats `json:"daily_purchases"`
+	TotalEarnings  int64 `json:"total_earnings"`
+	TotalPurchases int   `json:"total_purchases"`
+
+	TestEarnings   int64                  `json:"test_earnings"`
+	TestPurchases  int                    `json:"test_purchases"`
+	RealEarnings   int64                  `json:"real_earnings"`
+	RealPurchases  int                    `json:"real_purchases"`
+	DailyPurchases []purchases.DailyStats `json:"daily_purchases"`
 }
 
 // GetDashboardStats returns purchase statistics for the dashboard
-func (h *PurchaseHandler) GetDashboardStats(ctx *gin.Context) {
+func (h *PurchaseHandler) GetDashboardStats(gCtx *gin.Context) {
 	// Get user ID from the context (set by AuthMiddleware)
-	authPayload, exists := ctx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 	payload := authPayload.(*auth.Claims)
 
 	// Get dashboard stats for the last 7 days
-	dailyStats, totalEarnings, totalPurchases, err := h.purchaseService.GetDashboardStats(payload.UserID, 7)
+	dailyStats, totalEarnings, totalPurchases, err := h.purchaseService.GetDashboardStats(gCtx.Request.Context(), payload.UserID, 7)
 	if err != nil {
-		ctx.Error(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve purchase data"})
+		gCtx.Error(err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve purchase data"})
 		return
+	}
+
+	// Calculate test vs. real totals
+	var testEarnings, realEarnings int64
+	var testPurchases, realPurchases int
+
+	for _, day := range dailyStats {
+		testEarnings += day.TestEarnings
+		testPurchases += day.TestCount
+		realEarnings += day.RealEarnings
+		realPurchases += day.RealCount
 	}
 
 	stats := DashboardStats{
 		TotalEarnings:  totalEarnings,
 		TotalPurchases: totalPurchases,
+		TestEarnings:   testEarnings,
+		TestPurchases:  testPurchases,
+		RealEarnings:   realEarnings,
+		RealPurchases:  realPurchases,
 		DailyPurchases: dailyStats,
 	}
 
-	ctx.JSON(http.StatusOK, stats)
+	gCtx.JSON(http.StatusOK, stats)
 }
