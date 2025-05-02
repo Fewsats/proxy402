@@ -13,6 +13,13 @@ WHERE short_code = $1 AND deleted_at IS NULL;
 SELECT * FROM paid_routes
 WHERE short_code = $1 AND is_enabled = true AND deleted_at IS NULL;
 
+-- name: CheckShortCodeExists :one
+-- CheckShortCodeExists checks if a short code already exists.
+SELECT EXISTS(
+  SELECT 1 FROM paid_routes
+  WHERE short_code = $1
+) as exists;
+
 -- name: ListUserPaidRoutes :many
 -- ListUserPaidRoutes returns all paid routes for a specific user.
 SELECT * FROM paid_routes
@@ -27,7 +34,7 @@ INSERT INTO paid_routes (
     created_at, updated_at
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, 0, 0, 0, $8, $9
-) RETURNING id;
+) RETURNING *;
 
 -- name: UpdatePaidRoute :exec
 -- UpdatePaidRoute updates a paid route.
