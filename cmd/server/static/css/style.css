@@ -114,7 +114,9 @@ a:hover {
     flex: 1;
     max-width: 1600px;
     margin: 2rem auto;
-    width: 100%;
+    width: calc(100% - 2rem);
+    padding-left: 1rem;
+    padding-right: 1rem;
     position: relative;
     z-index: 1;
 }
@@ -889,4 +891,64 @@ input:focus, select:focus {
     .chart-container {
         height: 220px;
     }
+}
+
+/* Table sorting indicators */
+th.sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 1.5em; /* Make space for the arrow */
+}
+
+th.sortable::after {
+    content: '';
+    position: absolute;
+    right: 0.5em;
+    top: 50%;
+    margin-top: -0.4em; /* Center the arrow */
+    width: 0;
+    height: 0;
+    border-left: 0.4em solid transparent;
+    border-right: 0.4em solid transparent;
+    opacity: 0.3;
+    transition: opacity 0.2s ease-in-out;
+}
+
+th.sortable:hover::after {
+    opacity: 0.7;
+}
+
+th.sortable.asc::after {
+    border-bottom: 0.5em solid var(--text-muted);
+    opacity: 1;
+}
+
+th.sortable.desc::after {
+    border-top: 0.5em solid var(--text-muted);
+    opacity: 1;
+}
+
+/* Table Filter Controls */
+.table-filters {
+    padding: 1rem;
+    background-color: #233c69; /* Match header background */
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.table-filters label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.filter-select {
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    background-color: #325082;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
 } 
