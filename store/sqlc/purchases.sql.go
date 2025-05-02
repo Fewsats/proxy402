@@ -69,7 +69,7 @@ JOIN
     paid_routes pr ON p.paid_route_id = pr.id
 WHERE 
     pr.user_id = $1
-    AND p.created_at >= $3 - ($2 || ' days')::INTERVAL
+    AND p.created_at >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL
 GROUP BY 
     date
 ORDER BY 
@@ -79,7 +79,6 @@ ORDER BY
 type GetDailyStatsParams struct {
 	UserID  int32
 	Column2 pgtype.Text
-	Column3 interface{}
 }
 
 type GetDailyStatsRow struct {
@@ -94,7 +93,7 @@ type GetDailyStatsRow struct {
 
 // GetDailyStats retrieves daily purchase stats for a specific user.
 func (q *Queries) GetDailyStats(ctx context.Context, arg GetDailyStatsParams) ([]GetDailyStatsRow, error) {
-	rows, err := q.db.Query(ctx, getDailyStats, arg.UserID, arg.Column2, arg.Column3)
+	rows, err := q.db.Query(ctx, getDailyStats, arg.UserID, arg.Column2)
 	if err != nil {
 		return nil, err
 	}

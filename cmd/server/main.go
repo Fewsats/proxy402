@@ -71,7 +71,7 @@ func main() {
 	// Create handlers
 	// userHandler := handlers.NewUserHandler(userService)
 	oauthHandler := handlers.NewOAuthHandler(userService)
-	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService, purchaseService)
+	paidRouteHandler := handlers.NewPaidRouteHandler(paidRouteService, purchaseService, logger)
 	uiHandler := handlers.NewUIHandler(paidRouteService, templatesFS)
 	purchaseHandler := handlers.NewPurchaseHandler(purchaseService)
 

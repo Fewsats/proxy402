@@ -36,7 +36,7 @@ JOIN
     paid_routes pr ON p.paid_route_id = pr.id
 WHERE 
     pr.user_id = $1
-    AND p.created_at >= $3 - ($2 || ' days')::INTERVAL
+    AND p.created_at >= CURRENT_TIMESTAMP - ($2 || ' days')::INTERVAL
 GROUP BY 
     date
 ORDER BY 

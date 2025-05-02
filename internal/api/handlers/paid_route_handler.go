@@ -4,37 +4,39 @@ import (
 	// Needed for potential body buffering if required later
 	"context"
 	"encoding/json"
-	"errors" // Import errors package
+	"errors"
 	"fmt"
-	"math/big" // Need big.Float for price parsing
+	"log/slog"
+	"math/big"
 	"net/http"
-	"net/http/httputil" // Import for Reverse Proxy
-	"net/url"           // Import for URL parsing
+	"net/http/httputil"
+	"net/url"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
-	"linkshrink/internal/api/middleware" // To get user ID
-	"linkshrink/internal/auth"           // To get Claims type
-	"linkshrink/internal/config"         // Need for X402 config
+	"linkshrink/internal/api/middleware"
+	"linkshrink/internal/auth"
+	"linkshrink/internal/config"
 	"linkshrink/internal/core/models"
 	"linkshrink/internal/core/services"
-	"linkshrink/internal/x402" // Import local x402 package
-	"linkshrink/routes"        // Import for custom errors
+	"linkshrink/internal/x402"
+	"linkshrink/routes"
 )
 
 // PaidRouteHandler handles HTTP requests related to paid routes.
 type PaidRouteHandler struct {
 	paidRouteService *services.PaidRouteService
 	purchaseService  *services.PurchaseService
-	// We might need linkService later if we want to avoid shortCode collisions
+	logger           *slog.Logger
 }
 
 // NewPaidRouteHandler creates a new PaidRouteHandler.
-func NewPaidRouteHandler(routeService *services.PaidRouteService, purchaseService *services.PurchaseService) *PaidRouteHandler {
+func NewPaidRouteHandler(routeService *services.PaidRouteService, purchaseService *services.PurchaseService, logger *slog.Logger) *PaidRouteHandler {
 	return &PaidRouteHandler{
 		paidRouteService: routeService,
 		purchaseService:  purchaseService,
+		logger:           logger,
 	}
 }
 
@@ -118,7 +120,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 		if errors.Is(err, routes.ErrRouteNotFound) {
 			gCtx.JSON(http.StatusNotFound, gin.H{"error": "Route not found or is disabled."})
 		} else {
-			fmt.Printf("Error retrieving route config for %s: %v\n", shortCode, err) // Log internal error
+			h.logger.Error("Error retrieving route config", "shortCode", shortCode, "error", err)
 			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving route configuration."})
 		}
 		return
@@ -159,13 +161,13 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 
 	// 6. Check if the payment function aborted the request
 	if gCtx.IsAborted() {
-		fmt.Printf("Payment check failed or required for %s, request aborted by x402.Payment\n", shortCode)
+		h.logger.Info("Payment check failed or required", "shortCode", shortCode)
 		// If aborted with 402, increment attempt count
 		if gCtx.Writer.Status() == http.StatusPaymentRequired {
 			err := h.paidRouteService.IncrementAttemptCount(gCtx.Request.Context(), shortCode)
 			if err != nil {
 				// Log error, but don't overwrite the original 402 response
-				fmt.Printf("Error incrementing attempt count for %s after 402: %v\n", shortCode, err)
+				h.logger.Error("Error incrementing attempt count after 402", "shortCode", shortCode, "error", err)
 			}
 		}
 		return // Stop processing, response already sent by x402.Payment
@@ -219,7 +221,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 
 	// Optional: Custom error handling
 	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
-		fmt.Printf("Reverse proxy error for %s to %s: %v\n", shortCode, route.TargetURL, err)
+		h.logger.Error("Reverse proxy error", "shortCode", shortCode, "targetURL", route.TargetURL, "error", err)
 		rw.WriteHeader(http.StatusBadGateway)
 		// Avoid writing detailed errors to the client unless necessary
 		// rw.Write([]byte("Proxy error"))
@@ -228,7 +230,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 	// 10. Serve the request using the proxy
 	// This forwards the request (method, headers, body) to the targetURL
 	// and streams the response back to the original client (gCtx.Writer).
-	fmt.Printf("Proxying request for %s to %s\n", shortCode, route.TargetURL)
+	h.logger.Info("Proxying request", "shortCode", shortCode, "targetURL", route.TargetURL)
 	proxy.ServeHTTP(gCtx.Writer, gCtx.Request)
 
 	// --- END Reverse Proxy ---
@@ -312,40 +314,35 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 	gCtx.Status(http.StatusOK)
 }
 
-// savePurchaseRecord asynchronously saves a purchase record to the database
+// savePurchaseRecord is a helper method to save the purchase record in the database.
 func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context, route *models.PaidRoute, paymentPayload *x402.PaymentPayload, settleResponse *x402.SettleResponse) {
-	go func() {
-		// Convert payment payload to JSON string
-		paymentData, err := json.Marshal(paymentPayload)
-		if err != nil {
-			fmt.Printf("Failed to encode payment payload: %v\n", err)
-			return
-		}
+	// Convert paymentPayload to JSON
+	paymentPayloadJson, err := json.Marshal(paymentPayload)
+	if err != nil {
+		h.logger.Error("Failed to encode payment payload", "error", err)
+		return
+	}
 
-		// Get settle response as encoded string
-		settleData, err := json.Marshal(settleResponse)
-		if err != nil {
-			fmt.Printf("Failed to encode settle response: %v\n", err)
-			return
-		}
+	// Convert settleResponse to JSON
+	settleResponseJson, err := json.Marshal(settleResponse)
+	if err != nil {
+		h.logger.Error("Failed to encode settle response", "error", err)
+		return
+	}
 
-		// Save purchase info
-		_, err = h.purchaseService.CreatePurchase(
-			gCtx,
-			&models.Purchase{
-				ShortCode:      route.ShortCode,
-				TargetURL:      route.TargetURL,
-				Method:         route.Method,
-				Price:          route.Price,
-				IsTest:         route.IsTest,
-				PaidRouteID:    route.ID,
-				PaymentPayload: string(paymentData),
-				SettleResponse: string(settleData),
-			},
-		)
+	// Create purchase record
+	_, err = h.purchaseService.CreatePurchase(gCtx, &models.Purchase{
+		ShortCode:      route.ShortCode,
+		TargetURL:      route.TargetURL,
+		Method:         route.Method,
+		Price:          route.Price,
+		IsTest:         route.IsTest,
+		PaidRouteID:    route.ID,
+		PaymentPayload: string(paymentPayloadJson),
+		SettleResponse: string(settleResponseJson),
+	})
 
-		if err != nil {
-			fmt.Printf("Failed to save purchase record: %v\n", err)
-		}
-	}()
+	if err != nil {
+		h.logger.Error("Failed to save purchase record", "error", err)
+	}
 }
