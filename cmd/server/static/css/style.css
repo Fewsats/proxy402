@@ -447,6 +447,24 @@ input:focus, select:focus {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    position: relative;
+    cursor: pointer;
+}
+
+/* Add specific tooltip style for ellipsis URLs to make sure they're visible */
+.ellipsis[data-tooltip]::after {
+    min-width: 150px;
+    max-width: 450px;
+    white-space: normal;
+    word-break: break-all;
+    text-align: left;
+    border: 1px solid var(--border-color);
+}
+
+/* Make sure ellipsis tooltips are visible */
+.ellipsis[data-tooltip]::before,
+.ellipsis[data-tooltip]::after {
+    z-index: 1000;
 }
 
 /* Empty state */

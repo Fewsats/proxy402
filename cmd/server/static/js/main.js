@@ -125,4 +125,69 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.lucide) {
         lucide.createIcons();
     }
-}); 
+    
+    // Enhanced tooltips for long URLs
+    initializeEnhancedTooltips();
+});
+
+// Function to initialize enhanced tooltips for long URLs
+function initializeEnhancedTooltips() {
+    // Get all elements with the ellipsis class
+    const ellipsisElements = document.querySelectorAll('.ellipsis[data-tooltip]');
+    
+    ellipsisElements.forEach(element => {
+        // Check if the content is being truncated
+        if (element.scrollWidth > element.clientWidth) {
+            const tooltipText = element.getAttribute('data-tooltip');
+            
+            element.addEventListener('mouseenter', function(e) {
+                // Create tooltip element if it doesn't exist
+                if (!document.getElementById('enhanced-tooltip')) {
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'enhanced-tooltip';
+                    tooltip.textContent = tooltipText;
+                    tooltip.style.position = 'absolute';
+                    tooltip.style.zIndex = '10000';
+                    tooltip.style.backgroundColor = 'rgba(30, 50, 90, 0.95)';
+                    tooltip.style.color = '#ffffff';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '0.85rem';
+                    tooltip.style.maxWidth = '600px';
+                    tooltip.style.wordBreak = 'break-all';
+                    tooltip.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+                    tooltip.style.border = '1px solid rgba(120, 150, 200, 0.4)';
+                    tooltip.style.pointerEvents = 'none';
+                    
+                    document.body.appendChild(tooltip);
+                    
+                    // Position the tooltip
+                    const rect = element.getBoundingClientRect();
+                    tooltip.style.left = (rect.left) + 'px';
+                    tooltip.style.top = (window.scrollY + rect.top - tooltip.offsetHeight - 10) + 'px';
+                }
+            });
+            
+            element.addEventListener('mouseleave', function() {
+                const tooltip = document.getElementById('enhanced-tooltip');
+                if (tooltip) {
+                    tooltip.remove();
+                }
+            });
+        }
+    });
+    
+    // Monitor for table updates (e.g., when sorting or filtering)
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                initializeEnhancedTooltips();
+            }
+        });
+    });
+    
+    const tableBody = document.querySelector('#links-table tbody');
+    if (tableBody) {
+        observer.observe(tableBody, { childList: true });
+    }
+} 
