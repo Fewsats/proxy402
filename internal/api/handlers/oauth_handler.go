@@ -25,46 +25,46 @@ func NewOAuthHandler(userService *services.UserService) *OAuthHandler {
 }
 
 // Login initiates Google OAuth flow
-func (h *OAuthHandler) Login(c *gin.Context) {
+func (h *OAuthHandler) Login(gCtx *gin.Context) {
 	// Check if user already has a valid JWT
-	cookie, err := c.Cookie("jwt")
+	cookie, err := gCtx.Cookie("jwt")
 	if err == nil && cookie != "" {
 		// Already authenticated, redirect to dashboard
-		c.Redirect(http.StatusFound, "/dashboard")
+		gCtx.Redirect(http.StatusFound, "/dashboard")
 		return
 	}
 
 	// Not authenticated, proceed with OAuth flow
 	url := config.AppConfig.GoogleOAuth.AuthCodeURL("state-token")
-	c.Redirect(http.StatusTemporaryRedirect, url)
+	gCtx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 // Callback handles the Google OAuth callback
-func (h *OAuthHandler) Callback(c *gin.Context) {
-	code := c.Query("code")
+func (h *OAuthHandler) Callback(gCtx *gin.Context) {
+	code := gCtx.Query("code")
 	if code == "" {
-		c.HTML(http.StatusBadRequest, "landing.html", gin.H{
+		gCtx.HTML(http.StatusBadRequest, "landing.html", gin.H{
 			"error":   "Missing code parameter",
-			"baseURL": c.Request.Host,
+			"baseURL": gCtx.Request.Host,
 		})
 		return
 	}
 
-	token, err := config.AppConfig.GoogleOAuth.Exchange(c.Request.Context(), code)
+	token, err := config.AppConfig.GoogleOAuth.Exchange(gCtx.Request.Context(), code)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to exchange token",
-			"baseURL": c.Request.Host,
+			"baseURL": gCtx.Request.Host,
 		})
 		return
 	}
 
-	client := config.AppConfig.GoogleOAuth.Client(c.Request.Context(), token)
+	client := config.AppConfig.GoogleOAuth.Client(gCtx.Request.Context(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to get user info",
-			"baseURL": c.Request.Host,
+			"baseURL": gCtx.Request.Host,
 		})
 		return
 	}
@@ -72,9 +72,9 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 
 	userData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to read user data",
-			"baseURL": c.Request.Host,
+			"baseURL": gCtx.Request.Host,
 		})
 		return
 	}
@@ -85,19 +85,19 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 		ID    string `json:"id"`
 	}
 	if err := json.Unmarshal(userData, &userInfo); err != nil {
-		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to parse user data",
-			"baseURL": c.Request.Host,
+			"baseURL": gCtx.Request.Host,
 		})
 		return
 	}
 
 	// Find or create user
-	user, err := h.userService.FindOrCreateUser(userInfo.Email, userInfo.Name, userInfo.ID)
+	user, err := h.userService.FindOrCreateUser(gCtx.Request.Context(), userInfo.Email, userInfo.Name, userInfo.ID)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to create or find user",
-			"baseURL": c.Request.Host,
+			"baseURL": gCtx.Request.Host,
 		})
 		return
 	}
@@ -105,17 +105,17 @@ func (h *OAuthHandler) Callback(c *gin.Context) {
 	// Generate JWT token
 	signedToken, err := auth.GenerateJWT(user.ID, user.Email)
 	if err != nil {
-		c.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to generate token",
-			"baseURL": c.Request.Host,
+			"baseURL": gCtx.Request.Host,
 		})
 		return
 	}
 
 	// Set the JWT as a secure cookie
 	maxAge := int(config.AppConfig.JWTExpirationHours.Seconds())
-	c.SetCookie("jwt", signedToken, maxAge, "/", "", false, true)
+	gCtx.SetCookie("jwt", signedToken, maxAge, "/", "", false, true)
 
 	// Redirect to dashboard instead of home page
-	c.Redirect(http.StatusFound, "/dashboard")
+	gCtx.Redirect(http.StatusFound, "/dashboard")
 }

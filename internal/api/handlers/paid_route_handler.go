@@ -2,24 +2,26 @@ package handlers
 
 import (
 	// Needed for potential body buffering if required later
+	"context"
 	"encoding/json"
-	"errors" // Import errors package
+	"errors"
 	"fmt"
-	"math/big" // Need big.Float for price parsing
+	"log/slog"
+	"math/big"
 	"net/http"
-	"net/http/httputil" // Import for Reverse Proxy
-	"net/url"           // Import for URL parsing
+	"net/http/httputil"
+	"net/url"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm" // Import gorm for ErrRecordNotFound
 
-	"linkshrink/internal/api/middleware" // To get user ID
-	"linkshrink/internal/auth"           // To get Claims type
-	"linkshrink/internal/config"         // Need for X402 config
+	"linkshrink/internal/api/middleware"
+	"linkshrink/internal/auth"
+	"linkshrink/internal/config"
 	"linkshrink/internal/core/models"
 	"linkshrink/internal/core/services"
-	"linkshrink/internal/x402" // Import local x402 package
+	"linkshrink/internal/x402"
+	"linkshrink/routes"
 )
 
 // PaidRouteHandler handles HTTP requests related to paid routes.
@@ -27,15 +29,20 @@ type PaidRouteHandler struct {
 	paidRouteService *services.PaidRouteService
 	purchaseService  *services.PurchaseService
 	userService      *services.UserService
-	// We might need linkService later if we want to avoid shortCode collisions
+
+	logger *slog.Logger
 }
 
 // NewPaidRouteHandler creates a new PaidRouteHandler.
-func NewPaidRouteHandler(routeService *services.PaidRouteService, purchaseService *services.PurchaseService, userService *services.UserService) *PaidRouteHandler {
+func NewPaidRouteHandler(routeService *services.PaidRouteService,
+	purchaseService *services.PurchaseService, userService *services.UserService,
+	logger *slog.Logger) *PaidRouteHandler {
+
 	return &PaidRouteHandler{
 		paidRouteService: routeService,
 		purchaseService:  purchaseService,
 		userService:      userService,
+		logger:           logger,
 	}
 }
 
@@ -48,11 +55,11 @@ type CreatePaidRouteRequest struct {
 }
 
 // getRequestScheme determines the scheme (http/https) based on the request.
-func getRequestScheme(ctx *gin.Context) string {
+func getRequestScheme(gCtx *gin.Context) string {
 	scheme := "http"
-	if proto := ctx.GetHeader("X-Forwarded-Proto"); proto == "https" {
+	if proto := gCtx.GetHeader("X-Forwarded-Proto"); proto == "https" {
 		scheme = "https"
-	} else if ctx.Request.TLS != nil {
+	} else if gCtx.Request.TLS != nil {
 		scheme = "https"
 	}
 	return scheme
@@ -65,34 +72,34 @@ func (h *PaidRouteHandler) formatPrice(priceInt int64) string {
 
 // CreatePaidRouteHandler handles POST requests to create new paid routes.
 // NOTE: Currently doesn't enforce specific auth/admin checks, assumes authenticated user.
-func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
+func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	var req CreatePaidRouteRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+	if err := gCtx.ShouldBindJSON(&req); err != nil {
+		gCtx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
 
 	// Get user ID from the context (set by AuthMiddleware)
-	authPayload, exists := ctx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 	payload := authPayload.(*auth.Claims)
 
 	// Call the service to create the route, passing isTestValue
-	route, err := h.paidRouteService.CreatePaidRoute(req.TargetURL, req.Method, req.Price, req.IsTest, payload.UserID)
+	route, err := h.paidRouteService.CreatePaidRoute(gCtx.Request.Context(), req.TargetURL, req.Method, req.Price, req.IsTest, payload.UserID)
 	if err != nil {
 		// Handle specific validation errors from the service
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		gCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Construct the full access URL using the determined scheme
-	scheme := getRequestScheme(ctx)
-	accessURL := fmt.Sprintf("%s://%s/%s", scheme, ctx.Request.Host, route.ShortCode)
+	scheme := getRequestScheme(gCtx)
+	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 
-	ctx.JSON(http.StatusCreated, gin.H{
+	gCtx.JSON(http.StatusCreated, gin.H{
 		"id":            route.ID,
 		"short_code":    route.ShortCode,
 		"access_url":    accessURL,
@@ -110,24 +117,24 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(ctx *gin.Context) {
 
 // HandlePaidRoute handles requests to the dynamic /:shortCode endpoints.
 // This performs DB lookup, method check, payment verification, and then proxies the request.
-func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
-	shortCode := ctx.Param("shortCode")
+func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
+	shortCode := gCtx.Param("shortCode")
 
 	// Find the enabled route configuration by its short code.
-	route, err := h.paidRouteService.FindEnabledRouteByShortCode(shortCode)
+	route, err := h.paidRouteService.FindEnabledRouteByShortCode(gCtx.Request.Context(), shortCode)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Route not found or is disabled."})
+		if errors.Is(err, routes.ErrRouteNotFound) {
+			gCtx.JSON(http.StatusNotFound, gin.H{"error": "Route not found or is disabled."})
 		} else {
-			fmt.Printf("Error retrieving route config for %s: %v\n", shortCode, err) // Log internal error
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving route configuration."})
+			h.logger.Error("Error retrieving route config", "shortCode", shortCode, "error", err)
+			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving route configuration."})
 		}
 		return
 	}
 
 	// Check if the request method matches the configured method for the route.
-	if ctx.Request.Method != route.Method {
-		ctx.JSON(http.StatusMethodNotAllowed, gin.H{"error": fmt.Sprintf("Method %s not allowed for this route. Allowed: %s", ctx.Request.Method, route.Method)})
+	if gCtx.Request.Method != route.Method {
+		gCtx.JSON(http.StatusMethodNotAllowed, gin.H{"error": fmt.Sprintf("Method %s not allowed for this route. Allowed: %s", gCtx.Request.Method, route.Method)})
 		return
 	}
 
@@ -136,13 +143,13 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	// Convert int64 price to string and then to *big.Float
 	priceFloat, ok := new(big.Float).SetString(h.formatPrice(route.Price))
 	if !ok {
-		ctx.Error(fmt.Errorf("invalid price format stored for route %s: %d", shortCode, route.Price))
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route price."})
+		gCtx.Error(fmt.Errorf("invalid price format stored for route %s: %d", shortCode, route.Price))
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route price."})
 		return
 	}
 
-	scheme := getRequestScheme(ctx)
-	accessURL := fmt.Sprintf("%s://%s/%s", scheme, ctx.Request.Host, route.ShortCode)
+	scheme := getRequestScheme(gCtx)
+	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 
 	// Select payment address based on IsTest flag
 	paymentAddress := config.AppConfig.X402TestnetPaymentAddress // Default to testnet (renamed variable)
@@ -150,7 +157,7 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		paymentAddress = config.AppConfig.X402MainnetPaymentAddress
 	}
 
-	paymentPayload, settleResponse := x402.Payment(ctx, priceFloat, paymentAddress, // Use the selected address
+	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress, // Use the selected address
 		x402.OptionWithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
 		x402.OptionWithTestnet(route.IsTest), // Use the value from the route
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
@@ -159,14 +166,14 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	)
 
 	// 6. Check if the payment function aborted the request
-	if ctx.IsAborted() {
-		fmt.Printf("Payment check failed or required for %s, request aborted by x402.Payment\n", shortCode)
+	if gCtx.IsAborted() {
+		h.logger.Info("Payment check failed or required", "shortCode", shortCode)
 		// If aborted with 402, increment attempt count
-		if ctx.Writer.Status() == http.StatusPaymentRequired {
-			err := h.paidRouteService.IncrementAttemptCount(shortCode)
+		if gCtx.Writer.Status() == http.StatusPaymentRequired {
+			err := h.paidRouteService.IncrementAttemptCount(gCtx.Request.Context(), shortCode)
 			if err != nil {
 				// Log error, but don't overwrite the original 402 response
-				fmt.Printf("Error incrementing attempt count for %s after 402: %v\n", shortCode, err)
+				h.logger.Error("Error incrementing attempt count after 402", "shortCode", shortCode, "error", err)
 			}
 		}
 		return // Stop processing, response already sent by x402.Payment
@@ -175,26 +182,26 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 	// --- END Payment Verification ---
 
 	// Save purchase record
-	h.savePurchaseRecord(route, paymentPayload, settleResponse)
+	h.savePurchaseRecord(gCtx.Request.Context(), route, paymentPayload, settleResponse)
 
 	// Increment access count *after* successful verification check
-	if err := h.paidRouteService.IncrementAccessCount(shortCode); err != nil {
+	if err := h.paidRouteService.IncrementAccessCount(gCtx.Request.Context(), shortCode); err != nil {
 		// Log the error, but proceed with proxying? Or return 500?
 		// Let's log and return 500 for now, as failing to count access is an internal issue.
-		ctx.Error(fmt.Errorf("failed to increment access count for %s after successful payment verification: %w", shortCode, err))
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request after payment."})
+		gCtx.Error(fmt.Errorf("failed to increment access count for %s after successful payment verification: %w", shortCode, err))
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request after payment."})
 		return
 	}
 
-	h.paidRouteService.IncrementPaymentCount(shortCode)
+	h.paidRouteService.IncrementPaymentCount(gCtx.Request.Context(), shortCode)
 
 	// --- Perform Reverse Proxy ---
 
 	// 7. Parse the target URL
 	targetURL, err := url.Parse(route.TargetURL)
 	if err != nil {
-		ctx.Error(fmt.Errorf("failed to parse target URL for route %s: %w", shortCode, err))
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route target."})
+		gCtx.Error(fmt.Errorf("failed to parse target URL for route %s: %w", shortCode, err))
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route target."})
 		return
 	}
 
@@ -211,11 +218,11 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 		req.URL.Path = targetURL.Path
 
 		// --- Add Proxy402-Secret Header ---
-		user, err := h.userService.GetUserByID(route.UserID)
+		user, err := h.userService.GetUserByID(gCtx.Request.Context(), route.UserID)
 		if err != nil {
 			// Log the error, but don't expose details to the client via headers.
 			// The proxy error handler below will catch this if the request fails later.
-			fmt.Printf("Error fetching user %d for Proxy402-Secret: %v\n", route.UserID, err)
+			h.logger.Error("Error fetching user for Proxy402-Secret", "shortCode", shortCode, "error", err)
 		} else if user != nil && user.Proxy402Secret != "" {
 			req.Header.Set("Proxy402-Secret", user.Proxy402Secret)
 		}
@@ -226,12 +233,12 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 
 		// Note: The default reverse proxy handles X-Forwarded-For etc. automatically.
 		// We mostly just need to ensure req.Host is correct.
-		// The original ctx.Request.URL path should be preserved by default director.
+		// The original gCtx.Request.URL path should be preserved by default director.
 	}
 
 	// Optional: Custom error handling
 	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
-		fmt.Printf("Reverse proxy error for %s to %s: %v\n", shortCode, route.TargetURL, err)
+		h.logger.Error("Reverse proxy error", "shortCode", shortCode, "targetURL", route.TargetURL, "error", err)
 		rw.WriteHeader(http.StatusBadGateway)
 		// Avoid writing detailed errors to the client unless necessary
 		// rw.Write([]byte("Proxy error"))
@@ -239,42 +246,35 @@ func (h *PaidRouteHandler) HandlePaidRoute(ctx *gin.Context) {
 
 	// 10. Serve the request using the proxy
 	// This forwards the request (method, headers, body) to the targetURL
-	// and streams the response back to the original client (ctx.Writer).
-	fmt.Printf("Proxying request for %s to %s\n", shortCode, route.TargetURL)
-	proxy.ServeHTTP(ctx.Writer, ctx.Request)
+	// and streams the response back to the original client (gCtx.Writer).
+	h.logger.Info("Proxying request", "shortCode", shortCode, "targetURL", route.TargetURL)
+	proxy.ServeHTTP(gCtx.Writer, gCtx.Request)
 
 	// --- END Reverse Proxy ---
 }
 
-// Helper function to copy headers, excluding hop-by-hop headers - REMOVED (No longer needed for redirect)
-/*
-func copyHeaders(src http.Header, dst http.Header) {
-    // ... implementation ...
-}
-*/
-
 // GetUserPaidRoutes handles GET requests to retrieve all paid routes for the authenticated user.
-func (h *PaidRouteHandler) GetUserPaidRoutes(ctx *gin.Context) {
+func (h *PaidRouteHandler) GetUserPaidRoutes(gCtx *gin.Context) {
 	// Get user ID from the context
-	authPayload, exists := ctx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 	payload := authPayload.(*auth.Claims)
 
-	routes, err := h.paidRouteService.ListUserRoutes(payload.UserID)
+	routes, err := h.paidRouteService.ListUserRoutes(gCtx.Request.Context(), payload.UserID)
 	if err != nil {
-		ctx.Error(err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user routes"})
+		gCtx.Error(err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user routes"})
 		return
 	}
 
 	// Format the response (similar to Create response, maybe factor out a helper)
 	responseRoutes := make([]gin.H, len(routes))
 	for i, route := range routes {
-		scheme := getRequestScheme(ctx)
-		accessURL := fmt.Sprintf("%s://%s/%s", scheme, ctx.Request.Host, route.ShortCode)
+		scheme := getRequestScheme(gCtx)
+		accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 		responseRoutes[i] = gin.H{
 			"id":            route.ID,
 			"short_code":    route.ShortCode,
@@ -292,73 +292,74 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(ctx *gin.Context) {
 		}
 	}
 
-	ctx.JSON(http.StatusOK, responseRoutes)
+	gCtx.JSON(http.StatusOK, responseRoutes)
 }
 
 // DeleteUserPaidRoute handles DELETE requests to delete a specific paid route.
-func (h *PaidRouteHandler) DeleteUserPaidRoute(ctx *gin.Context) {
+func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 	// Get route ID from path parameter (still named linkID in the route definition)
-	routeIDStr := ctx.Param("linkID") // IMPORTANT: Route param name mismatch potential
+	routeIDStr := gCtx.Param("linkID") // IMPORTANT: Route param name mismatch potential
 	routeID, err := strconv.ParseUint(routeIDStr, 10, 32)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid route ID format"})
+		gCtx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid route ID format"})
 		return
 	}
 
 	// Get user ID from the context
-	authPayload, exists := ctx.Get(middleware.AuthorizationPayloadKey)
+	authPayload, exists := gCtx.Get(middleware.AuthorizationPayloadKey)
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 		return
 	}
 	payload := authPayload.(*auth.Claims)
 
-	err = h.paidRouteService.DeleteRoute(uint(routeID), payload.UserID)
+	err = h.paidRouteService.DeleteRoute(gCtx.Request.Context(), uint(routeID), payload.UserID)
 	if err != nil {
-		if err.Error() == "route not found or you do not have permission to delete it" {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		if errors.Is(err, routes.ErrRouteNoPermission) {
+			gCtx.JSON(http.StatusForbidden, gin.H{"error": "Route not found or you do not have permission to delete it"})
+		} else if errors.Is(err, routes.ErrRouteNotFound) {
+			gCtx.JSON(http.StatusNotFound, gin.H{"error": "Route not found"})
 		} else {
-			ctx.Error(err)
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete route"})
+			gCtx.Error(err)
+			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete route"})
 		}
 		return
 	}
 
 	// Return 200 OK with empty body instead of 204 No Content
 	// This allows htmx to perform the swap and remove the element
-	ctx.Status(http.StatusOK)
+	gCtx.Status(http.StatusOK)
 }
 
-// savePurchaseRecord asynchronously saves a purchase record to the database
-func (h *PaidRouteHandler) savePurchaseRecord(route *models.PaidRoute, paymentPayload *x402.PaymentPayload, settleResponse *x402.SettleResponse) {
-	go func() {
-		// Convert payment payload to JSON string
-		paymentData, err := json.Marshal(paymentPayload)
-		if err != nil {
-			fmt.Printf("Failed to encode payment payload: %v\n", err)
-			return
-		}
+// savePurchaseRecord is a helper method to save the purchase record in the database.
+func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context, route *models.PaidRoute, paymentPayload *x402.PaymentPayload, settleResponse *x402.SettleResponse) {
+	// Convert paymentPayload to JSON
+	paymentPayloadJson, err := json.Marshal(paymentPayload)
+	if err != nil {
+		h.logger.Error("Failed to encode payment payload", "error", err)
+		return
+	}
 
-		// Get settle response as encoded string
-		settleData, err := json.Marshal(settleResponse)
-		if err != nil {
-			fmt.Printf("Failed to encode settle response: %v\n", err)
-			return
-		}
+	// Convert settleResponse to JSON
+	settleResponseJson, err := json.Marshal(settleResponse)
+	if err != nil {
+		h.logger.Error("Failed to encode settle response", "error", err)
+		return
+	}
 
-		// Save purchase info
-		err = h.purchaseService.SavePurchase(
-			route.ShortCode,
-			route.TargetURL,
-			route.Method,
-			route.Price,
-			route.ID,
-			string(paymentData),
-			string(settleData),
-		)
+	// Create purchase record
+	_, err = h.purchaseService.CreatePurchase(gCtx, &models.Purchase{
+		ShortCode:      route.ShortCode,
+		TargetURL:      route.TargetURL,
+		Method:         route.Method,
+		Price:          route.Price,
+		IsTest:         route.IsTest,
+		PaidRouteID:    route.ID,
+		PaymentPayload: string(paymentPayloadJson),
+		SettleResponse: string(settleResponseJson),
+	})
 
-		if err != nil {
-			fmt.Printf("Failed to save purchase record: %v\n", err)
-		}
-	}()
+	if err != nil {
+		h.logger.Error("Failed to save purchase record", "error", err)
+	}
 }

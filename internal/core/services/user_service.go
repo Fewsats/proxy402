@@ -1,35 +1,36 @@
 package services
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
-
-	"gorm.io/gorm"
+	"log/slog"
 
 	"linkshrink/internal/core/models"
-	"linkshrink/internal/store"
+	"linkshrink/users"
 )
 
 // UserService provides user-related business logic.
 type UserService struct {
-	userStore *store.UserStore
+	logger *slog.Logger
+	store  users.Store
 }
 
 // NewUserService creates a new UserService.
-func NewUserService(userStore *store.UserStore) *UserService {
-	return &UserService{userStore: userStore}
+func NewUserService(logger *slog.Logger, store users.Store) *UserService {
+	return &UserService{logger: logger, store: store}
 }
 
 // FindOrCreateUser finds a user by Google ID or creates a new one.
-func (s *UserService) FindOrCreateUser(email, name, googleID string) (*models.User, error) {
+func (s *UserService) FindOrCreateUser(ctx context.Context, email, name, googleID string) (*models.User, error) {
 	// Try to find user by Google ID
-	user, err := s.userStore.FindByGoogleID(googleID)
+	user, err := s.store.FindUserByGoogleID(ctx, googleID)
 	if err == nil {
 		// User found, return it
 		return user, nil
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+	} else if !errors.Is(err, users.ErrUserNotFound) {
 		// A different error occurred during lookup
 		return nil, fmt.Errorf("error checking Google user: %w", err)
 	}
@@ -47,23 +48,24 @@ func (s *UserService) FindOrCreateUser(email, name, googleID string) (*models.Us
 		Email:          email,
 		Name:           name,
 		GoogleID:       googleID,
-		Proxy402Secret: proxySecret, // Set the generated secret
+		Proxy402Secret: proxySecret,
 	}
 
-	err = s.userStore.Create(newUser)
+	id, err := s.store.CreateUser(ctx, newUser)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
+	newUser.ID = uint(id)
 
 	return newUser, nil
 }
 
 // GetUserByID retrieves a user by their ID.
-func (s *UserService) GetUserByID(userID uint) (*models.User, error) {
-	user, err := s.userStore.FindByID(userID)
+func (s *UserService) GetUserByID(ctx context.Context, userID uint) (*models.User, error) {
+	user, err := s.store.FindUserByID(ctx, userID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("user not found")
+		if errors.Is(err, users.ErrUserNotFound) {
+			return nil, users.ErrUserNotFound
 		}
 		return nil, fmt.Errorf("error finding user: %w", err)
 	}

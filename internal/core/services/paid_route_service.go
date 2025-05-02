@@ -1,25 +1,27 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"linkshrink/internal/core/models"
-	"linkshrink/internal/core/shortener"
-	"linkshrink/internal/store"
+	"linkshrink/routes"
 )
 
 // PaidRouteService provides business logic for managing paid routes.
 type PaidRouteService struct {
-	routeStore *store.PaidRouteStore
+	logger *slog.Logger
+	store  routes.Store
 }
 
 // NewPaidRouteService creates a new PaidRouteService.
-func NewPaidRouteService(routeStore *store.PaidRouteStore) *PaidRouteService {
-	return &PaidRouteService{routeStore: routeStore}
+func NewPaidRouteService(logger *slog.Logger, store routes.Store) *PaidRouteService {
+	return &PaidRouteService{logger: logger, store: store}
 }
 
 var validMethods = map[string]bool{
@@ -31,7 +33,8 @@ var validMethods = map[string]bool{
 }
 
 // CreatePaidRoute validates input, generates a unique short code, and saves the route.
-func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, isTest bool, userID uint) (*models.PaidRoute, error) {
+func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
+	method, priceStr string, isTest bool, userID uint) (*models.PaidRoute, error) {
 	// 1. Validate Target URL
 	parsedURL, err := url.ParseRequestURI(targetURL)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
@@ -56,31 +59,8 @@ func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, i
 	// Convert to integer (USDC * 10^6)
 	priceInt := int64(priceFloat * 1000000)
 
-	// 4. Generate Unique Short Code
-	const maxShortCodeGenerationRetries = 10
-	var shortCode string
-	for i := 0; i < maxShortCodeGenerationRetries; i++ {
-		shortCode, err = shortener.GenerateSecureShortCode(shortener.DefaultLength)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate short code: %w", err)
-		}
-
-		exists, err := s.routeStore.CheckShortCodeExists(shortCode)
-		if err != nil {
-			return nil, fmt.Errorf("error checking short code uniqueness: %w", err)
-		}
-		if !exists {
-			break // Found unique code
-		}
-
-		if i == maxShortCodeGenerationRetries-1 {
-			return nil, errors.New("failed to generate a unique short code after multiple attempts")
-		}
-	}
-
-	// 5. Create and Save Route
+	// Create and Save Route (short code will be generated in the store)
 	route := &models.PaidRoute{
-		ShortCode: shortCode,
 		TargetURL: targetURL,
 		Method:    upperMethod,
 		Price:     priceInt, // Store as int64
@@ -89,78 +69,63 @@ func (s *PaidRouteService) CreatePaidRoute(targetURL, method, priceStr string, i
 		IsEnabled: true,
 	}
 
-	if err := s.routeStore.Create(route); err != nil {
+	createdRoute, err := s.store.CreateRoute(ctx, route)
+	if err != nil {
 		// Handle potential race condition on unique index
 		return nil, fmt.Errorf("failed to save paid route: %w", err)
 	}
 
-	return route, nil
+	return createdRoute, nil
 }
 
 // FindEnabledRouteByShortCode retrieves an active route.
-func (s *PaidRouteService) FindEnabledRouteByShortCode(shortCode string) (*models.PaidRoute, error) {
-	route, err := s.routeStore.FindByShortCode(shortCode)
-	if err != nil {
-		if errors.Is(err, errors.New("record not found")) { // GORM might return different error types
-			return nil, errors.New("route not found or not enabled")
-		}
-		return nil, fmt.Errorf("error retrieving route: %w", err)
-	}
-	return route, nil
+func (s *PaidRouteService) FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*models.PaidRoute, error) {
+	return s.store.FindEnabledRouteByShortCode(ctx, shortCode)
 }
 
 // IncrementPaymentCount increments the payment count for a given short code.
-func (s *PaidRouteService) IncrementPaymentCount(shortCode string) error {
+func (s *PaidRouteService) IncrementPaymentCount(ctx context.Context, shortCode string) error {
 	// Delegate to the store layer
-	err := s.routeStore.IncrementPaymentCount(shortCode)
+	err := s.store.IncrementRoutePaymentCount(ctx, shortCode)
 	if err != nil {
-		// Handle specific errors like not found if needed, otherwise wrap
-		if errors.Is(err, store.ErrRouteNotFound) { // Assuming store defines ErrRouteNotFound
-			return fmt.Errorf("cannot increment payment count, route %s not found: %w", shortCode, err)
-		}
 		return fmt.Errorf("failed to increment payment count for %s: %w", shortCode, err)
 	}
 	return nil
 }
 
 // IncrementAttemptCount increments the attempt count for a given short code.
-func (s *PaidRouteService) IncrementAttemptCount(shortCode string) error {
+func (s *PaidRouteService) IncrementAttemptCount(ctx context.Context, shortCode string) error {
 	// Delegate to the store layer
-	err := s.routeStore.IncrementAttemptCount(shortCode)
+	err := s.store.IncrementRouteAttemptCount(ctx, shortCode)
 	if err != nil {
-		if errors.Is(err, store.ErrRouteNotFound) { // Assuming store defines ErrRouteNotFound
-			return fmt.Errorf("cannot increment attempt count, route %s not found: %w", shortCode, err)
-		}
 		return fmt.Errorf("failed to increment attempt count for %s: %w", shortCode, err)
 	}
 	return nil
 }
 
 // IncrementAccessCount increments the access count for a given short code.
-func (s *PaidRouteService) IncrementAccessCount(shortCode string) error {
+func (s *PaidRouteService) IncrementAccessCount(ctx context.Context, shortCode string) error {
 	// Delegate to the store layer
-	err := s.routeStore.IncrementAccessCount(shortCode)
+	err := s.store.IncrementRouteAccessCount(ctx, shortCode)
 	if err != nil {
-		if errors.Is(err, store.ErrRouteNotFound) { // Assuming store defines ErrRouteNotFound
-			return fmt.Errorf("cannot increment access count, route %s not found: %w", shortCode, err)
-		}
 		return fmt.Errorf("failed to increment access count for %s: %w", shortCode, err)
 	}
 	return nil
 }
 
 // ListUserRoutes retrieves all routes associated with a specific user ID.
-func (s *PaidRouteService) ListUserRoutes(userID uint) ([]models.PaidRoute, error) {
-	return s.routeStore.ListByUserID(userID)
+func (s *PaidRouteService) ListUserRoutes(ctx context.Context, userID uint) ([]models.PaidRoute, error) {
+	return s.store.ListUserRoutes(ctx, userID)
 }
 
 // DeleteRoute deletes a paid route if owned by the specified user.
-func (s *PaidRouteService) DeleteRoute(routeID uint, userID uint) error {
-	err := s.routeStore.Delete(routeID, userID)
+func (s *PaidRouteService) DeleteRoute(ctx context.Context, routeID uint, userID uint) error {
+	err := s.store.DeleteRoute(ctx, routeID, userID)
 	if err != nil {
-		// Check if the error is gorm.ErrRecordNotFound
-		if errors.Is(err, errors.New("record not found")) { // Adjust error check as needed
-			return errors.New("route not found or you do not have permission to delete it")
+		if errors.Is(err, routes.ErrRouteNotFound) {
+			return routes.ErrRouteNotFound
+		} else if errors.Is(err, routes.ErrRouteNoPermission) {
+			return routes.ErrRouteNoPermission
 		}
 		return fmt.Errorf("error deleting route: %w", err)
 	}

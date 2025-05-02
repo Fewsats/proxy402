@@ -21,18 +21,6 @@ build:
 run: build
     ./linkshrink
 
-logs:
-    journalctl --user -u linkshrink --no-pager
-
-status:
-    systemctl --user status linkshrink
-
-restart:
-    systemctl --user start linkshrink
-
-restart:
-    systemctl --user restart linkshrink
-
 # Clean up binaries
 clean:
     rm -f linkshrink
@@ -40,3 +28,34 @@ clean:
 # Show container status
 status:
     docker compose ps 
+
+# ===================
+# DATABASE MIGRATIONS
+# ===================
+migrate-up:
+    migrate -path store/sqlc/migrations -database "postgres://user:password@localhost:5432/linkshrink?sslmode=disable" -verbose up
+
+migrate-down:
+    migrate -path store/sqlc/migrations -database "postgres://user:password@localhost:5432/linkshrink?sslmode=disable" -verbose down 1
+
+migrate-create name:
+    migrate create -dir store/sqlc/migrations -seq -ext sql {{name}}
+
+# ===============
+# CODE GENERATION 
+# ===============
+gen: sqlc
+
+sqlc:
+    @echo "Generating sql models and queries in Go"
+    ./scripts/gen_sqlc_docker.sh
+
+sqlc-check: sqlc
+    @echo "Verifying sql code generation."
+    @if test -n "$$(git status --porcelain '*.go')"; then \
+        echo "SQL models not properly generated! Modified changes:"; \
+        git status --porcelain '*.go'; \
+        exit 1; \
+    else \
+        echo "SQL models generated correctly."; \
+    fi 

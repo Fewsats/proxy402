@@ -1,4 +1,4 @@
-package shortener
+package utils
 
 import (
 	crand "crypto/rand"
