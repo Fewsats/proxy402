@@ -137,13 +137,33 @@
         <!-- User's links table -->
         <div class="data-table-container">
             {{if .links}}
-                <table id="links-table" class="data-table">
+            <!-- Filter Controls -->
+            <div class="table-filters">
+                <label for="method-filter">Method:</label>
+                <select id="method-filter" class="filter-select">
+                    <option value="All">All</option>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                    <option value="PATCH">PATCH</option>
+                </select>
+
+                <label for="mode-filter">Mode:</label>
+                <select id="mode-filter" class="filter-select">
+                    <option value="All">All</option>
+                    <option value="Test">Test</option>
+                    <option value="Live">Live</option>
+                </select>
+            </div>
+
+            <table id="links-table" class="data-table">
                     <thead>
                         <tr>
                             <th>Target URL</th>
                             <th>Proxy URL</th>
                             <th>Method</th>
-                            <th>Price</th>
+                            <th class="sortable" data-column="price">Price</th>
                             <th class="th-with-tooltip">
                                 <span>Attempts</span>
                                 <span class="tooltip th-tooltip" data-tooltip="Total times payment was attempted">
@@ -391,6 +411,95 @@
                 }
             });
         }
+
+        // --- Client-Side Table Sorting --- 
+        document.addEventListener('DOMContentLoaded', function() {
+            const getCellValue = (tr, idx) => {
+                const cell = tr.children[idx];
+                // Extract numerical price from format like "$1.23 USDC"
+                if (idx === 3) { // Assuming Price is the 4th column (index 3)
+                    const text = cell.innerText || cell.textContent;
+                    const match = text.match(/\$?([\d.]+)/);
+                    return match ? parseFloat(match[1]) : 0;
+                }
+                // Fallback for other columns if needed (currently only sorting price)
+                return cell.innerText || cell.textContent;
+            };
+
+            const comparer = (idx, asc) => (a, b) => ((vA, vB) => 
+                vA !== '' && vB !== '' && !isNaN(vA) && !isNaN(vB) 
+                    ? vA - vB 
+                    : vA.toString().localeCompare(vB)
+                )(
+                getCellValue(asc ? a : b, idx), 
+                getCellValue(asc ? b : a, idx)
+            );
+
+            // Add event listeners to sortable headers
+            document.querySelectorAll('th.sortable').forEach(th => {
+                let asc = true; // Default sort direction
+                th.addEventListener('click', (() => {
+                    const table = th.closest('table');
+                    const tbody = table.querySelector('tbody');
+                    const columnIndex = Array.from(th.parentNode.children).indexOf(th);
+                    
+                    Array.from(tbody.querySelectorAll('tr'))
+                        .sort(comparer(columnIndex, asc = !asc))
+                        .forEach(tr => tbody.appendChild(tr));
+
+                    // Optional: Add visual indicators
+                    table.querySelectorAll('th.sortable').forEach(header => {
+                        header.classList.remove('asc', 'desc');
+                    });
+                    th.classList.toggle('asc', asc);
+                    th.classList.toggle('desc', !asc);
+                }));
+            });
+
+        });
+
+        // --- Client-Side Table Filtering --- 
+        document.addEventListener('DOMContentLoaded', function() {
+            const methodFilter = document.getElementById('method-filter');
+            const modeFilter = document.getElementById('mode-filter');
+            const tableBody = document.getElementById('links-table')?.querySelector('tbody'); // Added optional chaining
+
+            function filterTable() {
+                if (!tableBody) return; // Exit if table body not found
+
+                const selectedMethod = methodFilter.value;
+                const selectedMode = modeFilter.value;
+
+                Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+                    const methodCell = row.children[2]; // Assuming Method is 3rd column (index 2)
+                    const modeCell = row.children[6];   // Assuming Mode is 7th column (index 6)
+                    
+                    const methodMatch = selectedMethod === 'All' || methodCell.textContent.trim() === selectedMethod;
+                    
+                    let modeMatch = selectedMode === 'All';
+                    if (selectedMode === 'Test') {
+                        modeMatch = modeCell.querySelector('.mode-test') !== null;
+                    } else if (selectedMode === 'Live') {
+                        modeMatch = modeCell.querySelector('.mode-live') !== null;
+                    }
+                    
+                    // Show row only if both filters match
+                    row.style.display = (methodMatch && modeMatch) ? '' : 'none';
+                });
+            }
+
+            // Add event listeners to filters
+            if (methodFilter) {
+                methodFilter.addEventListener('change', filterTable);
+            }
+            if (modeFilter) {
+                modeFilter.addEventListener('change', filterTable);
+            }
+
+            // Initial filter on load
+            filterTable(); 
+        });
+
     </script>
 </body>
 </html> 
