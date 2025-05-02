@@ -1,13 +1,13 @@
-# Proxy402 - Monetize APIs with L402
+# Proxy402 - Monetize APIs with x402
 
-Proxy402 is a Go service that allows users to create monetized proxy endpoints for existing APIs. It intercepts requests, requires L402 payments (using Lightning Network or compatible infrastructure), and then forwards the request to the target URL upon successful payment verification.
+Proxy402 is a Go service that allows users to create monetized proxy endpoints for existing APIs. It intercepts requests, requires x402 payments (using Lightning Network or compatible infrastructure), and then forwards the request to the target URL upon successful payment verification.
 
 It features:
 
 *   User authentication via Google OAuth.
 *   Dashboard for creating and managing paid routes.
 *   Dynamic proxying based on unique short codes.
-*   Integration with L402 payment protocol.
+*   Integration with x402 payment protocol.
 *   Test and Live modes for payment configuration.
 *   Basic client example for interacting with paid routes.
 
@@ -19,7 +19,7 @@ It features:
 *   **Node.js & npm:** Version 18 or higher ([Installation Guide](https://nodejs.org/))
 *   **Docker & Docker Compose:** For running the database ([Installation Guide](https://docs.docker.com/engine/install/))
 *   **Git:** For cloning the repository.
-*   **Lightning Wallet / L402 Provider:** You need a way to generate payment addresses (e.g., using [Alby](https://getalby.com/), [Voltage](https://voltage.cloud/), or your own LND node) for both testnet and mainnet.
+*   **Wallet:** You need a way to generate payment addresses for both testnet and mainnet.
 
 ### 1. Clone the Repository
 
@@ -54,11 +54,10 @@ GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID"
 GOOGLE_CLIENT_SECRET="YOUR_GOOGLE_CLIENT_SECRET"
 GOOGLE_REDIRECT_URL="http://localhost:8080/auth/callback" # Adjust port if needed
 
-# L402 Payment Addresses (Required)
-# Obtain these from your L402/Lightning wallet provider
+# x402 Payment Addresses (Required)
 X402_TESTNET_PAYMENT_ADDRESS="your_testnet_payment_address" # e.g., your Alby testnet address
 X402_MAINNET_PAYMENT_ADDRESS="your_mainnet_payment_address" # e.g., your Alby mainnet address
-# Optional: Override the default L402 facilitator
+# Optional: Override the default x402 facilitator
 # X402_FACILITATOR_URL="https://your-facilitator.com"
 ```
 
@@ -216,11 +215,9 @@ npm run client https://proxy402.com/ax_MWAH
 
 The client will:
 1.  Attempt to make the request (GET or POST).
-2.  Receive a `402 Payment Required` response with an L402 token.
+2.  Receive a `402 Payment Required` response with an x402 token.
 3.  Use the `x402-axios` interceptor and your `PRIVATE_KEY` to pay the invoice embedded in the token (using Base Sepolia).
 4.  Retry the original request with the paid preimage included in the `Authorization` header.
 5.  Log the final response from the target API.
 
 ---
-
-*Further sections like API Documentation, Contributing, License can be added here.*
