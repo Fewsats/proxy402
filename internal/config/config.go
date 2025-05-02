@@ -1,11 +1,14 @@
 package config
 
 import (
+	"linkshrink/store"
 	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -13,12 +16,15 @@ import (
 
 // Config holds application configuration values.
 type Config struct {
-	DBHost             string
-	DBPort             string
-	DBUser             string
-	DBPassword         string
-	DBName             string
-	DBSslMode          string
+	// Logging configuration.
+	LogLevel string `long:"log_level" description:"Logging level {trace, debug, info, warn, error, critical}"`
+
+	// Gin mode.
+	GinMode string `long:"gin_mode" description:"Gin mode {debug, release}"`
+
+	// Store configuration.
+	Store store.Config `group:"store" namespace:"store"`
+
 	AppPort            string
 	JWTSecret          string
 	JWTExpirationHours time.Duration
@@ -36,18 +42,48 @@ type Config struct {
 
 var AppConfig *Config
 
+// SetLoggerLevel sets the logger level based on the configuration.
+func (c *Config) SetLoggerLevel() error {
+	switch c.LogLevel {
+	case "info":
+		slog.SetLogLoggerLevel(slog.LevelInfo)
+	case "debug":
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	case "warn":
+		slog.SetLogLoggerLevel(slog.LevelWarn)
+	case "error":
+		slog.SetLogLoggerLevel(slog.LevelError)
+	}
+	return nil
+}
+
+// SetGinMode sets the gin mode based on the configuration.
+func (c *Config) SetGinMode() {
+	if c.GinMode != "" {
+		gin.SetMode(c.GinMode)
+	}
+}
+
 // LoadConfig loads configuration from environment variables or a .env file.
-func LoadConfig() {
+func LoadConfig(logger *slog.Logger) *Config {
 	// Load .env file, ignore error if it doesn't exist (e.g., in production)
 	_ = godotenv.Load()
 
+	dbPort, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
+	if err != nil {
+		log.Fatalf("FATAL: DB_PORT environment variable is not set.")
+	}
+
 	AppConfig = &Config{
-		DBHost:             getEnv("DB_HOST", "localhost"),
-		DBPort:             getEnv("DB_PORT", "5432"),
-		DBUser:             getEnv("DB_USER", "user"),
-		DBPassword:         getEnv("DB_PASSWORD", "password"),
-		DBName:             getEnv("DB_NAME", "linkshrink"),
-		DBSslMode:          getEnv("DB_SSLMODE", "disable"),
+		// Store configuration.
+		Store: store.Config{
+			Host:     getEnv("DB_HOST", "localhost"),
+			Port:     dbPort,
+			User:     getEnv("DB_USER", "user"),
+			Password: getEnv("DB_PASSWORD", "password"),
+			DBName:   getEnv("DB_NAME", "linkshrink"),
+		},
+
 		AppPort:            getEnv("APP_PORT", "8080"),
 		JWTSecret:          getEnvOrFatal("JWT_SECRET"),
 		JWTExpirationHours: getEnvDuration("JWT_EXPIRATION_HOURS", 72*time.Hour),
@@ -60,6 +96,9 @@ func LoadConfig() {
 		// Load Google OAuth config
 		GoogleClientID:     getEnvOrFatal("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: getEnvOrFatal("GOOGLE_CLIENT_SECRET"),
+
+		LogLevel: getEnv("LOG_LEVEL", "debug"),
+		GinMode:  getEnv("GIN_MODE", "debug"),
 	}
 
 	// Basic validation for essential x402 config
@@ -82,7 +121,9 @@ func LoadConfig() {
 		Endpoint: google.Endpoint,
 	}
 
-	log.Println("Configuration loaded.")
+	logger.Info("Configuration loaded.")
+
+	return AppConfig
 }
 
 // getEnv retrieves an environment variable or returns a default value.
