@@ -302,30 +302,6 @@
                 });
         }
         
-        // Helper function to format price in USDC
-        function formatUSDC(price) {
-            const value = parseFloat(price) / 1000000;
-            
-            // If the value is zero, just return $0.00 USDC
-            if (value === 0) {
-                return '$0.00 USDC';
-            }
-            
-            // For non-zero values, show up to 6 decimal places but trim trailing zeros
-            let formattedValue;
-            if (value >= 0.01) {
-                // For larger values, show 2 decimal places
-                formattedValue = value.toFixed(2);
-            } else {
-                // For very small values, show up to 6 decimal places
-                formattedValue = value.toFixed(6);
-                // Trim trailing zeros
-                formattedValue = formattedValue.replace(/\.?0+$/, '');
-            }
-            
-            return `$${formattedValue} USDC`;
-        }
-        
         // Function to prepare data for the chart
         function prepareChartData(dailyPurchases) {
             // Get current date and past 7 days
@@ -397,22 +373,6 @@
         function formatDateLabel(dateStr) {
             const date = new Date(dateStr);
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
-        
-        // Function to format decimal values for display with appropriate precision
-        function formatDecimalValue(value) {
-            if (value === 0) {
-                return '0.00';
-            }
-            
-            if (value >= 0.01) {
-                return value.toFixed(2);
-            } else {
-                // For very small values, show up to 6 decimal places
-                let formatted = value.toFixed(6);
-                // Trim trailing zeros
-                return formatted.replace(/\.?0+$/, '');
-            }
         }
         
         // Function to create purchases chart
