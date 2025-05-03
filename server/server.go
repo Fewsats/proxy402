@@ -13,19 +13,21 @@ import (
 	"linkshrink/config"
 	"linkshrink/purchases"
 	"linkshrink/routes"
+	"linkshrink/ui"
 	"linkshrink/users"
 )
 
 // Server represents the HTTP server and its dependencies
 type Server struct {
-	router       *gin.Engine
-	logger       *slog.Logger
-	config       *config.Config
-	templatesFS  embed.FS
-	staticFS     embed.FS
-	userService  *users.UserService
-	routeService *routes.PaidRouteService
-	purchService *purchases.PurchaseService
+	router          *gin.Engine
+	logger          *slog.Logger
+	config          *config.Config
+	templatesFS     embed.FS
+	staticFS        embed.FS
+	userService     *users.UserService
+	routeService    *routes.PaidRouteService
+	purchaseService *purchases.PurchaseService
+	authService     *auth.Service
 }
 
 // NewServer creates and configures a new server instance
@@ -35,6 +37,7 @@ func NewServer(
 	userService *users.UserService,
 	routeService *routes.PaidRouteService,
 	purchaseService *purchases.PurchaseService,
+	authService *auth.Service,
 	templatesFS embed.FS,
 	staticFS embed.FS,
 ) *Server {
@@ -49,15 +52,17 @@ func NewServer(
 		userService:     userService,
 		routeService:    routeService,
 		purchaseService: purchaseService,
+		authService:     authService,
 	}
 }
 
 // SetupRoutes configures all application routes
 func (s *Server) SetupRoutes() error {
 	// Create handlers
-	oauthHandler := auth.NewOAuthHandler(s.userService)
-	paidRouteHandler := routes.NewPaidRouteHandler(s.routeService, s.purchService, s.userService, s.logger)
-	uiHandler := ui.NewUIHandler(s.routeService, s.templatesFS)
+	oauthHandler := auth.NewAuthHandler(s.userService, s.authService, &s.config.Auth)
+	paidRouteHandler := routes.NewPaidRouteHandler(s.routeService,
+		s.purchaseService, s.userService, &s.config.Routes, s.logger)
+	uiHandler := ui.NewUIHandler(s.routeService, s.authService, s.templatesFS)
 	purchaseHandler := purchases.NewPurchaseHandler(s.purchaseService)
 
 	// Serve static files from embedded filesystem
@@ -84,7 +89,7 @@ func (s *Server) SetupRoutes() error {
 
 	// Group routes that require authentication
 	authRequired := s.router.Group("/")
-	authRequired.Use(auth.AuthMiddleware())
+	authRequired.Use(auth.AuthMiddleware(s.authService)) // Using backward compatibility
 	{
 		// Original /shrink endpoint for simple link shortening (kept for now?)
 		// Consider if this is still needed or if everything should be a paid route.

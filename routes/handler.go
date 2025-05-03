@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/auth"
-	"linkshrink/config"
 	"linkshrink/purchases"
 	"linkshrink/users"
 	"linkshrink/x402"
@@ -28,19 +27,22 @@ type PaidRouteHandler struct {
 	purchaseService  *purchases.PurchaseService
 	userService      *users.UserService
 
+	config *Config
 	logger *slog.Logger
 }
 
 // NewPaidRouteHandler creates a new PaidRouteHandler.
 func NewPaidRouteHandler(routeService *PaidRouteService,
 	purchaseService *purchases.PurchaseService, userService *users.UserService,
-	logger *slog.Logger) *PaidRouteHandler {
+	config *Config, logger *slog.Logger) *PaidRouteHandler {
 
 	return &PaidRouteHandler{
 		paidRouteService: routeService,
 		purchaseService:  purchaseService,
 		userService:      userService,
-		logger:           logger,
+
+		config: config,
+		logger: logger,
 	}
 }
 
@@ -150,13 +152,13 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 
 	// Select payment address based on IsTest flag
-	paymentAddress := config.AppConfig.X402TestnetPaymentAddress // Default to testnet (renamed variable)
+	paymentAddress := h.config.X402TestnetPaymentAddress // Default to testnet
 	if !route.IsTest {
-		paymentAddress = config.AppConfig.X402MainnetPaymentAddress
+		paymentAddress = h.config.X402MainnetPaymentAddress
 	}
 
 	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress, // Use the selected address
-		x402.OptionWithFacilitatorURL(config.AppConfig.X402FacilitatorURL),
+		x402.OptionWithFacilitatorURL(h.config.X402FacilitatorURL),
 		x402.OptionWithTestnet(route.IsTest), // Use the value from the route
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
 		x402.OptionWithResource(accessURL),
@@ -330,7 +332,7 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 }
 
 // savePurchaseRecord is a helper method to save the purchase record in the database.
-func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context, route *models.PaidRoute, paymentPayload *x402.PaymentPayload, settleResponse *x402.SettleResponse) {
+func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context, route *PaidRoute, paymentPayload *x402.PaymentPayload, settleResponse *x402.SettleResponse) {
 	// Convert paymentPayload to JSON
 	paymentPayloadJson, err := json.Marshal(paymentPayload)
 	if err != nil {
@@ -346,16 +348,18 @@ func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context, route *model
 	}
 
 	// Create purchase record
-	_, err = h.purchaseService.CreatePurchase(gCtx, &purchases.Purchase{
+	purchase := &purchases.Purchase{
 		ShortCode:      route.ShortCode,
-		TargetUrl:      route.TargetURL,
+		TargetURL:      route.TargetURL,
 		Method:         route.Method,
-		Price:          route.Price,
+		Price:          int32(route.Price), // Convert int64 to int32
 		IsTest:         route.IsTest,
-		PaidRouteID:    route.ID,
+		PaidRouteID:    int32(route.ID), // Convert uint to int32
 		PaymentPayload: paymentPayloadJson,
 		SettleResponse: settleResponseJson,
-	})
+	}
+
+	_, err = h.purchaseService.CreatePurchase(gCtx, purchase)
 
 	if err != nil {
 		h.logger.Error("Failed to save purchase record", "error", err)

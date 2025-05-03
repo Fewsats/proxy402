@@ -40,22 +40,22 @@ type Store struct {
 	clock   utils.Clock
 }
 
-func calculateLimitOffset(limit, offset int32) (int32, int32, error) {
-	if limit > MaxLimit {
-		return 0, 0, fmt.Errorf("limit exceeds the maximum allowed value of %d",
-			MaxLimit)
-	}
+// func calculateLimitOffset(limit, offset int32) (int32, int32, error) {
+// 	if limit > MaxLimit {
+// 		return 0, 0, fmt.Errorf("limit exceeds the maximum allowed value of %d",
+// 			MaxLimit)
+// 	}
 
-	if limit < 0 || offset < 0 {
-		return 0, 0, fmt.Errorf("limit and offset must be non-negative")
-	}
+// 	if limit < 0 || offset < 0 {
+// 		return 0, 0, fmt.Errorf("limit and offset must be non-negative")
+// 	}
 
-	if limit == 0 {
-		limit = DefaultLimit
-	}
+// 	if limit == 0 {
+// 		limit = DefaultLimit
+// 	}
 
-	return limit, offset, nil
-}
+// 	return limit, offset, nil
+// }
 
 // runMigrations runs the migrations on the database.
 //

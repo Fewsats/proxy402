@@ -18,7 +18,7 @@ import (
 func (s *Store) CreatePurchase(ctx context.Context, purchase *pkgPurchases.Purchase) (uint64, error) {
 	params := sqlc.CreatePurchaseParams{
 		ShortCode:      purchase.ShortCode,
-		TargetUrl:      purchase.TargetUrl,
+		TargetUrl:      purchase.TargetURL,
 		Method:         purchase.Method,
 		Price:          int32(purchase.Price),
 		IsTest:         purchase.IsTest,
@@ -196,11 +196,11 @@ func convertToPurchaseModel(dbPurchase sqlc.Purchase) *pkgPurchases.Purchase {
 		ShortCode:      dbPurchase.ShortCode,
 		TargetURL:      dbPurchase.TargetUrl,
 		Method:         dbPurchase.Method,
-		Price:          int64(dbPurchase.Price),
+		Price:          int32(dbPurchase.Price),
 		IsTest:         dbPurchase.IsTest,
-		PaymentPayload: string(dbPurchase.PaymentPayload),
-		SettleResponse: string(dbPurchase.SettleResponse),
-		PaidRouteID:    uint(dbPurchase.PaidRouteID),
+		PaymentPayload: []byte(dbPurchase.PaymentPayload),
+		SettleResponse: []byte(dbPurchase.SettleResponse),
+		PaidRouteID:    int32(dbPurchase.PaidRouteID),
 		CreatedAt:      dbPurchase.CreatedAt,
 		UpdatedAt:      dbPurchase.UpdatedAt,
 	}

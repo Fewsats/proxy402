@@ -7,7 +7,7 @@ import (
 type Purchase struct {
 	ID             int64
 	ShortCode      string
-	TargetUrl      string
+	TargetURL      string
 	Method         string
 	Price          int32
 	IsTest         bool

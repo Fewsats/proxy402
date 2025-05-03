@@ -7,19 +7,26 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"linkshrink/config"
 	"linkshrink/users"
 )
 
 // OAuthHandler handles OAuth authentication requests
 type OAuthHandler struct {
 	userService *users.UserService
+	authService *Service
+
+	config *Config
 }
 
-// NewOAuthHandler creates a new OAuthHandler
-func NewOAuthHandler(userService *users.UserService) *OAuthHandler {
+// NewAuthHandler creates a new OAuthHandler
+func NewAuthHandler(userService *users.UserService, authService *Service,
+	config *Config) *OAuthHandler {
+
 	return &OAuthHandler{
 		userService: userService,
+		authService: authService,
+
+		config: config,
 	}
 }
 
@@ -34,7 +41,15 @@ func (h *OAuthHandler) Login(gCtx *gin.Context) {
 	}
 
 	// Not authenticated, proceed with OAuth flow
-	url := config.AppConfig.GoogleOAuth.AuthCodeURL("state-token")
+	if h.config == nil {
+		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
+			"error":   "Auth configuration not set",
+			"baseURL": gCtx.Request.Host,
+		})
+		return
+	}
+
+	url := h.config.GetGoogleOAuthConfig().AuthCodeURL("state-token")
 	gCtx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -49,7 +64,7 @@ func (h *OAuthHandler) Callback(gCtx *gin.Context) {
 		return
 	}
 
-	token, err := config.AppConfig.GoogleOAuth.Exchange(gCtx.Request.Context(), code)
+	token, err := h.config.GetGoogleOAuthConfig().Exchange(gCtx.Request.Context(), code)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to exchange token",
@@ -58,7 +73,7 @@ func (h *OAuthHandler) Callback(gCtx *gin.Context) {
 		return
 	}
 
-	client := config.AppConfig.GoogleOAuth.Client(gCtx.Request.Context(), token)
+	client := h.config.GetGoogleOAuthConfig().Client(gCtx.Request.Context(), token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
@@ -102,7 +117,7 @@ func (h *OAuthHandler) Callback(gCtx *gin.Context) {
 	}
 
 	// Generate JWT token
-	signedToken, err := GenerateJWT(user.ID, user.Email)
+	signedToken, err := h.authService.GenerateJWT(user.ID, user.Email)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "landing.html", gin.H{
 			"error":   "Failed to generate token",
@@ -112,7 +127,7 @@ func (h *OAuthHandler) Callback(gCtx *gin.Context) {
 	}
 
 	// Set the JWT as a secure cookie
-	maxAge := int(config.AppConfig.JWTExpirationHours.Seconds())
+	maxAge := int(h.config.JWTExpirationHours.Seconds())
 	gCtx.SetCookie("jwt", signedToken, maxAge, "/", "", false, true)
 
 	// Redirect to dashboard instead of home page

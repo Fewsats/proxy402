@@ -1,4 +1,4 @@
-package handlers
+package ui
 
 import (
 	"embed"
@@ -10,20 +10,26 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/auth"
-	"linkshrink/internal/core/services"
+	"linkshrink/routes"
 )
 
 // UIHandler handles UI-related routes and rendering
 type UIHandler struct {
-	paidRouteService *services.PaidRouteService
-	templatesFS      embed.FS
+	paidRouteService *routes.PaidRouteService
+	authService      *auth.Service
+
+	templatesFS embed.FS
 }
 
 // NewUIHandler creates a new UIHandler instance
-func NewUIHandler(paidRouteService *services.PaidRouteService, templatesFS embed.FS) *UIHandler {
+func NewUIHandler(paidRouteService *routes.PaidRouteService,
+	authService *auth.Service, templatesFS embed.FS) *UIHandler {
+
 	return &UIHandler{
 		paidRouteService: paidRouteService,
-		templatesFS:      templatesFS,
+		authService:      authService,
+
+		templatesFS: templatesFS,
 	}
 }
 
@@ -68,7 +74,7 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 	router.GET("/", h.handleLandingPage)
 
 	// Dashboard for authenticated users
-	router.GET("/dashboard", auth.AuthMiddleware(), h.handleDashboard)
+	router.GET("/dashboard", auth.AuthMiddleware(h.authService), h.handleDashboard)
 }
 
 // handleLandingPage renders the landing page for non-authenticated users

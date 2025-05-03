@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"linkshrink/users"
 	"time"
 )
 
@@ -15,7 +14,6 @@ type PaidRoute struct {
 	Price        int64      `json:"price"`
 	IsTest       bool       `json:"is_test"`
 	UserID       uint       `json:"-"` // User who owns/created this route
-	User         users.User `json:"-"`
 	IsEnabled    bool       `json:"is_enabled"`
 	AttemptCount int64      `json:"attempt_count"` // Track payment attempts (no payment header provided)
 	PaymentCount int64      `json:"payment_count"` // Track successful payments (payment for x402)

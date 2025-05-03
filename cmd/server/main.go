@@ -4,9 +4,13 @@ import (
 	"embed"
 	"log/slog"
 
+	"linkshrink/auth"
 	"linkshrink/config"
+	"linkshrink/purchases"
+	"linkshrink/routes"
 	"linkshrink/server"
 	storePkg "linkshrink/store"
+	"linkshrink/users"
 	"linkshrink/utils"
 )
 
@@ -46,13 +50,14 @@ func main() {
 			"Unable to create store",
 			"error", err,
 		)
+
 		return
 	}
 
-	// Create services
-	userService := services.NewUserService(logger, store)
-	paidRouteService := services.NewPaidRouteService(logger, store)
-	purchaseService := services.NewPurchaseService(logger, store)
+	userService := users.NewUserService(logger, store)
+	paidRouteService := routes.NewPaidRouteService(logger, store)
+	purchaseService := purchases.NewPurchaseService(logger, store)
+	authService := auth.NewAuthService(&cfg.Auth)
 
 	// Create and configure the server
 	srv := server.NewServer(
@@ -61,6 +66,7 @@ func main() {
 		userService,
 		paidRouteService,
 		purchaseService,
+		authService,
 		templatesFS,
 		staticFS,
 	)

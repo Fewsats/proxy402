@@ -3,11 +3,22 @@ package auth
 import (
 	"errors"
 	"fmt"
-	"linkshrink/config"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+// Service handles JWT generation and validation
+type Service struct {
+	config *Config
+}
+
+// NewService creates a new authentication service
+func NewAuthService(config *Config) *Service {
+	return &Service{
+		config: config,
+	}
+}
 
 // Claims defines the structure of the JWT claims.
 type Claims struct {
@@ -16,9 +27,10 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+// Service method implementations
 // GenerateJWT creates a new JWT for a given user ID and email.
-func GenerateJWT(userID uint, email string) (string, error) {
-	expirationTime := time.Now().Add(config.AppConfig.JWTExpirationHours)
+func (s *Service) GenerateJWT(userID uint, email string) (string, error) {
+	expirationTime := time.Now().Add(s.config.JWTExpirationHours)
 	claims := &Claims{
 		UserID: userID,
 		Email:  email,
@@ -30,7 +42,7 @@ func GenerateJWT(userID uint, email string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(config.AppConfig.JWTSecret))
+	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}
@@ -40,7 +52,7 @@ func GenerateJWT(userID uint, email string) (string, error) {
 
 // ValidateJWT parses and validates a JWT string.
 // It returns the claims if the token is valid, otherwise returns an error.
-func ValidateJWT(tokenString string) (*Claims, error) {
+func (s *Service) ValidateJWT(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
@@ -48,7 +60,7 @@ func ValidateJWT(tokenString string) (*Claims, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(config.AppConfig.JWTSecret), nil
+		return []byte(s.config.JWTSecret), nil
 	})
 
 	if err != nil {

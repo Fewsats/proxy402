@@ -1,7 +1,6 @@
 package config
 
 import (
-	"linkshrink/store"
 	"log"
 	"log/slog"
 	"os"
@@ -10,8 +9,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+
+	"linkshrink/auth"
+	"linkshrink/routes"
+	"linkshrink/store"
 )
 
 // Config holds application configuration values.
@@ -25,19 +26,20 @@ type Config struct {
 	// Store configuration.
 	Store store.Config `group:"store" namespace:"store"`
 
-	AppPort            string
-	JWTSecret          string
-	JWTExpirationHours time.Duration
+	// Routes configuration
+	Routes routes.Config `group:"routes" namespace:"routes"`
 
-	// x402 Config
-	X402TestnetPaymentAddress string `mapstructure:"X402_TESTNET_PAYMENT_ADDRESS"` // Testnet Payment Address
-	X402MainnetPaymentAddress string `mapstructure:"X402_MAINNET_PAYMENT_ADDRESS"` // Mainnet Payment Address
-	X402FacilitatorURL        string `mapstructure:"X402_FACILITATOR_URL"`
-	GoogleClientID            string `mapstructure:"GOOGLE_CLIENT_ID"`
-	GoogleClientSecret        string `mapstructure:"GOOGLE_CLIENT_SECRET"`
+	AppPort string
 
-	// OAuth Config
-	GoogleOAuth *oauth2.Config
+	// Auth configuration
+	Auth auth.Config `group:"auth" namespace:"auth"`
+
+	// X402 Config
+
+	// X402 Config
+	X402TestnetPaymentAddress string
+	X402MainnetPaymentAddress string
+	X402FacilitatorURL        string
 }
 
 var AppConfig *Config
@@ -64,61 +66,73 @@ func (c *Config) SetGinMode() {
 	}
 }
 
+// DefaultConfig returns default values for the Config struct.
+func DefaultConfig() *Config {
+	return &Config{
+		LogLevel: "debug",
+		GinMode:  "debug",
+		AppPort:  "8080",
+		Store: store.Config{
+			Host:     "localhost",
+			Port:     5432,
+			User:     "user",
+			Password: "password",
+			DBName:   "linkshrink",
+		},
+		Routes: routes.Config{
+			X402FacilitatorURL: "https://x402.org/facilitator",
+		},
+		Auth: auth.Config{
+			JWTExpirationHours: 72 * time.Hour,
+		},
+	}
+}
+
 // LoadConfig loads configuration from environment variables or a .env file.
 func LoadConfig(logger *slog.Logger) *Config {
+	// Start with default values
+	AppConfig = DefaultConfig()
+
 	// Load .env file, ignore error if it doesn't exist (e.g., in production)
 	_ = godotenv.Load()
 
-	dbPort, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
+	dbPort, err := strconv.Atoi(getEnv("DB_PORT", strconv.Itoa(AppConfig.Store.Port)))
 	if err != nil {
-		log.Fatalf("FATAL: DB_PORT environment variable is not set.")
+		log.Fatalf("FATAL: DB_PORT environment variable is not valid.")
 	}
 
-	AppConfig = &Config{
-		// Store configuration.
-		Store: store.Config{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     dbPort,
-			User:     getEnv("DB_USER", "user"),
-			Password: getEnv("DB_PASSWORD", "password"),
-			DBName:   getEnv("DB_NAME", "linkshrink"),
-		},
+	// Override defaults with environment variables
+	AppConfig.LogLevel = getEnv("LOG_LEVEL", AppConfig.LogLevel)
+	AppConfig.GinMode = getEnv("GIN_MODE", AppConfig.GinMode)
+	AppConfig.AppPort = getEnv("APP_PORT", AppConfig.AppPort)
 
-		AppPort:            getEnv("APP_PORT", "8080"),
-		JWTSecret:          getEnvOrFatal("JWT_SECRET"),
-		JWTExpirationHours: getEnvDuration("JWT_EXPIRATION_HOURS", 72*time.Hour),
+	// Store configuration.
+	AppConfig.Store.Host = getEnv("DB_HOST", AppConfig.Store.Host)
+	AppConfig.Store.Port = dbPort
+	AppConfig.Store.User = getEnv("DB_USER", AppConfig.Store.User)
+	AppConfig.Store.Password = getEnv("DB_PASSWORD", AppConfig.Store.Password)
+	AppConfig.Store.DBName = getEnv("DB_NAME", AppConfig.Store.DBName)
 
-		// Load x402 Config
-		X402TestnetPaymentAddress: getEnvOrFatal("X402_TESTNET_PAYMENT_ADDRESS"),
-		X402MainnetPaymentAddress: getEnvOrFatal("X402_MAINNET_PAYMENT_ADDRESS"),
-		X402FacilitatorURL:        getEnv("X402_FACILITATOR_URL", "https://x402.org/facilitator"),
+	// Routes configuration
+	AppConfig.Routes.X402TestnetPaymentAddress = getEnvOrFatal("X402_TESTNET_PAYMENT_ADDRESS")
+	AppConfig.Routes.X402MainnetPaymentAddress = getEnvOrFatal("X402_MAINNET_PAYMENT_ADDRESS")
+	AppConfig.Routes.X402FacilitatorURL = getEnv("X402_FACILITATOR_URL", AppConfig.Routes.X402FacilitatorURL)
 
-		// Load Google OAuth config
-		GoogleClientID:     getEnvOrFatal("GOOGLE_CLIENT_ID"),
-		GoogleClientSecret: getEnvOrFatal("GOOGLE_CLIENT_SECRET"),
+	// Auth configuration
+	AppConfig.Auth.JWTSecret = getEnvOrFatal("JWT_SECRET")
+	AppConfig.Auth.JWTExpirationHours = getEnvDuration("JWT_EXPIRATION_HOURS", AppConfig.Auth.JWTExpirationHours)
 
-		LogLevel: getEnv("LOG_LEVEL", "debug"),
-		GinMode:  getEnv("GIN_MODE", "debug"),
-	}
+	// Load auth config
+	AppConfig.Auth.GoogleClientID = getEnvOrFatal("GOOGLE_CLIENT_ID")
+	AppConfig.Auth.GoogleClientSecret = getEnvOrFatal("GOOGLE_CLIENT_SECRET")
+	AppConfig.Auth.GoogleRedirectURL = getEnvOrFatal("GOOGLE_REDIRECT_URL")
 
 	// Basic validation for essential x402 config
-	if AppConfig.X402TestnetPaymentAddress == "" {
+	if AppConfig.Routes.X402TestnetPaymentAddress == "" {
 		log.Fatal("FATAL: X402_TESTNET_PAYMENT_ADDRESS environment variable is not set.")
 	}
-	if AppConfig.X402MainnetPaymentAddress == "" {
+	if AppConfig.Routes.X402MainnetPaymentAddress == "" {
 		log.Fatal("FATAL: X402_MAINNET_PAYMENT_ADDRESS environment variable is not set.")
-	}
-
-	// Initialize Google OAuth config
-	AppConfig.GoogleOAuth = &oauth2.Config{
-		ClientID:     AppConfig.GoogleClientID,
-		ClientSecret: AppConfig.GoogleClientSecret,
-		RedirectURL:  getEnvOrFatal("GOOGLE_REDIRECT_URL"),
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
 	}
 
 	logger.Info("Configuration loaded.")

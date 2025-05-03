@@ -13,7 +13,8 @@ import (
 // PaidRouteService provides business logic for managing paid routes.
 type PaidRouteService struct {
 	logger *slog.Logger
-	store  Store
+
+	store Store
 }
 
 // NewPaidRouteService creates a new PaidRouteService.
