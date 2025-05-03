@@ -65,14 +65,29 @@
                 <div class="stats-cards">
                     <div class="stats-card">
                         <div class="stats-item">
-                            <h3>Total Earnings</h3>
-                            <div class="value" id="total-earnings-value">
+                            <h3>Live Earnings</h3>
+                            <div class="value" id="real-earnings-value">
                                 <div class="loading-placeholder">Loading...</div>
                             </div>
                         </div>
                         <div class="stats-item">
-                            <h3>Total Purchases</h3>
-                            <div class="value" id="total-purchases-value">
+                            <h3>Live Purchases</h3>
+                            <div class="value" id="real-purchases-value">
+                                <div class="loading-placeholder">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Test stats card -->
+                    <div class="stats-card">
+                        <div class="stats-item">
+                            <h3>Test Earnings</h3>
+                            <div class="value" id="test-earnings-value">
+                                <div class="loading-placeholder">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="stats-item">
+                            <h3>Test Purchases</h3>
+                            <div class="value" id="test-purchases-value">
                                 <div class="loading-placeholder">Loading...</div>
                             </div>
                         </div>
@@ -260,16 +275,17 @@
                     return response.json();
                 })
                 .then(data => {
-                    // Update total earnings
-                    const totalEarnings = formatUSDC(data.total_earnings);
-                    document.getElementById('total-earnings-value').textContent = totalEarnings;
+                    // Update real earnings
+                    const realEarnings = formatUSDC(data.real_earnings);
+                    document.getElementById('real-earnings-value').textContent = realEarnings;
                     
-                    // Update total purchases
-                    let totalPurchases = 0;
-                    data.daily_purchases.forEach(day => {
-                        totalPurchases += day.count;
-                    });
-                    document.getElementById('total-purchases-value').textContent = totalPurchases.toLocaleString();
+                    // Update test earnings
+                    const testEarnings = formatUSDC(data.test_earnings);
+                    document.getElementById('test-earnings-value').textContent = testEarnings;
+                    
+                    // Update real and test purchases
+                    document.getElementById('real-purchases-value').textContent = data.real_purchases.toLocaleString();
+                    document.getElementById('test-purchases-value').textContent = data.test_purchases.toLocaleString();
                     
                     // Prepare data for chart
                     const chartData = prepareChartData(data.daily_purchases);
@@ -279,15 +295,35 @@
                 })
                 .catch(error => {
                     console.error('Error fetching dashboard stats:', error);
-                    document.getElementById('total-earnings-value').textContent = '$0.00 USDC';
-                    document.getElementById('total-purchases-value').textContent = '0';
+                    document.getElementById('real-earnings-value').textContent = '$0.00 USDC';
+                    document.getElementById('test-earnings-value').textContent = '$0.00 USDC';
+                    document.getElementById('real-purchases-value').textContent = '0';
+                    document.getElementById('test-purchases-value').textContent = '0';
                 });
         }
         
         // Helper function to format price in USDC
         function formatUSDC(price) {
             const value = parseFloat(price) / 1000000;
-            return `$${value.toFixed(2)} USDC`;
+            
+            // If the value is zero, just return $0.00 USDC
+            if (value === 0) {
+                return '$0.00 USDC';
+            }
+            
+            // For non-zero values, show up to 6 decimal places but trim trailing zeros
+            let formattedValue;
+            if (value >= 0.01) {
+                // For larger values, show 2 decimal places
+                formattedValue = value.toFixed(2);
+            } else {
+                // For very small values, show up to 6 decimal places
+                formattedValue = value.toFixed(6);
+                // Trim trailing zeros
+                formattedValue = formattedValue.replace(/\.?0+$/, '');
+            }
+            
+            return `$${formattedValue} USDC`;
         }
         
         // Function to prepare data for the chart
@@ -295,7 +331,8 @@
             // Get current date and past 7 days
             const today = new Date();
             const dates = [];
-            const earnings = [];
+            const testEarnings = [];
+            const realEarnings = [];
             
             // Create an array of the last 7 days (most recent first)
             for (let i = 0; i < 7; i++) {
@@ -303,21 +340,26 @@
                 date.setDate(today.getDate() - i);
                 const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
                 dates.unshift(dateStr); // Add to beginning of array
-                earnings.unshift(0); // Initialize with zero earnings
+                testEarnings.unshift(0);
+                realEarnings.unshift(0);
             }
             
             // Fill in actual earnings data where available
             if (dailyPurchases && dailyPurchases.length > 0) {
-                // Create a map of date -> earnings
-                const earningsMap = {};
+                // Create maps for each type of earning
+                const testEarningsMap = {};
+                const realEarningsMap = {};
+                
                 dailyPurchases.forEach(day => {
-                    earningsMap[day.date] = day.earnings;
+                    testEarningsMap[day.date] = day.test_earnings;
+                    realEarningsMap[day.date] = day.real_earnings;
                 });
                 
-                // Update the earnings array with actual data
+                // Update the earnings arrays with actual data
                 dates.forEach((date, index) => {
-                    if (earningsMap[date]) {
-                        earnings[index] = earningsMap[date] / 1000000; // Convert to USDC
+                    if (realEarningsMap[date] !== undefined) {
+                        testEarnings[index] = testEarningsMap[date] / 1000000;
+                        realEarnings[index] = realEarningsMap[date] / 1000000;
                     }
                 });
             }
@@ -326,12 +368,23 @@
                 labels: dates.map(d => formatDateLabel(d)),
                 datasets: [
                     {
-                        label: 'Earnings (USDC)',
-                        data: earnings,
+                        label: 'Live Earnings',
+                        data: realEarnings,
                         backgroundColor: 'rgba(99, 179, 237, 0.2)',
                         borderColor: 'rgba(99, 179, 237, 1)',
                         borderWidth: 2,
-                        fill: true,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Test Earnings',
+                        data: testEarnings,
+                        backgroundColor: 'rgba(252, 211, 77, 0.2)',
+                        borderColor: 'rgba(252, 211, 77, 1)',
+                        borderWidth: 2,
+                        fill: false,
                         tension: 0.1,
                         pointRadius: 3,
                         pointHoverRadius: 5
@@ -344,6 +397,22 @@
         function formatDateLabel(dateStr) {
             const date = new Date(dateStr);
             return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        
+        // Function to format decimal values for display with appropriate precision
+        function formatDecimalValue(value) {
+            if (value === 0) {
+                return '0.00';
+            }
+            
+            if (value >= 0.01) {
+                return value.toFixed(2);
+            } else {
+                // For very small values, show up to 6 decimal places
+                let formatted = value.toFixed(6);
+                // Trim trailing zeros
+                return formatted.replace(/\.?0+$/, '');
+            }
         }
         
         // Function to create purchases chart
@@ -388,14 +457,21 @@
                             ticks: {
                                 color: 'rgba(255, 255, 255, 0.8)',
                                 callback: function(value) {
-                                    return `$${value.toFixed(6)} USDC`;
+                                    return `$${formatDecimalValue(value)} USDC`;
                                 }
                             }
                         }
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: 'rgba(255, 255, 255, 0.8)',
+                                font: {
+                                    size: 12
+                                }
+                            }
                         },
                         tooltip: {
                             callbacks: {
@@ -403,7 +479,7 @@
                                     return tooltipItems[0].label;
                                 },
                                 label: function(context) {
-                                    return `$${context.raw.toFixed(6)} USDC`;
+                                    return `${context.dataset.label}: $${formatDecimalValue(context.raw)} USDC`;
                                 }
                             }
                         }
