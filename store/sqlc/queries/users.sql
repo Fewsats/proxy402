@@ -16,9 +16,9 @@ WHERE google_id = $1;
 -- name: CreateUser :one
 -- CreateUser creates a new user record.
 INSERT INTO users (
-    email, name, google_id, created_at, updated_at
+    email, name, google_id, proxy_402_secret, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 ) RETURNING id;
 
 -- name: UpdateUser :exec

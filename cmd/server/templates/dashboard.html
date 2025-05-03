@@ -417,7 +417,7 @@
                             ticks: {
                                 color: 'rgba(255, 255, 255, 0.8)',
                                 callback: function(value) {
-                                    return `$${formatDecimalValue(value)} USDC`;
+                                    return `$${formatChartLegendValue(value)} USDC`;
                                 }
                             }
                         }
@@ -439,7 +439,7 @@
                                     return tooltipItems[0].label;
                                 },
                                 label: function(context) {
-                                    return `${context.dataset.label}: $${formatDecimalValue(context.raw)} USDC`;
+                                    return `${context.dataset.label}: $${formatChartLegendValue(context.raw)} USDC`;
                                 }
                             }
                         }

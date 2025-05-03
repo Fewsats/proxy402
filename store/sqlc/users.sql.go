@@ -12,18 +12,19 @@ import (
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    email, name, google_id, created_at, updated_at
+    email, name, google_id, proxy_402_secret, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 ) RETURNING id
 `
 
 type CreateUserParams struct {
-	Email     string
-	Name      string
-	GoogleID  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Email          string
+	Name           string
+	GoogleID       string
+	Proxy402Secret string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
 
 // CreateUser creates a new user record.
@@ -32,6 +33,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int64, 
 		arg.Email,
 		arg.Name,
 		arg.GoogleID,
+		arg.Proxy402Secret,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -41,7 +43,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int64, 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, google_id, created_at, updated_at FROM users
+SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at FROM users
 WHERE email = $1
 `
 
@@ -54,6 +56,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Email,
 		&i.Name,
 		&i.GoogleID,
+		&i.Proxy402Secret,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -61,7 +64,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByGoogleID = `-- name: GetUserByGoogleID :one
-SELECT id, email, name, google_id, created_at, updated_at FROM users
+SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at FROM users
 WHERE google_id = $1
 `
 
@@ -74,6 +77,7 @@ func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID string) (User,
 		&i.Email,
 		&i.Name,
 		&i.GoogleID,
+		&i.Proxy402Secret,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -81,7 +85,7 @@ func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID string) (User,
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, google_id, created_at, updated_at FROM users
+SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at FROM users
 WHERE id = $1
 `
 
@@ -94,6 +98,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.Email,
 		&i.Name,
 		&i.GoogleID,
+		&i.Proxy402Secret,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
     -- google_id is the unique identifier from Google OAuth.
     google_id TEXT NOT NULL,
     
+    -- proxy_402_secret is the secret for the proxy 402 header.
+    proxy_402_secret TEXT NOT NULL,
+    
     -- Standard timestamp fields
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL

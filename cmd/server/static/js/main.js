@@ -38,6 +38,12 @@ function formatDecimalValue(value) {
     }
 }
 
+// Function to format values consistently in chart legends (fixed decimal places)
+function formatChartLegendValue(value) {
+    // Always show 6 decimal places for consistency in the chart legend
+    return value.toFixed(6);
+}
+
 // Form submission handler
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('link-form');

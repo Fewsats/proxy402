@@ -14,9 +14,10 @@ import (
 // Create inserts a new user in the database.
 func (s *Store) CreateUser(ctx context.Context, user *users.User) (uint64, error) {
 	userID, err := s.queries.CreateUser(ctx, sqlc.CreateUserParams{
-		Email:    user.Email,
-		Name:     user.Name,
-		GoogleID: user.GoogleID,
+		Email:          user.Email,
+		Name:           user.Name,
+		GoogleID:       user.GoogleID,
+		Proxy402Secret: user.Proxy402Secret,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to create user: %w", err)
@@ -54,10 +55,11 @@ func (s *Store) FindUserByGoogleID(ctx context.Context, googleID string) (*users
 // Helper function to convert sqlc User to users.User
 func convertToUserModel(dbUser sqlc.User) *users.User {
 	return &users.User{
-		Email:     dbUser.Email,
-		Name:      dbUser.Name,
-		GoogleID:  dbUser.GoogleID,
-		CreatedAt: dbUser.CreatedAt,
-		UpdatedAt: dbUser.UpdatedAt,
+		Email:          dbUser.Email,
+		Name:           dbUser.Name,
+		GoogleID:       dbUser.GoogleID,
+		Proxy402Secret: dbUser.Proxy402Secret,
+		CreatedAt:      dbUser.CreatedAt,
+		UpdatedAt:      dbUser.UpdatedAt,
 	}
 }

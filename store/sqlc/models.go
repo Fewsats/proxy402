@@ -42,10 +42,11 @@ type Purchase struct {
 }
 
 type User struct {
-	ID        int64
-	Email     string
-	Name      string
-	GoogleID  string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID             int64
+	Email          string
+	Name           string
+	GoogleID       string
+	Proxy402Secret string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
 }
