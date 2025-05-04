@@ -108,15 +108,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Clipboard copy handler
+// Copy value handler for settings page and other special copy buttons
 document.addEventListener('click', async function(e) {
     const copyButton = e.target.closest('.copy-btn');
     if (!copyButton) return;
     
+    // Get the URL or value to copy
     const url = copyButton.getAttribute('data-url');
+    const value = copyButton.getAttribute('data-value');
+    const textToCopy = url || value;
+    
+    if (!textToCopy) return;
     
     try {
-        await navigator.clipboard.writeText(url);
+        await navigator.clipboard.writeText(textToCopy);
         
         // Show temporary "Copied!" message near the button
         const existingMsg = copyButton.querySelector('.copy-success');

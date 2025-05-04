@@ -39,6 +39,14 @@
                 </div>
                 <div class="user-menu-dropdown" id="user-menu-dropdown">
                     <div class="user-email-display" id="user-email-display">{{.user.email}}</div>
+                    <a href="/dashboard" class="user-menu-item active">
+                        <i data-lucide="layout-dashboard" width="16" height="16"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/settings" class="user-menu-item">
+                        <i data-lucide="settings" width="16" height="16"></i>
+                        <span>Settings</span>
+                    </a>
                     <a href="/logout" class="user-menu-item">
                         <i data-lucide="log-out" width="16" height="16"></i>
                         <span>Logout</span>

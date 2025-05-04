@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Settings - Proxy402</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Favicon -->
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+    <!-- Include htmx for interactive features -->
+    <script src="https://unpkg.com/htmx.org@1.9.6"></script>
+    <!-- Include Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Custom JS -->
+    <script src="/static/js/main.js" defer></script>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="flow-container">
+        <svg class="flow-lines" width="100%" height="100%" viewBox="0 0 800 300">
+            <path class="flow-path" d="M0,150 C100,50 200,250 300,100 S500,150 800,70" />
+            <path class="flow-path" d="M0,100 C150,200 250,70 400,150 S600,50 800,180" style="animation-delay: -5s;" />
+            <path class="flow-path" d="M0,200 C120,100 220,180 350,120 S550,200 800,120" style="animation-delay: -10s;" />
+        </svg>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="/dashboard" class="logo">Proxy402</a>
+        </div>
+        <div class="navbar-menu">
+            <div class="user-menu">
+                <div class="user-menu-trigger" id="user-menu-trigger">
+                    <div class="user-avatar">{{slice .user.email 0 1 }}</div>
+                    <i data-lucide="chevron-down" width="16" height="16"></i>
+                </div>
+                <div class="user-menu-dropdown" id="user-menu-dropdown">
+                    <div class="user-email-display" id="user-email-display">{{.user.email}}</div>
+                    <a href="/dashboard" class="user-menu-item">
+                        <i data-lucide="layout-dashboard" width="16" height="16"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="/settings" class="user-menu-item active">
+                        <i data-lucide="settings" width="16" height="16"></i>
+                        <span>Settings</span>
+                    </a>
+                    <a href="/logout" class="user-menu-item">
+                        <i data-lucide="log-out" width="16" height="16"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <div class="main-container">
+        {{if .error}}
+        <div class="error">{{.error}}</div>
+        {{end}}
+        
+        {{if .message}}
+        <div class="success">{{.message}}</div>
+        {{end}}
+
+        <div class="settings-container">
+            <h1>Account Settings</h1>
+            
+            <div class="settings-card">
+                <h2>Profile Information</h2>
+                <div class="settings-field">
+                    <div class="settings-field-row">
+                        <label>Email</label>
+                        <div class="settings-value">{{.user.email}}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-card">
+                <h2>
+                    API Authentication
+                    <span class="tooltip th-tooltip" data-tooltip="This secret is added as a 'Proxy402-Secret' header to all requests proxied through the service, allowing your target server to verify the request's authenticity.">
+                        <i data-lucide="help-circle" width="16" height="16"></i>
+                    </span>
+                </h2>
+                <div class="settings-field">
+                    <div class="settings-field-row">
+                        <label>Proxy402 Secret</label>
+                        <div class="settings-value secret-field">
+                            <span id="secret-value">{{.proxy_secret}}</span>
+                            <button id="toggle-secret" class="icon-btn" data-tooltip="Toggle visibility">
+                                <i data-lucide="eye" width="16" height="16"></i>
+                            </button>
+                            <button class="copy-btn" data-value="{{.proxy_secret}}" data-tooltip="Copy to clipboard">
+                                <i data-lucide="copy" width="16" height="16"></i>
+                            </button>
+                            <button class="icon-btn regen-btn" data-tooltip="Regenerate Secret"
+                                    hx-post="/settings/regenerate-secret"
+                                    hx-target="#secret-value"
+                                    hx-select="#secret-value"
+                                    hx-swap="outerHTML"
+                                    hx-confirm="Are you sure? Regenerating your secret will invalidate any existing integrations using it.">
+                                <i data-lucide="refresh-cw" width="16" height="16"></i>
+                                <span class="htmx-indicator">↻</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="settings-note">Use this secret on your server to verify requests are coming from Proxy402</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Listen for HTMX after swap event
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            // Check if our target element was involved
+            if (evt.detail.target.id === 'secret-value') {
+                // Re-initialize the toggle functionality
+                initializeSecretToggle();
+                
+                // Also update the copy button data
+                const copyBtn = document.querySelector('.copy-btn');
+                if (copyBtn) {
+                    copyBtn.setAttribute('data-value', document.getElementById('secret-value').textContent);
+                }
+            }
+        });
+
+        // Extract the toggle functionality to a reusable function
+        function initializeSecretToggle() {
+            const toggleSecretBtn = document.getElementById('toggle-secret');
+            const secretValue = document.getElementById('secret-value');
+            
+            if (toggleSecretBtn && secretValue) {
+                // Initially mask the secret
+                const realSecret = secretValue.textContent;
+                secretValue.textContent = '••••••••••••••••••••••••••••••••';
+                
+                // Remove any existing event listener (to prevent duplicates)
+                toggleSecretBtn.replaceWith(toggleSecretBtn.cloneNode(true));
+                
+                // Get the refreshed element reference
+                const refreshedToggleBtn = document.getElementById('toggle-secret');
+                
+                // Add event listener to the refreshed button
+                refreshedToggleBtn.addEventListener('click', function() {
+                    const isHidden = secretValue.textContent.startsWith('•');
+                    secretValue.textContent = isHidden ? realSecret : '••••••••••••••••••••••••••••••••';
+                    
+                    // Also toggle the icon
+                    const icon = refreshedToggleBtn.querySelector('i');
+                    if (icon) {
+                        icon.setAttribute('data-lucide', isHidden ? 'eye-off' : 'eye');
+                        lucide.createIcons();
+                    }
+                });
+            }
+        }
+
+        // Call on initial page load
+        document.addEventListener("DOMContentLoaded", function() {
+            lucide.createIcons();
+            initializeSecretToggle();
+        });
+    </script>
+</body>
+</html> 

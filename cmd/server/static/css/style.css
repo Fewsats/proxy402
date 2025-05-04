@@ -290,7 +290,6 @@ input:focus, select:focus {
     right: 8px;
     top: 50%;
     transform: translateY(-50%);
-    cursor: help;
     color: var(--primary-color);
     display: flex;
     align-items: center;
@@ -761,11 +760,27 @@ input:focus, select:focus {
     bottom: calc(100% + 3px);
 }
 
+/* Adjust tooltip position/style for icon buttons */
+.icon-btn[data-tooltip]::before,
+.icon-btn[data-tooltip]::after,
+.copy-btn[data-tooltip]::before,
+.copy-btn[data-tooltip]::after {
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(100% + 8px);
+    white-space: nowrap;
+    z-index: 20;
+}
+
+.icon-btn[data-tooltip]::before,
+.copy-btn[data-tooltip]::before {
+    bottom: calc(100% + 3px);
+}
+
 .th-tooltip {
     display: inline-block;
     vertical-align: middle;
     margin-left: 0.3rem;
-    cursor: help; 
     position: relative; 
     color: var(--primary-color);
     line-height: 1;
@@ -951,4 +966,133 @@ th.sortable.desc::after {
     color: var(--text-color);
     border: 1px solid var(--border-color);
     font-size: 0.9rem;
+}
+
+/* Settings Page Styles */
+.settings-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+.settings-container h1 {
+    color: var(--text-color);
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.settings-card {
+    background: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.settings-card h2 {
+    font-size: 18px;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+}
+
+.settings-field {
+    margin-bottom: 15px;
+}
+
+.settings-field-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.settings-field label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 14px;
+    width: 120px;
+    flex-shrink: 0;
+}
+
+.settings-value {
+    padding: 10px 12px;
+    background: #325082;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    font-family: monospace;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    word-break: break-all;
+    flex: 1;
+}
+
+.secret-field {
+    position: relative;
+}
+
+.secret-field span {
+    flex: 1;
+    margin-right: 10px;
+}
+
+.secret-field button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s;
+    padding: 5px;
+    margin-left: 5px;
+}
+
+.secret-field button:hover {
+    color: var(--primary-color);
+}
+
+.regen-btn {
+    color: var(--text-muted);
+}
+
+.regen-btn:hover {
+    color: #f44336; /* Red color to indicate caution */
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s;
+    padding: 5px;
+}
+
+.icon-btn:hover {
+    color: var(--primary-color);
+}
+
+.settings-note {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 5px 0 15px 120px;
+}
+
+.regenerate-form {
+    margin-top: 10px;
+    margin-left: 120px;
+}
+
+.danger-btn {
+    background: #f44336;
+    border-color: #d32f2f;
+}
+
+.danger-btn:hover {
+    background: #d32f2f;
+}
+
+.user-menu-dropdown .active {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--primary-color);
 } 
