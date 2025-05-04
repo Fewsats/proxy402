@@ -20,4 +20,7 @@ type Store interface {
 
 	// FindUserByGoogleID retrieves a user by Google ID.
 	FindUserByGoogleID(ctx context.Context, googleID string) (*User, error)
+
+	// UpdateUserProxySecret updates a user's proxy secret.
+	UpdateUserProxySecret(ctx context.Context, id uint, secret string) error
 }

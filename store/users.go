@@ -63,3 +63,16 @@ func convertToUserModel(dbUser sqlc.User) *users.User {
 		UpdatedAt:      dbUser.UpdatedAt,
 	}
 }
+
+// UpdateUserProxySecret updates a user's proxy secret.
+func (s *Store) UpdateUserProxySecret(ctx context.Context, id uint, secret string) error {
+	err := s.queries.UpdateUserProxySecret(ctx, sqlc.UpdateUserProxySecretParams{
+		ID:             int64(id),
+		Proxy402Secret: secret,
+		UpdatedAt:      s.clock.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update user proxy secret: %w", err)
+	}
+	return nil
+}

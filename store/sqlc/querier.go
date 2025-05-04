@@ -51,6 +51,7 @@ type Querier interface {
 	UpdatePaidRoute(ctx context.Context, arg UpdatePaidRouteParams) error
 	// UpdateUser updates a user record.
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
+	UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) error
 }
 
 var _ Querier = (*Queries)(nil)

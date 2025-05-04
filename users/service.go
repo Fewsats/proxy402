@@ -68,3 +68,20 @@ func (s *UserService) GetUserByID(ctx context.Context, userID uint) (*User, erro
 	}
 	return user, nil
 }
+
+// UpdateProxySecret generates and updates the user's proxy secret.
+func (s *UserService) UpdateProxySecret(ctx context.Context, userID uint) (string, error) {
+	// Generate a new secret
+	secretBytes := make([]byte, 16) // 16 bytes = 32 hex characters
+	if _, err := rand.Read(secretBytes); err != nil {
+		return "", fmt.Errorf("failed to generate proxy secret: %w", err)
+	}
+	newSecret := hex.EncodeToString(secretBytes)
+
+	// Update the user's secret in the database
+	if err := s.store.UpdateUserProxySecret(ctx, userID, newSecret); err != nil {
+		return "", fmt.Errorf("failed to update proxy secret: %w", err)
+	}
+
+	return newSecret, nil
+}

@@ -123,3 +123,21 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 	_, err := q.db.Exec(ctx, updateUser, arg.ID, arg.Name, arg.UpdatedAt)
 	return err
 }
+
+const updateUserProxySecret = `-- name: UpdateUserProxySecret :exec
+UPDATE users SET
+    proxy_402_secret = $2,
+    updated_at = $3
+WHERE id = $1
+`
+
+type UpdateUserProxySecretParams struct {
+	ID             int64
+	Proxy402Secret string
+	UpdatedAt      time.Time
+}
+
+func (q *Queries) UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) error {
+	_, err := q.db.Exec(ctx, updateUserProxySecret, arg.ID, arg.Proxy402Secret, arg.UpdatedAt)
+	return err
+}

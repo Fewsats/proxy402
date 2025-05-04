@@ -11,23 +11,26 @@ import (
 
 	"linkshrink/auth"
 	"linkshrink/routes"
+	"linkshrink/users"
 )
 
 // UIHandler handles UI-related routes and rendering
 type UIHandler struct {
 	paidRouteService *routes.PaidRouteService
 	authService      *auth.Service
+	userService      *users.UserService
 
 	templatesFS embed.FS
 }
 
 // NewUIHandler creates a new UIHandler instance
 func NewUIHandler(paidRouteService *routes.PaidRouteService,
-	authService *auth.Service, templatesFS embed.FS) *UIHandler {
+	authService *auth.Service, userService *users.UserService, templatesFS embed.FS) *UIHandler {
 
 	return &UIHandler{
 		paidRouteService: paidRouteService,
 		authService:      authService,
+		userService:      userService,
 
 		templatesFS: templatesFS,
 	}
@@ -75,6 +78,12 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 
 	// Dashboard for authenticated users
 	router.GET("/dashboard", auth.AuthMiddleware(h.authService), h.handleDashboard)
+
+	// Settings page
+	router.GET("/settings", auth.AuthMiddleware(h.authService), h.handleSettings)
+
+	// Regenerate secret
+	router.POST("/settings/regenerate-secret", auth.AuthMiddleware(h.authService), h.handleRegenerateSecret)
 }
 
 // handleLandingPage renders the landing page for non-authenticated users
@@ -141,5 +150,62 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 		"links":   uiLinks,
 		"host":    host,
 		"baseURL": baseURL,
+	})
+}
+
+// handleSettings handles the settings page
+func (h *UIHandler) handleSettings(gCtx *gin.Context) {
+	// User is guaranteed to exist due to middleware
+	user, exists := gCtx.Get(auth.UserKey)
+	if !exists {
+		gCtx.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	userID := user.(gin.H)["id"].(uint)
+
+	// Get user details including proxy secret
+	userRecord, err := h.userService.GetUserByID(gCtx.Request.Context(), userID)
+	if err != nil {
+		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
+			"error": "Unable to fetch user details",
+			"user":  user,
+		})
+		return
+	}
+
+	// Pass data to the template
+	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
+		"user":         user,
+		"proxy_secret": userRecord.Proxy402Secret,
+	})
+}
+
+// handleRegenerateSecret regenerates the user's proxy secret
+func (h *UIHandler) handleRegenerateSecret(gCtx *gin.Context) {
+	// User is guaranteed to exist due to middleware
+	user, exists := gCtx.Get(auth.UserKey)
+	if !exists {
+		gCtx.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	userID := user.(gin.H)["id"].(uint)
+
+	// Generate and update the secret
+	newSecret, err := h.userService.UpdateProxySecret(gCtx.Request.Context(), userID)
+	if err != nil {
+		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
+			"error": "Failed to regenerate secret",
+			"user":  user,
+		})
+		return
+	}
+
+	// Return form with success message
+	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
+		"user":         user,
+		"proxy_secret": newSecret,
+		"message":      "Secret regenerated successfully",
 	})
 }

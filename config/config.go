@@ -113,6 +113,10 @@ func LoadConfig(logger *slog.Logger) *Config {
 	AppConfig.Store.Password = getEnv("DB_PASSWORD", AppConfig.Store.Password)
 	AppConfig.Store.DBName = getEnv("DB_NAME", AppConfig.Store.DBName)
 
+	// Check if migrations should be skipped
+	skipMigrations, _ := strconv.ParseBool(getEnv("DB_SKIP_MIGRATIONS", "false"))
+	AppConfig.Store.SkipMigrations = skipMigrations
+
 	// Routes configuration
 	AppConfig.Routes.X402TestnetPaymentAddress = getEnvOrFatal("X402_TESTNET_PAYMENT_ADDRESS")
 	AppConfig.Routes.X402MainnetPaymentAddress = getEnvOrFatal("X402_MAINNET_PAYMENT_ADDRESS")
