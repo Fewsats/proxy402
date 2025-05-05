@@ -18,7 +18,7 @@ cp .env-local .env
 npm install
 
 # Run client against a test endpoint (returns Bitcoin whitepaper)
-npm run client https://proxy402.com/ax_MWAH
+npm run client https://proxy402.com/wUUbqudYsM
 ```
 
 This test route requires Base Sepolia testnet ETH and USDC. Get them from these faucets:
