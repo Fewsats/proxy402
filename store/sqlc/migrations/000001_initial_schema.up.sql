@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS users (
     -- proxy_402_secret is the secret for the proxy 402 header.
     proxy_402_secret TEXT NOT NULL,
     
+    -- payment_address is the address to receive payments
+    payment_address TEXT NOT NULL DEFAULT '',
+    
     -- Standard timestamp fields
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
@@ -24,6 +27,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
 -- Create index on google_id for faster lookups
 CREATE INDEX IF NOT EXISTS idx_users_google_id ON users (google_id);
+
+-- Create index on payment_address for faster lookups
+CREATE INDEX IF NOT EXISTS idx_users_payment_address ON users (payment_address);
 
 -- paid_routes is a table that stores configurable, paid API routes.
 CREATE TABLE IF NOT EXISTS paid_routes (
@@ -45,7 +51,7 @@ CREATE TABLE IF NOT EXISTS paid_routes (
     is_test BOOLEAN NOT NULL,
     
     -- user_id is the owner of this route.
-    user_id INT NOT NULL,
+    user_id BIGINT NOT NULL REFERENCES users(id),
     
     -- is_enabled controls whether the route is active.
     is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -95,14 +101,14 @@ CREATE TABLE IF NOT EXISTS purchases (
     settle_response JSONB NOT NULL,
     
     -- paid_route_id is the associated PaidRoute.
-    paid_route_id INT NOT NULL,
+    paid_route_id BIGINT NOT NULL REFERENCES paid_routes(id),
+    
+    -- payment_address is the address from which the purchase was paid.
+    paid_to_address TEXT NOT NULL,
     
     -- Standard timestamp fields
     created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    
-    -- Foreign key to paid_routes
-    CONSTRAINT fk_purchases_paid_route FOREIGN KEY (paid_route_id) REFERENCES paid_routes(id) ON DELETE RESTRICT
+    updated_at TIMESTAMPTZ NOT NULL
 );
 
 -- Create index on short_code for faster lookups
