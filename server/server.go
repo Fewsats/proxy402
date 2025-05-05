@@ -62,7 +62,7 @@ func (s *Server) SetupRoutes() error {
 	oauthHandler := auth.NewAuthHandler(s.userService, s.authService, &s.config.Auth)
 	paidRouteHandler := routes.NewPaidRouteHandler(s.routeService,
 		s.purchaseService, s.userService, &s.config.Routes, s.logger)
-	uiHandler := ui.NewUIHandler(s.routeService, s.authService, s.userService, s.templatesFS)
+	uiHandler := ui.NewUIHandler(s.routeService, s.authService, s.userService, s.templatesFS, s.logger)
 	purchaseHandler := purchases.NewPurchaseHandler(s.purchaseService)
 
 	// Serve static files from embedded filesystem

@@ -109,6 +109,35 @@
                     <div class="settings-note">Use this secret on your server to verify requests are coming from Proxy402</div>
                 </div>
             </div>
+            
+            <div class="settings-card">
+                <h2>
+                    Payment Address
+                    <span class="tooltip th-tooltip" data-tooltip="Your Base address (0x...) where payments for your routes will be sent. If not set, the system default will be used.">
+                        <i data-lucide="help-circle" width="16" height="16"></i>
+                    </span>
+                </h2>
+                <div class="settings-field">
+                    <form id="payment-address-form"
+                        hx-push-url="false"
+                        action="/settings/update-payment-address"
+                        method="POST">
+                        <div class="settings-field-row payment-address-field">
+                            <label for="payment-address">Base Address</label>
+                            <input type="text"
+                                   id="payment-address"
+                                   name="payment_address" 
+                                   class="settings-input" 
+                                   value="{{.payment_address}}" 
+                                   pattern="^0x[a-fA-F0-9]{40}$"
+                                   placeholder="0x..." />
+                            <button type="submit" class="btn btn-settings-save">Save</button>
+                        </div>
+                        <div class="settings-note">Enter a Base address containing 0x followed by 40 hex characters</div>
+                        <div id="address-validation-message" class="settings-error hidden"></div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 

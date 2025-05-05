@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 )
 
 // UserService provides user-related business logic.
@@ -84,4 +85,22 @@ func (s *UserService) UpdateProxySecret(ctx context.Context, userID uint) (strin
 	}
 
 	return newSecret, nil
+}
+
+// UpdatePaymentAddress validates and updates the user's payment address.
+func (s *UserService) UpdatePaymentAddress(ctx context.Context, userID uint, address string) error {
+	// Validate payment address
+	if address != "" {
+		// Check that it starts with 0x
+		if !regexp.MustCompile(`^0x[a-fA-F0-9]{40}$`).MatchString(address) {
+			return fmt.Errorf("invalid payment address format, must start with 0x followed by 40 hex characters")
+		}
+	}
+
+	// Update the user's payment address
+	if err := s.store.UpdateUserPaymentAddress(ctx, userID, address); err != nil {
+		return fmt.Errorf("failed to update payment address: %w", err)
+	}
+
+	return nil
 }

@@ -18,6 +18,9 @@ func (s *Store) CreateUser(ctx context.Context, user *users.User) (uint64, error
 		Name:           user.Name,
 		GoogleID:       user.GoogleID,
 		Proxy402Secret: user.Proxy402Secret,
+		PaymentAddress: "",
+		CreatedAt:      s.clock.Now(),
+		UpdatedAt:      s.clock.Now(),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to create user: %w", err)
@@ -55,6 +58,7 @@ func (s *Store) FindUserByGoogleID(ctx context.Context, googleID string) (*users
 // Helper function to convert sqlc User to users.User
 func convertToUserModel(dbUser sqlc.User) *users.User {
 	return &users.User{
+		ID:             uint(dbUser.ID),
 		Email:          dbUser.Email,
 		Name:           dbUser.Name,
 		GoogleID:       dbUser.GoogleID,

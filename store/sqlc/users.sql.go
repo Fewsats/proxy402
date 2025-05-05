@@ -12,9 +12,9 @@ import (
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    email, name, google_id, proxy_402_secret, created_at, updated_at
+    email, name, google_id, proxy_402_secret, payment_address, created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 ) RETURNING id
 `
 
@@ -23,6 +23,7 @@ type CreateUserParams struct {
 	Name           string
 	GoogleID       string
 	Proxy402Secret string
+	PaymentAddress string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -34,6 +35,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int64, 
 		arg.Name,
 		arg.GoogleID,
 		arg.Proxy402Secret,
+		arg.PaymentAddress,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)

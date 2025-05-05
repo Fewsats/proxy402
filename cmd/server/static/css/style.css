@@ -658,6 +658,7 @@ input:focus, select:focus {
     to {transform: rotate(360deg);}
 }
 
+
 /* Responsive design */
 @media (max-width: 768px) {
     .navbar {
@@ -1095,4 +1096,47 @@ th.sortable.desc::after {
 .user-menu-dropdown .active {
     background-color: rgba(255, 255, 255, 0.1);
     color: var(--primary-color);
+}
+
+/* Styles for Payment Address Field to match Secret Field */
+.payment-address-field {
+    display: flex;
+    align-items: center;
+}
+
+.payment-address-field .settings-input {
+    flex: 1; /* Take up available space */
+    padding: 10px 12px;
+    background: #325082;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-family: monospace; /* Match secret field font */
+    margin-right: 10px; /* Space before button */
+}
+
+.payment-address-field .settings-input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(134, 184, 255, 0.3);
+    background-color: #3a5a8c;
+}
+
+.btn-settings-save {
+    background-color: var(--primary-color); /* Match dashboard button */
+    color: #17294d;
+    border: none;
+    border-radius: 6px;
+    padding: 0.75rem 1.5rem; /* Match dashboard button */
+    font-size: 1rem; /* Match dashboard button */
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Match dashboard button */
+}
+
+.btn-settings-save:hover {
+    background-color: #a8d1ff; /* Lighter hover */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Match dashboard button hover */
 } 
