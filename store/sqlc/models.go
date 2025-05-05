@@ -49,4 +49,5 @@ type User struct {
 	Proxy402Secret string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	PaymentAddress string
 }

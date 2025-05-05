@@ -43,7 +43,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int64, 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at FROM users
+SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at, payment_address FROM users
 WHERE email = $1
 `
 
@@ -59,12 +59,13 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Proxy402Secret,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PaymentAddress,
 	)
 	return i, err
 }
 
 const getUserByGoogleID = `-- name: GetUserByGoogleID :one
-SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at FROM users
+SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at, payment_address FROM users
 WHERE google_id = $1
 `
 
@@ -80,12 +81,13 @@ func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID string) (User,
 		&i.Proxy402Secret,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PaymentAddress,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at FROM users
+SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at, payment_address FROM users
 WHERE id = $1
 `
 
@@ -101,6 +103,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.Proxy402Secret,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PaymentAddress,
 	)
 	return i, err
 }
@@ -121,6 +124,25 @@ type UpdateUserParams struct {
 // UpdateUser updates a user record.
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 	_, err := q.db.Exec(ctx, updateUser, arg.ID, arg.Name, arg.UpdatedAt)
+	return err
+}
+
+const updateUserPaymentAddress = `-- name: UpdateUserPaymentAddress :exec
+UPDATE users SET
+    payment_address = $2,
+    updated_at = $3
+WHERE id = $1
+`
+
+type UpdateUserPaymentAddressParams struct {
+	ID             int64
+	PaymentAddress string
+	UpdatedAt      time.Time
+}
+
+// UpdateUserPaymentAddress updates a user's payment address.
+func (q *Queries) UpdateUserPaymentAddress(ctx context.Context, arg UpdateUserPaymentAddressParams) error {
+	_, err := q.db.Exec(ctx, updateUserPaymentAddress, arg.ID, arg.PaymentAddress, arg.UpdatedAt)
 	return err
 }
 

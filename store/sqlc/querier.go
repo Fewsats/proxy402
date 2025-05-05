@@ -51,6 +51,8 @@ type Querier interface {
 	UpdatePaidRoute(ctx context.Context, arg UpdatePaidRouteParams) error
 	// UpdateUser updates a user record.
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
+	// UpdateUserPaymentAddress updates a user's payment address.
+	UpdateUserPaymentAddress(ctx context.Context, arg UpdateUserPaymentAddressParams) error
 	UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) error
 }
 

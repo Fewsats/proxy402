@@ -23,4 +23,7 @@ type Store interface {
 
 	// UpdateUserProxySecret updates a user's proxy secret.
 	UpdateUserProxySecret(ctx context.Context, id uint, secret string) error
+
+	// UpdateUserPaymentAddress updates a user's payment address.
+	UpdateUserPaymentAddress(ctx context.Context, id uint, address string) error
 }

@@ -151,13 +151,17 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 	scheme := getRequestScheme(gCtx)
 	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 
-	// Select payment address based on IsTest flag
-	paymentAddress := h.config.X402TestnetPaymentAddress // Default to testnet
-	if !route.IsTest {
-		paymentAddress = h.config.X402MainnetPaymentAddress
+	// Get the route owner's payment address if available
+	paymentAddress := h.config.X402PaymentAddress // Default to configured address
+
+	// Try to get the user's payment address if they have one configured
+	user, err := h.userService.GetUserByID(gCtx.Request.Context(), route.UserID)
+	if err == nil && user != nil && user.PaymentAddress != "" {
+		paymentAddress = user.PaymentAddress
+		h.logger.Info("Using user's payment address", "userID", route.UserID, "address", paymentAddress)
 	}
 
-	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress, // Use the selected address
+	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress,
 		x402.OptionWithFacilitatorURL(h.config.X402FacilitatorURL),
 		x402.OptionWithTestnet(route.IsTest), // Use the value from the route
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
