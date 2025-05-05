@@ -32,4 +32,11 @@ WHERE id = $1;
 UPDATE users SET
     proxy_402_secret = $2,
     updated_at = $3
+WHERE id = $1;
+
+-- name: UpdateUserPaymentAddress :exec
+-- UpdateUserPaymentAddress updates a user's payment address.
+UPDATE users SET
+    payment_address = $2,
+    updated_at = $3
 WHERE id = $1; 

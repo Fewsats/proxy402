@@ -33,13 +33,6 @@ type Config struct {
 
 	// Auth configuration
 	Auth auth.Config `group:"auth" namespace:"auth"`
-
-	// X402 Config
-
-	// X402 Config
-	X402TestnetPaymentAddress string
-	X402MainnetPaymentAddress string
-	X402FacilitatorURL        string
 }
 
 var AppConfig *Config
@@ -118,8 +111,7 @@ func LoadConfig(logger *slog.Logger) *Config {
 	AppConfig.Store.SkipMigrations = skipMigrations
 
 	// Routes configuration
-	AppConfig.Routes.X402TestnetPaymentAddress = getEnvOrFatal("X402_TESTNET_PAYMENT_ADDRESS")
-	AppConfig.Routes.X402MainnetPaymentAddress = getEnvOrFatal("X402_MAINNET_PAYMENT_ADDRESS")
+	AppConfig.Routes.X402PaymentAddress = getEnvOrFatal("X402_PAYMENT_ADDRESS")
 	AppConfig.Routes.X402FacilitatorURL = getEnv("X402_FACILITATOR_URL", AppConfig.Routes.X402FacilitatorURL)
 
 	// Auth configuration
@@ -130,14 +122,6 @@ func LoadConfig(logger *slog.Logger) *Config {
 	AppConfig.Auth.GoogleClientID = getEnvOrFatal("GOOGLE_CLIENT_ID")
 	AppConfig.Auth.GoogleClientSecret = getEnvOrFatal("GOOGLE_CLIENT_SECRET")
 	AppConfig.Auth.GoogleRedirectURL = getEnvOrFatal("GOOGLE_REDIRECT_URL")
-
-	// Basic validation for essential x402 config
-	if AppConfig.Routes.X402TestnetPaymentAddress == "" {
-		log.Fatal("FATAL: X402_TESTNET_PAYMENT_ADDRESS environment variable is not set.")
-	}
-	if AppConfig.Routes.X402MainnetPaymentAddress == "" {
-		log.Fatal("FATAL: X402_MAINNET_PAYMENT_ADDRESS environment variable is not set.")
-	}
 
 	logger.Info("Configuration loaded.")
 

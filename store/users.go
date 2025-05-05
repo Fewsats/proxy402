@@ -59,6 +59,7 @@ func convertToUserModel(dbUser sqlc.User) *users.User {
 		Name:           dbUser.Name,
 		GoogleID:       dbUser.GoogleID,
 		Proxy402Secret: dbUser.Proxy402Secret,
+		PaymentAddress: dbUser.PaymentAddress,
 		CreatedAt:      dbUser.CreatedAt,
 		UpdatedAt:      dbUser.UpdatedAt,
 	}
@@ -73,6 +74,19 @@ func (s *Store) UpdateUserProxySecret(ctx context.Context, id uint, secret strin
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update user proxy secret: %w", err)
+	}
+	return nil
+}
+
+// UpdateUserPaymentAddress updates a user's payment address.
+func (s *Store) UpdateUserPaymentAddress(ctx context.Context, id uint, address string) error {
+	err := s.queries.UpdateUserPaymentAddress(ctx, sqlc.UpdateUserPaymentAddressParams{
+		ID:             int64(id),
+		PaymentAddress: address,
+		UpdatedAt:      s.clock.Now(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to update user payment address: %w", err)
 	}
 	return nil
 }
