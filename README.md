@@ -12,7 +12,7 @@ git clone https://github.com/Fewsats/proxy402.git
 cd proxy402/client
 
 # Copy sample env file
-cp .env-local .env
+cp .env.example .env
 
 # Add your wallet keys to the .env file
 # You can generate these keys with cast (google how to install foundry, cast is part of the suite)
