@@ -14,16 +14,20 @@ cd proxy402/client
 # Copy sample env file
 cp .env-local .env
 
+# Add your wallet keys to the .env file
+# You can generate these keys with cast (google how to install foundry, cast is part of the suite)
+# Then run the following command to get a test address
+cast w new
+
+# You will need Base Sepolia ETH & USDC. Get them from these faucets:
+- [Base Sepolia ETH](https://portal.cdp.coinbase.com/products/faucet)
+- [Base Sepolia USDC](https://faucet.circle.com/)
+
 # Install dependencies
 npm install
 
 # Run client against a test endpoint (returns Bitcoin whitepaper)
 npm run client https://proxy402.com/wUUbqudYsM
-```
-
-This test route requires Base Sepolia testnet ETH and USDC. Get them from these faucets:
-- [Base Sepolia ETH](https://portal.cdp.coinbase.com/products/faucet)
-- [Base Sepolia USDC](https://faucet.circle.com/)
 
 ## Running Your Own Server
 
