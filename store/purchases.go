@@ -2,12 +2,10 @@ package store
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	pkgPurchases "linkshrink/purchases"
@@ -16,6 +14,7 @@ import (
 
 // Create inserts a new purchase in the database and returns the ID.
 func (s *Store) CreatePurchase(ctx context.Context, purchase *pkgPurchases.Purchase) (uint64, error) {
+	now := s.clock.Now()
 	params := sqlc.CreatePurchaseParams{
 		ShortCode:      purchase.ShortCode,
 		TargetUrl:      purchase.TargetURL,
@@ -24,7 +23,11 @@ func (s *Store) CreatePurchase(ctx context.Context, purchase *pkgPurchases.Purch
 		IsTest:         purchase.IsTest,
 		PaymentPayload: []byte(purchase.PaymentPayload),
 		SettleResponse: []byte(purchase.SettleResponse),
-		PaidRouteID:    int32(purchase.PaidRouteID),
+
+		PaidRouteID: int64(purchase.PaidRouteID),
+
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	ID, err := s.queries.CreatePurchase(ctx, params)
@@ -36,8 +39,10 @@ func (s *Store) CreatePurchase(ctx context.Context, purchase *pkgPurchases.Purch
 }
 
 // ListByUserID retrieves all purchases for a specific user.
-func (s *Store) ListPurchasesByUserID(ctx context.Context, userID uint) ([]pkgPurchases.Purchase, error) {
-	dbPurchases, err := s.queries.ListPurchasesByUserID(ctx, int32(userID))
+func (s *Store) ListPurchasesByUserID(ctx context.Context,
+	userID uint64) ([]pkgPurchases.Purchase, error) {
+
+	dbPurchases, err := s.queries.ListPurchasesByUserID(ctx, int64(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +72,7 @@ func (s *Store) ListPurchasesByShortCode(ctx context.Context, shortCode string) 
 		if err := rows.Scan(
 			&p.ID, &p.ShortCode, &p.TargetUrl, &p.Method, &p.Price,
 			&p.IsTest, &p.PaymentPayload, &p.SettleResponse, &p.PaidRouteID,
-			&p.CreatedAt, &p.UpdatedAt,
+			&p.PaidToAddress, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan purchase row: %w", err)
 		}
@@ -86,29 +91,31 @@ func (s *Store) ListPurchasesByShortCode(ctx context.Context, shortCode string) 
 }
 
 // GetDailyStatsByUserID retrieves daily purchase stats for a user
-func (s *Store) GetDailyStatsByUserID(ctx context.Context, userID uint, days int) ([]pkgPurchases.DailyStats, int64, int, error) {
+func (s *Store) GetDailyStatsByUserID(ctx context.Context,
+	userID uint64, days uint64) ([]pkgPurchases.DailyStats, error) {
+
 	// Create pgtype.Text for days parameter
 	daysText := pgtype.Text{
-		String: strconv.Itoa(days),
+		String: strconv.Itoa(int(days)),
 		Valid:  true,
 	}
 
 	dbStats, err := s.queries.GetDailyStats(ctx, sqlc.GetDailyStatsParams{
-		UserID:  int32(userID),
+		UserID:  int64(userID),
 		Column2: daysText,
 	})
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, err
 	}
 
-	// Get total stats
-	totalStats, err := s.queries.GetTotalStats(ctx, int32(userID))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return []pkgPurchases.DailyStats{}, 0, 0, pkgPurchases.ErrNoStats
-		}
-		return nil, 0, 0, err
-	}
+	// // Get total stats
+	// totalStats, err := s.queries.GetTotalStats(ctx, int64(userID))
+	// if err != nil {
+	// 	if errors.Is(err, pgx.ErrNoRows) {
+	// 		return []pkgPurchases.DailyStats{}, pkgPurchases.ErrNoStats
+	// 	}
+	// 	return nil, err
+	// }
 
 	stats := make([]pkgPurchases.DailyStats, len(dbStats))
 	for i, dbStat := range dbStats {
@@ -125,30 +132,30 @@ func (s *Store) GetDailyStatsByUserID(ctx context.Context, userID uint, days int
 
 		stats[i] = pkgPurchases.DailyStats{
 			Date:         dbStat.Date,
-			Count:        int(dbStat.Count),
-			Earnings:     int64(dbStat.Earnings), // Convert int32 to int64
-			TestCount:    int(dbStat.TestCount),
-			TestEarnings: testEarnings,
-			RealCount:    int(dbStat.RealCount),
-			RealEarnings: realEarnings,
+			Count:        uint64(dbStat.Count),
+			Earnings:     uint64(dbStat.Earnings), // Convert int32 to int64
+			TestCount:    uint64(dbStat.TestCount),
+			TestEarnings: uint64(testEarnings),
+			RealCount:    uint64(dbStat.RealCount),
+			RealEarnings: uint64(realEarnings),
 		}
 	}
 
 	// If we need to pad with empty days
-	if len(stats) < days {
+	if len(stats) < int(days) {
 		stats = padDailyStats(stats, days)
 	}
 
-	var totalEarnings int64
-	if te, ok := totalStats.TotalEarnings.(int64); ok {
-		totalEarnings = te
-	}
+	// var totalEarnings uint64
+	// if te, ok := totalStats.TotalEarnings.(int64); ok {
+	// 	totalEarnings = uint64(te)
+	// }
 
-	return stats, totalEarnings, int(totalStats.TotalCount), nil
+	return stats, nil
 }
 
 // padDailyStats fills in missing days with zero values
-func padDailyStats(stats []pkgPurchases.DailyStats, days int) []pkgPurchases.DailyStats {
+func padDailyStats(stats []pkgPurchases.DailyStats, days uint64) []pkgPurchases.DailyStats {
 	today := time.Now().UTC()
 	existingDates := make(map[string]bool)
 
@@ -158,7 +165,7 @@ func padDailyStats(stats []pkgPurchases.DailyStats, days int) []pkgPurchases.Dai
 	}
 
 	// Fill missing dates
-	for i := 0; i < days; i++ {
+	for i := 0; i < int(days); i++ {
 		date := today.AddDate(0, 0, -i).Format("2006-01-02")
 		if !existingDates[date] {
 			stats = append(stats, pkgPurchases.DailyStats{
@@ -183,8 +190,8 @@ func padDailyStats(stats []pkgPurchases.DailyStats, days int) []pkgPurchases.Dai
 	}
 
 	// Limit to requested days
-	if len(stats) > days {
-		stats = stats[:days]
+	if len(stats) > int(days) {
+		stats = stats[:int(days)]
 	}
 
 	return stats
@@ -193,16 +200,19 @@ func padDailyStats(stats []pkgPurchases.DailyStats, days int) []pkgPurchases.Dai
 // Helper function to convert sqlc Purchase to pkgPurchases.Purchase
 func convertToPurchaseModel(dbPurchase sqlc.Purchase) *pkgPurchases.Purchase {
 	purchase := &pkgPurchases.Purchase{
+		ID:             uint64(dbPurchase.ID),
 		ShortCode:      dbPurchase.ShortCode,
 		TargetURL:      dbPurchase.TargetUrl,
 		Method:         dbPurchase.Method,
-		Price:          int32(dbPurchase.Price),
+		Price:          uint64(dbPurchase.Price),
 		IsTest:         dbPurchase.IsTest,
 		PaymentPayload: []byte(dbPurchase.PaymentPayload),
 		SettleResponse: []byte(dbPurchase.SettleResponse),
-		PaidRouteID:    int32(dbPurchase.PaidRouteID),
-		CreatedAt:      dbPurchase.CreatedAt,
-		UpdatedAt:      dbPurchase.UpdatedAt,
+		PaidRouteID:    uint64(dbPurchase.PaidRouteID),
+		PaidToAddress:  dbPurchase.PaidToAddress,
+
+		CreatedAt: dbPurchase.CreatedAt,
+		UpdatedAt: dbPurchase.UpdatedAt,
 	}
 
 	return purchase

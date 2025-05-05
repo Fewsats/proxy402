@@ -53,23 +53,3 @@ func AuthMiddleware(auth Authenticator) gin.HandlerFunc {
 		ctx.Next()
 	}
 }
-
-// GetUser returns the user information from the gin context
-func GetUser(ctx *gin.Context) (gin.H, bool) {
-	user, exists := ctx.Get(UserKey)
-	if !exists {
-		return nil, false
-	}
-
-	return user.(gin.H), true
-}
-
-// GetUserID returns the user ID from the gin context
-func GetUserID(ctx *gin.Context) (uint, bool) {
-	user, exists := GetUser(ctx)
-	if !exists {
-		return 0, false
-	}
-
-	return uint(user["id"].(uint)), true
-}

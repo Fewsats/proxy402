@@ -25,7 +25,7 @@ func (h *UserHandler) GetProfile(gCtx *gin.Context) {
 		return
 	}
 
-	userIDUint, ok := userID.(uint)
+	userIDUint, ok := userID.(uint64)
 	if !ok {
 		gCtx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return

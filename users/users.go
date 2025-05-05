@@ -6,7 +6,7 @@ import (
 
 // User represents a registered user in the system.
 type User struct {
-	ID             uint   `json:"-"`
+	ID             uint64 `json:"-"`
 	Email          string `json:"email"`                     // Email is the primary identifier
 	Name           string `json:"name,omitempty"`            // User's name from Google
 	GoogleID       string `json:"-"`                         // Google user ID

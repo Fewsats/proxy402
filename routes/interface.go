@@ -18,7 +18,7 @@ type Store interface {
 	CreateRoute(ctx context.Context, route *PaidRoute) (*PaidRoute, error)
 
 	// FindRouteByID retrieves a paid route by ID.
-	FindRouteByID(ctx context.Context, id uint) (*PaidRoute, error)
+	FindRouteByID(ctx context.Context, id uint64) (*PaidRoute, error)
 
 	// FindRouteByShortCode retrieves a paid route by short code.
 	FindRouteByShortCode(ctx context.Context, shortCode string) (*PaidRoute, error)
@@ -27,10 +27,10 @@ type Store interface {
 	FindEnabledRouteByShortCode(ctx context.Context, shortCode string) (*PaidRoute, error)
 
 	// ListUserRoutes retrieves all paid routes for a specific user.
-	ListUserRoutes(ctx context.Context, userID uint) ([]PaidRoute, error)
+	ListUserRoutes(ctx context.Context, userID uint64) ([]PaidRoute, error)
 
 	// DeleteRoute soft-deletes a paid route.
-	DeleteRoute(ctx context.Context, routeID uint, userID uint) error
+	DeleteRoute(ctx context.Context, routeID uint64, userID uint64) error
 
 	// IncrementRouteAttemptCount increments the attempt_count for a route.
 	IncrementRouteAttemptCount(ctx context.Context, shortCode string) error

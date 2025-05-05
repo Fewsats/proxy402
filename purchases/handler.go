@@ -22,13 +22,13 @@ func NewPurchaseHandler(purchaseService *PurchaseService) *PurchaseHandler {
 
 // DashboardStats contains aggregated purchase data for the dashboard
 type DashboardStats struct {
-	TotalEarnings  int64 `json:"total_earnings"`
-	TotalPurchases int   `json:"total_purchases"`
+	TotalEarnings  uint64 `json:"total_earnings"`
+	TotalPurchases uint64 `json:"total_purchases"`
 
-	TestEarnings   int64        `json:"test_earnings"`
-	TestPurchases  int          `json:"test_purchases"`
-	RealEarnings   int64        `json:"real_earnings"`
-	RealPurchases  int          `json:"real_purchases"`
+	TestEarnings   uint64       `json:"test_earnings"`
+	TestPurchases  uint64       `json:"test_purchases"`
+	RealEarnings   uint64       `json:"real_earnings"`
+	RealPurchases  uint64       `json:"real_purchases"`
 	DailyPurchases []DailyStats `json:"daily_purchases"`
 }
 
@@ -43,7 +43,7 @@ func (h *PurchaseHandler) GetDashboardStats(gCtx *gin.Context) {
 	payload := authPayload.(*auth.Claims)
 
 	// Get dashboard stats for the last 7 days
-	dailyStats, totalEarnings, totalPurchases, err := h.purchaseService.GetDashboardStats(gCtx.Request.Context(), payload.UserID, 7)
+	dailyStats, err := h.purchaseService.GetDashboardStats(gCtx.Request.Context(), payload.UserID, 7)
 	if err != nil {
 		gCtx.Error(err)
 		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve purchase data"})
@@ -51,8 +51,8 @@ func (h *PurchaseHandler) GetDashboardStats(gCtx *gin.Context) {
 	}
 
 	// Calculate test vs. real totals
-	var testEarnings, realEarnings int64
-	var testPurchases, realPurchases int
+	var testEarnings, realEarnings uint64
+	var testPurchases, realPurchases uint64
 
 	for _, day := range dailyStats {
 		testEarnings += day.TestEarnings
@@ -62,8 +62,6 @@ func (h *PurchaseHandler) GetDashboardStats(gCtx *gin.Context) {
 	}
 
 	stats := DashboardStats{
-		TotalEarnings:  totalEarnings,
-		TotalPurchases: totalPurchases,
 		TestEarnings:   testEarnings,
 		TestPurchases:  testPurchases,
 		RealEarnings:   realEarnings,

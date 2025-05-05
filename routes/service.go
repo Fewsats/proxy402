@@ -32,7 +32,8 @@ var validMethods = map[string]bool{
 
 // CreatePaidRoute validates input, generates a unique short code, and saves the route.
 func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
-	method, priceStr string, isTest bool, userID uint) (*PaidRoute, error) {
+	method, priceStr string, isTest bool, userID uint64) (*PaidRoute, error) {
+
 	// 1. Validate Target URL
 	parsedURL, err := url.ParseRequestURI(targetURL)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
@@ -55,7 +56,7 @@ func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
 	}
 
 	// Convert to integer (USDC * 10^6)
-	priceInt := int64(priceFloat * 1000000)
+	priceInt := uint64(priceFloat * 1000000)
 
 	// Create and Save Route (short code will be generated in the store)
 	route := &PaidRoute{
@@ -112,12 +113,12 @@ func (s *PaidRouteService) IncrementAccessCount(ctx context.Context, shortCode s
 }
 
 // ListUserRoutes retrieves all routes associated with a specific user ID.
-func (s *PaidRouteService) ListUserRoutes(ctx context.Context, userID uint) ([]PaidRoute, error) {
+func (s *PaidRouteService) ListUserRoutes(ctx context.Context, userID uint64) ([]PaidRoute, error) {
 	return s.store.ListUserRoutes(ctx, userID)
 }
 
 // DeleteRoute deletes a paid route if owned by the specified user.
-func (s *PaidRouteService) DeleteRoute(ctx context.Context, routeID uint, userID uint) error {
+func (s *PaidRouteService) DeleteRoute(ctx context.Context, routeID uint64, userID uint64) error {
 	err := s.store.DeleteRoute(ctx, routeID, userID)
 	if err != nil {
 		if errors.Is(err, ErrRouteNotFound) {

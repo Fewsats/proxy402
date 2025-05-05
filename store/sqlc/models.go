@@ -17,7 +17,7 @@ type PaidRoute struct {
 	Method       string
 	Price        int32
 	IsTest       bool
-	UserID       int32
+	UserID       int64
 	IsEnabled    bool
 	AttemptCount int32
 	PaymentCount int32
@@ -36,7 +36,8 @@ type Purchase struct {
 	IsTest         bool
 	PaymentPayload []byte
 	SettleResponse []byte
-	PaidRouteID    int32
+	PaidRouteID    int64
+	PaidToAddress  string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -47,7 +48,7 @@ type User struct {
 	Name           string
 	GoogleID       string
 	Proxy402Secret string
+	PaymentAddress string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
-	PaymentAddress string
 }

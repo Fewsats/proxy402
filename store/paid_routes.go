@@ -27,16 +27,19 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate unique short code: %w", err)
 	}
-	route.ShortCode = shortCode
+
+	now := s.clock.Now()
 
 	params := sqlc.CreatePaidRouteParams{
-		ShortCode: route.ShortCode,
+		ShortCode: shortCode,
 		TargetUrl: route.TargetURL,
 		Method:    route.Method,
 		Price:     int32(route.Price),
 		IsTest:    route.IsTest,
-		UserID:    int32(route.UserID),
+		UserID:    int64(route.UserID),
 		IsEnabled: route.IsEnabled,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	dbRoute, err := s.queries.CreatePaidRoute(ctx, params)
@@ -48,7 +51,7 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 }
 
 // FindRouteByID retrieves a paid route by ID.
-func (s *Store) FindRouteByID(ctx context.Context, id uint) (*routes.PaidRoute, error) {
+func (s *Store) FindRouteByID(ctx context.Context, id uint64) (*routes.PaidRoute, error) {
 	dbRoute, err := s.queries.GetPaidRouteByID(ctx, int64(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -87,8 +90,8 @@ func (s *Store) FindEnabledRouteByShortCode(ctx context.Context, shortCode strin
 }
 
 // ListUserRoutes retrieves all paid routes for a specific user.
-func (s *Store) ListUserRoutes(ctx context.Context, userID uint) ([]routes.PaidRoute, error) {
-	dbRoutes, err := s.queries.ListUserPaidRoutes(ctx, int32(userID))
+func (s *Store) ListUserRoutes(ctx context.Context, userID uint64) ([]routes.PaidRoute, error) {
+	dbRoutes, err := s.queries.ListUserPaidRoutes(ctx, int64(userID))
 	if err != nil {
 		return nil, err
 	}
@@ -102,10 +105,10 @@ func (s *Store) ListUserRoutes(ctx context.Context, userID uint) ([]routes.PaidR
 }
 
 // DeleteRoute soft-deletes a paid route.
-func (s *Store) DeleteRoute(ctx context.Context, routeID uint, userID uint) error {
+func (s *Store) DeleteRoute(ctx context.Context, routeID uint64, userID uint64) error {
 	err := s.queries.DeletePaidRoute(ctx, sqlc.DeletePaidRouteParams{
 		ID:     int64(routeID),
-		UserID: int32(userID),
+		UserID: int64(userID),
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -160,7 +163,9 @@ func (s *Store) CheckShortCodeExists(ctx context.Context, shortCode string) (boo
 
 // GenerateUniqueShortCode generates a unique short code.
 // It will retry up to maxRetries times if codes are already taken.
-func (s *Store) GenerateUniqueShortCode(ctx context.Context, length int, maxRetries int) (string, error) {
+func (s *Store) GenerateUniqueShortCode(ctx context.Context,
+	length int, maxRetries int) (string, error) {
+
 	if length <= 0 {
 		length = DefaultLength // Use the default from the shortener package
 	}
@@ -191,16 +196,17 @@ func (s *Store) GenerateUniqueShortCode(ctx context.Context, length int, maxRetr
 // Helper function to convert sqlc PaidRoute to models.PaidRoute
 func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *routes.PaidRoute {
 	route := &routes.PaidRoute{
+		ID:           uint64(dbRoute.ID),
 		ShortCode:    dbRoute.ShortCode,
 		TargetURL:    dbRoute.TargetUrl,
 		Method:       dbRoute.Method,
-		Price:        int64(dbRoute.Price),
+		Price:        uint64(dbRoute.Price),
 		IsTest:       dbRoute.IsTest,
-		UserID:       uint(dbRoute.UserID),
+		UserID:       uint64(dbRoute.UserID),
 		IsEnabled:    dbRoute.IsEnabled,
-		AttemptCount: int64(dbRoute.AttemptCount),
-		PaymentCount: int64(dbRoute.PaymentCount),
-		AccessCount:  int64(dbRoute.AccessCount),
+		AttemptCount: uint64(dbRoute.AttemptCount),
+		PaymentCount: uint64(dbRoute.PaymentCount),
+		AccessCount:  uint64(dbRoute.AccessCount),
 		CreatedAt:    dbRoute.CreatedAt,
 		UpdatedAt:    dbRoute.UpdatedAt,
 	}

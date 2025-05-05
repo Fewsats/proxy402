@@ -45,7 +45,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int64, 
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at, payment_address FROM users
+SELECT id, email, name, google_id, proxy_402_secret, payment_address, created_at, updated_at FROM users
 WHERE email = $1
 `
 
@@ -59,15 +59,15 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Name,
 		&i.GoogleID,
 		&i.Proxy402Secret,
+		&i.PaymentAddress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentAddress,
 	)
 	return i, err
 }
 
 const getUserByGoogleID = `-- name: GetUserByGoogleID :one
-SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at, payment_address FROM users
+SELECT id, email, name, google_id, proxy_402_secret, payment_address, created_at, updated_at FROM users
 WHERE google_id = $1
 `
 
@@ -81,15 +81,15 @@ func (q *Queries) GetUserByGoogleID(ctx context.Context, googleID string) (User,
 		&i.Name,
 		&i.GoogleID,
 		&i.Proxy402Secret,
+		&i.PaymentAddress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentAddress,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, name, google_id, proxy_402_secret, created_at, updated_at, payment_address FROM users
+SELECT id, email, name, google_id, proxy_402_secret, payment_address, created_at, updated_at FROM users
 WHERE id = $1
 `
 
@@ -103,37 +103,19 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.Name,
 		&i.GoogleID,
 		&i.Proxy402Secret,
+		&i.PaymentAddress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PaymentAddress,
 	)
 	return i, err
 }
 
-const updateUser = `-- name: UpdateUser :exec
-UPDATE users SET
-    name = $2,
-    updated_at = $3
-WHERE id = $1
-`
-
-type UpdateUserParams struct {
-	ID        int64
-	Name      string
-	UpdatedAt time.Time
-}
-
-// UpdateUser updates a user record.
-func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
-	_, err := q.db.Exec(ctx, updateUser, arg.ID, arg.Name, arg.UpdatedAt)
-	return err
-}
-
-const updateUserPaymentAddress = `-- name: UpdateUserPaymentAddress :exec
+const updateUserPaymentAddress = `-- name: UpdateUserPaymentAddress :one
 UPDATE users SET
     payment_address = $2,
     updated_at = $3
 WHERE id = $1
+RETURNING id, email, name, google_id, proxy_402_secret, payment_address, created_at, updated_at
 `
 
 type UpdateUserPaymentAddressParams struct {
@@ -143,16 +125,28 @@ type UpdateUserPaymentAddressParams struct {
 }
 
 // UpdateUserPaymentAddress updates a user's payment address.
-func (q *Queries) UpdateUserPaymentAddress(ctx context.Context, arg UpdateUserPaymentAddressParams) error {
-	_, err := q.db.Exec(ctx, updateUserPaymentAddress, arg.ID, arg.PaymentAddress, arg.UpdatedAt)
-	return err
+func (q *Queries) UpdateUserPaymentAddress(ctx context.Context, arg UpdateUserPaymentAddressParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserPaymentAddress, arg.ID, arg.PaymentAddress, arg.UpdatedAt)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.GoogleID,
+		&i.Proxy402Secret,
+		&i.PaymentAddress,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
-const updateUserProxySecret = `-- name: UpdateUserProxySecret :exec
+const updateUserProxySecret = `-- name: UpdateUserProxySecret :one
 UPDATE users SET
     proxy_402_secret = $2,
     updated_at = $3
 WHERE id = $1
+RETURNING id, email, name, google_id, proxy_402_secret, payment_address, created_at, updated_at
 `
 
 type UpdateUserProxySecretParams struct {
@@ -161,7 +155,18 @@ type UpdateUserProxySecretParams struct {
 	UpdatedAt      time.Time
 }
 
-func (q *Queries) UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) error {
-	_, err := q.db.Exec(ctx, updateUserProxySecret, arg.ID, arg.Proxy402Secret, arg.UpdatedAt)
-	return err
+func (q *Queries) UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserProxySecret, arg.ID, arg.Proxy402Secret, arg.UpdatedAt)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.GoogleID,
+		&i.Proxy402Secret,
+		&i.PaymentAddress,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

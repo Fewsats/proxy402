@@ -21,22 +21,17 @@ INSERT INTO users (
     $1, $2, $3, $4, $5, $6, $7
 ) RETURNING id;
 
--- name: UpdateUser :exec
--- UpdateUser updates a user record.
-UPDATE users SET
-    name = $2,
-    updated_at = $3
-WHERE id = $1;
-
--- name: UpdateUserProxySecret :exec
+-- name: UpdateUserProxySecret :one
 UPDATE users SET
     proxy_402_secret = $2,
     updated_at = $3
-WHERE id = $1;
+WHERE id = $1
+RETURNING *;
 
--- name: UpdateUserPaymentAddress :exec
+-- name: UpdateUserPaymentAddress :one
 -- UpdateUserPaymentAddress updates a user's payment address.
 UPDATE users SET
     payment_address = $2,
     updated_at = $3
-WHERE id = $1; 
+WHERE id = $1
+RETURNING *;

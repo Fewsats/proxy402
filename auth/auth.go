@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -22,14 +23,33 @@ func NewAuthService(config *Config) *Service {
 
 // Claims defines the structure of the JWT claims.
 type Claims struct {
-	UserID uint   `json:"user_id"`
+	UserID uint64 `json:"user_id"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
+// GetUserID returns the user ID associated with the request.
+func GetUserID(gCtx *gin.Context) (uint64, error) {
+	user, ok := GetUser(gCtx)
+	if !ok {
+		return 0, fmt.Errorf("the request is not authenticated")
+	}
+	return user["id"].(uint64), nil
+}
+
+// GetUser returns the user information from the gin context
+func GetUser(gCtx *gin.Context) (gin.H, bool) {
+	user, ok := gCtx.Get(UserKey)
+	if !ok {
+		return nil, false
+	}
+
+	return user.(gin.H), true
+}
+
 // Service method implementations
 // GenerateJWT creates a new JWT for a given user ID and email.
-func (s *Service) GenerateJWT(userID uint, email string) (string, error) {
+func (s *Service) GenerateJWT(userID uint64, email string) (string, error) {
 	expirationTime := time.Now().Add(s.config.JWTExpirationHours)
 	claims := &Claims{
 		UserID: userID,

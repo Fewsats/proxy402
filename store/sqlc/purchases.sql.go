@@ -15,10 +15,10 @@ import (
 const createPurchase = `-- name: CreatePurchase :one
 INSERT INTO purchases (
     short_code, target_url, method, price, is_test,
-    payment_payload, settle_response, paid_route_id,
+    payment_payload, settle_response, paid_route_id, paid_to_address,
     created_at, updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 ) RETURNING id
 `
 
@@ -30,7 +30,8 @@ type CreatePurchaseParams struct {
 	IsTest         bool
 	PaymentPayload []byte
 	SettleResponse []byte
-	PaidRouteID    int32
+	PaidRouteID    int64
+	PaidToAddress  string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 }
@@ -46,6 +47,7 @@ func (q *Queries) CreatePurchase(ctx context.Context, arg CreatePurchaseParams) 
 		arg.PaymentPayload,
 		arg.SettleResponse,
 		arg.PaidRouteID,
+		arg.PaidToAddress,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -77,7 +79,7 @@ ORDER BY
 `
 
 type GetDailyStatsParams struct {
-	UserID  int32
+	UserID  int64
 	Column2 pgtype.Text
 }
 
@@ -121,7 +123,7 @@ func (q *Queries) GetDailyStats(ctx context.Context, arg GetDailyStatsParams) ([
 }
 
 const getPurchaseByID = `-- name: GetPurchaseByID :one
-SELECT id, short_code, target_url, method, price, is_test, payment_payload, settle_response, paid_route_id, created_at, updated_at FROM purchases
+SELECT id, short_code, target_url, method, price, is_test, payment_payload, settle_response, paid_route_id, paid_to_address, created_at, updated_at FROM purchases
 WHERE id = $1
 `
 
@@ -139,6 +141,7 @@ func (q *Queries) GetPurchaseByID(ctx context.Context, id int64) (Purchase, erro
 		&i.PaymentPayload,
 		&i.SettleResponse,
 		&i.PaidRouteID,
+		&i.PaidToAddress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -163,7 +166,7 @@ type GetTotalStatsRow struct {
 }
 
 // GetTotalStats retrieves total purchase stats for a specific user.
-func (q *Queries) GetTotalStats(ctx context.Context, userID int32) (GetTotalStatsRow, error) {
+func (q *Queries) GetTotalStats(ctx context.Context, userID int64) (GetTotalStatsRow, error) {
 	row := q.db.QueryRow(ctx, getTotalStats, userID)
 	var i GetTotalStatsRow
 	err := row.Scan(&i.TotalEarnings, &i.TotalCount)
@@ -171,14 +174,14 @@ func (q *Queries) GetTotalStats(ctx context.Context, userID int32) (GetTotalStat
 }
 
 const listPurchasesByUserID = `-- name: ListPurchasesByUserID :many
-SELECT p.id, p.short_code, p.target_url, p.method, p.price, p.is_test, p.payment_payload, p.settle_response, p.paid_route_id, p.created_at, p.updated_at FROM purchases p
+SELECT p.id, p.short_code, p.target_url, p.method, p.price, p.is_test, p.payment_payload, p.settle_response, p.paid_route_id, p.paid_to_address, p.created_at, p.updated_at FROM purchases p
 JOIN paid_routes pr ON p.paid_route_id = pr.id
 WHERE pr.user_id = $1
 ORDER BY p.created_at DESC
 `
 
 // ListPurchasesByUserID retrieves all purchases for a specific user via paid_routes.
-func (q *Queries) ListPurchasesByUserID(ctx context.Context, userID int32) ([]Purchase, error) {
+func (q *Queries) ListPurchasesByUserID(ctx context.Context, userID int64) ([]Purchase, error) {
 	rows, err := q.db.Query(ctx, listPurchasesByUserID, userID)
 	if err != nil {
 		return nil, err
@@ -197,6 +200,7 @@ func (q *Queries) ListPurchasesByUserID(ctx context.Context, userID int32) ([]Pu
 			&i.PaymentPayload,
 			&i.SettleResponse,
 			&i.PaidRouteID,
+			&i.PaidToAddress,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

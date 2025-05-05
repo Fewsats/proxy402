@@ -5,26 +5,30 @@ import (
 )
 
 type Purchase struct {
-	ID             int64
-	ShortCode      string
-	TargetURL      string
-	Method         string
-	Price          int32
-	IsTest         bool
-	PaymentPayload []byte
-	SettleResponse []byte
-	PaidRouteID    int32
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID        uint64 `json:"-"`
+	ShortCode string `json:"short_code"`
+	TargetURL string `json:"target_url"`
+	Method    string `json:"method"`
+	Price     uint64 `json:"price"`
+	IsTest    bool   `json:"is_test"`
+
+	PaidRouteID   uint64 `json:"-"`
+	PaidToAddress string `json:"-"`
+
+	PaymentPayload []byte `json:"-"`
+	SettleResponse []byte `json:"-"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // DailyStats represents purchase statistics for a single day
 type DailyStats struct {
 	Date         string `json:"date"`
-	Count        int    `json:"count"`
-	Earnings     int64  `json:"earnings"`
-	TestCount    int    `json:"test_count"`
-	TestEarnings int64  `json:"test_earnings"`
-	RealCount    int    `json:"real_count"`
-	RealEarnings int64  `json:"real_earnings"`
+	Count        uint64 `json:"count"`
+	Earnings     uint64 `json:"earnings"`
+	TestCount    uint64 `json:"test_count"`
+	TestEarnings uint64 `json:"test_earnings"`
+	RealCount    uint64 `json:"real_count"`
+	RealEarnings uint64 `json:"real_earnings"`
 }

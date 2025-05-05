@@ -30,7 +30,7 @@ type Querier interface {
 	// GetPurchaseByID returns a purchase by ID.
 	GetPurchaseByID(ctx context.Context, id int64) (Purchase, error)
 	// GetTotalStats retrieves total purchase stats for a specific user.
-	GetTotalStats(ctx context.Context, userID int32) (GetTotalStatsRow, error)
+	GetTotalStats(ctx context.Context, userID int64) (GetTotalStatsRow, error)
 	// GetUserByEmail returns a user by email.
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	// GetUserByGoogleID returns a user by Google ID.
@@ -44,16 +44,14 @@ type Querier interface {
 	// IncrementPaymentCount increments the payment_count for a route.
 	IncrementPaymentCount(ctx context.Context, arg IncrementPaymentCountParams) error
 	// ListPurchasesByUserID retrieves all purchases for a specific user via paid_routes.
-	ListPurchasesByUserID(ctx context.Context, userID int32) ([]Purchase, error)
+	ListPurchasesByUserID(ctx context.Context, userID int64) ([]Purchase, error)
 	// ListUserPaidRoutes returns all paid routes for a specific user.
-	ListUserPaidRoutes(ctx context.Context, userID int32) ([]PaidRoute, error)
+	ListUserPaidRoutes(ctx context.Context, userID int64) ([]PaidRoute, error)
 	// UpdatePaidRoute updates a paid route.
 	UpdatePaidRoute(ctx context.Context, arg UpdatePaidRouteParams) error
-	// UpdateUser updates a user record.
-	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	// UpdateUserPaymentAddress updates a user's payment address.
-	UpdateUserPaymentAddress(ctx context.Context, arg UpdateUserPaymentAddressParams) error
-	UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) error
+	UpdateUserPaymentAddress(ctx context.Context, arg UpdateUserPaymentAddressParams) (User, error)
+	UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)

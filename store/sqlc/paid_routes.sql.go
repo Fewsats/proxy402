@@ -43,7 +43,7 @@ type CreatePaidRouteParams struct {
 	Method    string
 	Price     int32
 	IsTest    bool
-	UserID    int32
+	UserID    int64
 	IsEnabled bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -90,7 +90,7 @@ WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 
 type DeletePaidRouteParams struct {
 	ID        int64
-	UserID    int32
+	UserID    int64
 	DeletedAt pgtype.Timestamptz
 }
 
@@ -245,7 +245,7 @@ ORDER BY created_at DESC
 `
 
 // ListUserPaidRoutes returns all paid routes for a specific user.
-func (q *Queries) ListUserPaidRoutes(ctx context.Context, userID int32) ([]PaidRoute, error) {
+func (q *Queries) ListUserPaidRoutes(ctx context.Context, userID int64) ([]PaidRoute, error) {
 	rows, err := q.db.Query(ctx, listUserPaidRoutes, userID)
 	if err != nil {
 		return nil, err

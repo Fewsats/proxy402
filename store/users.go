@@ -12,15 +12,19 @@ import (
 )
 
 // Create inserts a new user in the database.
-func (s *Store) CreateUser(ctx context.Context, user *users.User) (uint64, error) {
+func (s *Store) CreateUser(ctx context.Context,
+	user *users.User) (uint64, error) {
+
+	now := s.clock.Now()
+
 	userID, err := s.queries.CreateUser(ctx, sqlc.CreateUserParams{
 		Email:          user.Email,
 		Name:           user.Name,
 		GoogleID:       user.GoogleID,
 		Proxy402Secret: user.Proxy402Secret,
 		PaymentAddress: "",
-		CreatedAt:      s.clock.Now(),
-		UpdatedAt:      s.clock.Now(),
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to create user: %w", err)
@@ -30,7 +34,7 @@ func (s *Store) CreateUser(ctx context.Context, user *users.User) (uint64, error
 }
 
 // FindByID retrieves a user by ID.
-func (s *Store) FindUserByID(ctx context.Context, id uint) (*users.User, error) {
+func (s *Store) FindUserByID(ctx context.Context, id uint64) (*users.User, error) {
 	dbUser, err := s.queries.GetUserByID(ctx, int64(id))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -58,7 +62,7 @@ func (s *Store) FindUserByGoogleID(ctx context.Context, googleID string) (*users
 // Helper function to convert sqlc User to users.User
 func convertToUserModel(dbUser sqlc.User) *users.User {
 	return &users.User{
-		ID:             uint(dbUser.ID),
+		ID:             uint64(dbUser.ID),
 		Email:          dbUser.Email,
 		Name:           dbUser.Name,
 		GoogleID:       dbUser.GoogleID,
@@ -70,27 +74,27 @@ func convertToUserModel(dbUser sqlc.User) *users.User {
 }
 
 // UpdateUserProxySecret updates a user's proxy secret.
-func (s *Store) UpdateUserProxySecret(ctx context.Context, id uint, secret string) error {
-	err := s.queries.UpdateUserProxySecret(ctx, sqlc.UpdateUserProxySecretParams{
+func (s *Store) UpdateUserProxySecret(ctx context.Context, id uint64, secret string) (*users.User, error) {
+	user, err := s.queries.UpdateUserProxySecret(ctx, sqlc.UpdateUserProxySecretParams{
 		ID:             int64(id),
 		Proxy402Secret: secret,
 		UpdatedAt:      s.clock.Now(),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user proxy secret: %w", err)
+		return nil, fmt.Errorf("failed to update user proxy secret: %w", err)
 	}
-	return nil
+	return convertToUserModel(user), nil
 }
 
 // UpdateUserPaymentAddress updates a user's payment address.
-func (s *Store) UpdateUserPaymentAddress(ctx context.Context, id uint, address string) error {
-	err := s.queries.UpdateUserPaymentAddress(ctx, sqlc.UpdateUserPaymentAddressParams{
+func (s *Store) UpdateUserPaymentAddress(ctx context.Context, id uint64, address string) (*users.User, error) {
+	user, err := s.queries.UpdateUserPaymentAddress(ctx, sqlc.UpdateUserPaymentAddressParams{
 		ID:             int64(id),
 		PaymentAddress: address,
 		UpdatedAt:      s.clock.Now(),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update user payment address: %w", err)
+		return nil, fmt.Errorf("failed to update user payment address: %w", err)
 	}
-	return nil
+	return convertToUserModel(user), nil
 }

@@ -34,11 +34,11 @@
         <div class="navbar-menu">
             <div class="user-menu">
                 <div class="user-menu-trigger" id="user-menu-trigger">
-                    <div class="user-avatar">{{slice .user.email 0 1 }}</div>
+                    <div class="user-avatar">{{slice .user.Email 0 1 }}</div>
                     <i data-lucide="chevron-down" width="16" height="16"></i>
                 </div>
                 <div class="user-menu-dropdown" id="user-menu-dropdown">
-                    <div class="user-email-display" id="user-email-display">{{.user.email}}</div>
+                    <div class="user-email-display" id="user-email-display">{{.user.Email}}</div>
                     <a href="/dashboard" class="user-menu-item active">
                         <i data-lucide="layout-dashboard" width="16" height="16"></i>
                         <span>Dashboard</span>

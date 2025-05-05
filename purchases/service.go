@@ -20,12 +20,12 @@ func NewPurchaseService(logger *slog.Logger, store Store) *PurchaseService {
 }
 
 // ListPurchasesByUserID retrieves all purchases for a specific user ID.
-func (s *PurchaseService) ListPurchasesByUserID(ctx context.Context, userID uint) ([]Purchase, error) {
+func (s *PurchaseService) ListPurchasesByUserID(ctx context.Context, userID uint64) ([]Purchase, error) {
 	return s.store.ListPurchasesByUserID(ctx, userID)
 }
 
 // GetDashboardStats retrieves daily purchase stats for the dashboard
-func (s *PurchaseService) GetDashboardStats(ctx context.Context, userID uint, days int) ([]DailyStats, int64, int, error) {
+func (s *PurchaseService) GetDashboardStats(ctx context.Context, userID uint64, days uint64) ([]DailyStats, error) {
 	return s.store.GetDailyStatsByUserID(ctx, userID, days)
 }
 
