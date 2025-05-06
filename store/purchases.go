@@ -24,7 +24,8 @@ func (s *Store) CreatePurchase(ctx context.Context, purchase *pkgPurchases.Purch
 		PaymentPayload: []byte(purchase.PaymentPayload),
 		SettleResponse: []byte(purchase.SettleResponse),
 
-		PaidRouteID: int64(purchase.PaidRouteID),
+		PaidToAddress: purchase.PaidToAddress,
+		PaidRouteID:   int64(purchase.PaidRouteID),
 
 		CreatedAt: now,
 		UpdatedAt: now,
