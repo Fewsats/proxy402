@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "client": "tsx index.ts",
+    "testnet": "tsx index.ts --network base-sepolia",
+    "mainnet": "tsx index.ts --network base-mainnet",
     "format": "prettier -c .prettierrc --write \"**/*.{ts,js,cjs,json,md}\"",
     "format:check": "prettier -c .prettierrc --check \"**/*.{ts,js,cjs,json,md}\"",
     "lint": "eslint . --ext .ts --fix",

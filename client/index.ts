@@ -3,13 +3,37 @@ import { createWalletClient, http, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { withPaymentInterceptor } from "x402-axios";
 import axios from "axios";
-import { baseSepolia } from "viem/chains";
+import { baseSepolia, base } from "viem/chains";
 
 config();
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+let targetUrl = '';
+let httpMethod = 'GET';
+let network = 'base-sepolia'; // Default to testnet
+
+// Parse arguments
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  
+  if (arg === '--network' && i + 1 < args.length) {
+    network = args[++i];
+    continue;
+  }
+  
+  if (arg === '--method' && i + 1 < args.length) {
+    httpMethod = args[++i].toUpperCase();
+    continue;
+  }
+  
+  // If not a flag, assume it's the target URL
+  if (!arg.startsWith('--') && !targetUrl) {
+    targetUrl = arg;
+  }
+}
+
 const { PRIVATE_KEY } = process.env;
-const targetUrl = process.argv[2]; // Get URL from command line argument
-const methodArg = process.argv[3]; // Get optional method argument
 
 if (!PRIVATE_KEY) {
   console.error("Missing required environment variable: PRIVATE_KEY");
@@ -17,19 +41,29 @@ if (!PRIVATE_KEY) {
 }
 
 if (!targetUrl) {
-  console.error("Missing required command line argument: targetUrl");
+  console.error("Missing required target URL");
+  console.error("Usage: npm run client -- <url> [--method GET|POST] [--network base-sepolia|base-mainnet]");
   process.exit(1);
 }
 
-// Determine the HTTP method, default to GET
-const httpMethod = (methodArg?.toUpperCase() === 'POST') ? 'POST' : 'GET';
+// Parse network string to chain
+let chain;
+if (network === 'base-mainnet' || network === 'base') {
+  chain = base;
+  console.log('Using MAINNET (Base) chain');
+} else {
+  // Default to testnet for any other value
+  chain = baseSepolia;
+  console.log('Using TESTNET (Base Sepolia) chain');
+}
+
 console.log(`Making a ${httpMethod} request to: ${targetUrl}`);
 
 const account = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
 const client = createWalletClient({
   account,
   transport: http(),
-  chain: baseSepolia,
+  chain,
 }).extend(publicActions);
 
 // Create a base axios instance for logging
@@ -61,7 +95,7 @@ const api = withPaymentInterceptor(
 );
 
 api
-  // Use the specified or default method
+  // Use the specified method
   .request({ method: httpMethod, url: '' })
   .then(response => {
     console.log("Response Headers:", response.headers);
