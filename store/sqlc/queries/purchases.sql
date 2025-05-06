@@ -3,9 +3,11 @@
 INSERT INTO purchases (
     short_code, target_url, method, price, is_test,
     payment_payload, settle_response, paid_route_id, paid_to_address,
-    created_at, updated_at
+    created_at, updated_at,
+    type, credits_available, credits_used, payment_header
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+    $12, $13, $14, $15
 ) RETURNING id;
 
 -- name: GetPurchaseByID :one
@@ -52,4 +54,14 @@ FROM
 JOIN 
     paid_routes pr ON p.paid_route_id = pr.id
 WHERE 
-    pr.user_id = $1; 
+    pr.user_id = $1;
+
+-- name: GetPurchaseByRouteIDAndPaymentHeader :one
+SELECT * FROM purchases
+WHERE paid_route_id = $1 AND payment_header = $2
+ORDER BY created_at DESC LIMIT 1;
+
+-- name: IncrementPurchaseCreditsUsed :exec
+UPDATE purchases
+SET credits_used = credits_used + 1, updated_at = $2
+WHERE id = $1 AND credits_used < credits_available; 

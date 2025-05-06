@@ -25,21 +25,27 @@ type PaidRoute struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	DeletedAt    pgtype.Timestamptz
+	Type         string
+	Credits      int32
 }
 
 type Purchase struct {
-	ID             int64
-	ShortCode      string
-	TargetUrl      string
-	Method         string
-	Price          int32
-	IsTest         bool
-	PaymentPayload []byte
-	SettleResponse []byte
-	PaidRouteID    int64
-	PaidToAddress  string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID               int64
+	ShortCode        string
+	TargetUrl        string
+	Method           string
+	Price            int32
+	IsTest           bool
+	PaymentPayload   []byte
+	SettleResponse   []byte
+	PaidRouteID      int64
+	PaidToAddress    string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Type             string
+	CreditsAvailable int32
+	CreditsUsed      int32
+	PaymentHeader    pgtype.Text
 }
 
 type User struct {

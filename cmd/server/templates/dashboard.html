@@ -180,6 +180,35 @@
                             <i data-lucide="help-circle" width="16" height="16"></i>
                         </span>
                     </div>
+                        
+                    <select id="method-select" name="method" required>
+                        <option value="GET">GET</option>
+                        <option value="PUT">PUT</option>
+                        <option value="POST">POST</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                    </select> 
+
+                    <select id="type-select" name="type" required>
+                        <option value="credit" selected>Credit</option>
+                        <!-- Add other types here if needed, e.g., <option value="subscription">Subscription</option> -->
+                    </select>
+
+                    <input type="number" id="credits-input" name="credits" placeholder="Credits" min="1" value="1" required>
+                    
+                    <div class="toggle-switch">
+                        <label class="toggle-switch-label">
+                            <input type="checkbox" id="is-test-input" name="is_test">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Test Mode
+                                <span class="tooltip" data-tooltip="When enabled, uses test USDC on base sepolia network">
+                                    <i data-lucide="help-circle" width="16" height="16"></i>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn">Add URL <span id="spinner" class="htmx-indicator">↻</span></button>
                     
                     <select id="method-select" name="method" required>
                         <option value="GET">GET</option>
@@ -227,6 +256,12 @@
                     <option value="Test">Test</option>
                     <option value="Live">Live</option>
                 </select>
+                 <label for="type-filter">Type:</label>
+                <select id="type-filter" class="filter-select">
+                    <option value="All">All</option>
+                    <option value="credit">Credit</option>
+                    <!-- Add other types here if they become available -->
+                </select>
             </div>
 
             <table id="links-table" class="data-table">
@@ -236,6 +271,8 @@
                             <th>Proxy URL</th>
                             <th>Method</th>
                             <th class="sortable" data-column="price">Price</th>
+                            <th>Type</th>
+                            <th>Credits</th>
                             <th class="th-with-tooltip">
                                 <span>Attempts</span>
                                 <span class="tooltip th-tooltip" data-tooltip="Total times payment was attempted">
@@ -265,7 +302,7 @@
                     </thead>
                     <tbody>
                         {{range .links}}
-                        <tr>
+                        <tr data-method="{{.Method}}" data-mode="{{if .IsTest}}Test{{else}}Live{{end}}" data-type="{{.Type}}">
                             <td class="ellipsis" data-tooltip="{{.TargetURL}}">{{.TargetURL}}</td>
                             <td>
                                 <div class="short-url-container">
@@ -277,6 +314,8 @@
                             </td>
                             <td>{{.Method}}</td>
                             <td>${{.Price}} USDC</td>
+                            <td>{{.Type}}</td>
+                            <td>{{.Credits}}</td>
                             <td>{{.AttemptCount}}</td>
                             <td>{{.PaymentCount}}</td>
                             <!-- <td>{{.AccessCount}}</td> -->

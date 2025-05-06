@@ -16,24 +16,30 @@ const createPurchase = `-- name: CreatePurchase :one
 INSERT INTO purchases (
     short_code, target_url, method, price, is_test,
     payment_payload, settle_response, paid_route_id, paid_to_address,
-    created_at, updated_at
+    created_at, updated_at,
+    type, credits_available, credits_used, payment_header
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+    $12, $13, $14, $15
 ) RETURNING id
 `
 
 type CreatePurchaseParams struct {
-	ShortCode      string
-	TargetUrl      string
-	Method         string
-	Price          int32
-	IsTest         bool
-	PaymentPayload []byte
-	SettleResponse []byte
-	PaidRouteID    int64
-	PaidToAddress  string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ShortCode        string
+	TargetUrl        string
+	Method           string
+	Price            int32
+	IsTest           bool
+	PaymentPayload   []byte
+	SettleResponse   []byte
+	PaidRouteID      int64
+	PaidToAddress    string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	Type             string
+	CreditsAvailable int32
+	CreditsUsed      int32
+	PaymentHeader    pgtype.Text
 }
 
 // CreatePurchase creates a new purchase record.
@@ -50,6 +56,10 @@ func (q *Queries) CreatePurchase(ctx context.Context, arg CreatePurchaseParams) 
 		arg.PaidToAddress,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.Type,
+		arg.CreditsAvailable,
+		arg.CreditsUsed,
+		arg.PaymentHeader,
 	)
 	var id int64
 	err := row.Scan(&id)
@@ -123,7 +133,7 @@ func (q *Queries) GetDailyStats(ctx context.Context, arg GetDailyStatsParams) ([
 }
 
 const getPurchaseByID = `-- name: GetPurchaseByID :one
-SELECT id, short_code, target_url, method, price, is_test, payment_payload, settle_response, paid_route_id, paid_to_address, created_at, updated_at FROM purchases
+SELECT id, short_code, target_url, method, price, is_test, payment_payload, settle_response, paid_route_id, paid_to_address, created_at, updated_at, type, credits_available, credits_used, payment_header FROM purchases
 WHERE id = $1
 `
 
@@ -144,6 +154,45 @@ func (q *Queries) GetPurchaseByID(ctx context.Context, id int64) (Purchase, erro
 		&i.PaidToAddress,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Type,
+		&i.CreditsAvailable,
+		&i.CreditsUsed,
+		&i.PaymentHeader,
+	)
+	return i, err
+}
+
+const getPurchaseByRouteIDAndPaymentHeader = `-- name: GetPurchaseByRouteIDAndPaymentHeader :one
+SELECT id, short_code, target_url, method, price, is_test, payment_payload, settle_response, paid_route_id, paid_to_address, created_at, updated_at, type, credits_available, credits_used, payment_header FROM purchases
+WHERE paid_route_id = $1 AND payment_header = $2
+ORDER BY created_at DESC LIMIT 1
+`
+
+type GetPurchaseByRouteIDAndPaymentHeaderParams struct {
+	PaidRouteID   int64
+	PaymentHeader pgtype.Text
+}
+
+func (q *Queries) GetPurchaseByRouteIDAndPaymentHeader(ctx context.Context, arg GetPurchaseByRouteIDAndPaymentHeaderParams) (Purchase, error) {
+	row := q.db.QueryRow(ctx, getPurchaseByRouteIDAndPaymentHeader, arg.PaidRouteID, arg.PaymentHeader)
+	var i Purchase
+	err := row.Scan(
+		&i.ID,
+		&i.ShortCode,
+		&i.TargetUrl,
+		&i.Method,
+		&i.Price,
+		&i.IsTest,
+		&i.PaymentPayload,
+		&i.SettleResponse,
+		&i.PaidRouteID,
+		&i.PaidToAddress,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Type,
+		&i.CreditsAvailable,
+		&i.CreditsUsed,
+		&i.PaymentHeader,
 	)
 	return i, err
 }
@@ -173,8 +222,24 @@ func (q *Queries) GetTotalStats(ctx context.Context, userID int64) (GetTotalStat
 	return i, err
 }
 
+const incrementPurchaseCreditsUsed = `-- name: IncrementPurchaseCreditsUsed :exec
+UPDATE purchases
+SET credits_used = credits_used + 1, updated_at = $2
+WHERE id = $1 AND credits_used < credits_available
+`
+
+type IncrementPurchaseCreditsUsedParams struct {
+	ID        int64
+	UpdatedAt time.Time
+}
+
+func (q *Queries) IncrementPurchaseCreditsUsed(ctx context.Context, arg IncrementPurchaseCreditsUsedParams) error {
+	_, err := q.db.Exec(ctx, incrementPurchaseCreditsUsed, arg.ID, arg.UpdatedAt)
+	return err
+}
+
 const listPurchasesByUserID = `-- name: ListPurchasesByUserID :many
-SELECT p.id, p.short_code, p.target_url, p.method, p.price, p.is_test, p.payment_payload, p.settle_response, p.paid_route_id, p.paid_to_address, p.created_at, p.updated_at FROM purchases p
+SELECT p.id, p.short_code, p.target_url, p.method, p.price, p.is_test, p.payment_payload, p.settle_response, p.paid_route_id, p.paid_to_address, p.created_at, p.updated_at, p.type, p.credits_available, p.credits_used, p.payment_header FROM purchases p
 JOIN paid_routes pr ON p.paid_route_id = pr.id
 WHERE pr.user_id = $1
 ORDER BY p.created_at DESC
@@ -203,6 +268,10 @@ func (q *Queries) ListPurchasesByUserID(ctx context.Context, userID int64) ([]Pu
 			&i.PaidToAddress,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Type,
+			&i.CreditsAvailable,
+			&i.CreditsUsed,
+			&i.PaymentHeader,
 		); err != nil {
 			return nil, err
 		}

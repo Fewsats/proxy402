@@ -29,6 +29,7 @@ type Querier interface {
 	GetPaidRouteByShortCode(ctx context.Context, shortCode string) (PaidRoute, error)
 	// GetPurchaseByID returns a purchase by ID.
 	GetPurchaseByID(ctx context.Context, id int64) (Purchase, error)
+	GetPurchaseByRouteIDAndPaymentHeader(ctx context.Context, arg GetPurchaseByRouteIDAndPaymentHeaderParams) (Purchase, error)
 	// GetTotalStats retrieves total purchase stats for a specific user.
 	GetTotalStats(ctx context.Context, userID int64) (GetTotalStatsRow, error)
 	// GetUserByEmail returns a user by email.
@@ -43,6 +44,7 @@ type Querier interface {
 	IncrementAttemptCount(ctx context.Context, arg IncrementAttemptCountParams) error
 	// IncrementPaymentCount increments the payment_count for a route.
 	IncrementPaymentCount(ctx context.Context, arg IncrementPaymentCountParams) error
+	IncrementPurchaseCreditsUsed(ctx context.Context, arg IncrementPurchaseCreditsUsedParams) error
 	// ListPurchasesByUserID retrieves all purchases for a specific user via paid_routes.
 	ListPurchasesByUserID(ctx context.Context, userID int64) ([]Purchase, error)
 	// ListUserPaidRoutes returns all paid routes for a specific user.
