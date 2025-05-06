@@ -1,100 +1,116 @@
-# LinkShrink - Paid API Proxy Service
+# Proxy402 - Monetize APIs with x402
 
-LinkShrink acts as a configurable, paid proxy for other API endpoints. Registered users can define routes consisting of a target URL, HTTP method, and a price. Accessing the generated short link for a route requires an L402 payment (verification currently pending implementation) before the request is proxied to the target URL.
+Proxy402 lets you monetize APIs by requiring x402 payments on Base before accessing your endpoints.
 
-The service uses Go, Gin, PostgreSQL (with GORM), and JWT for authentication.
+## Quick Start (Client)
 
-## Features
+Test Proxy402 instantly with our pre-configured client:
 
-*   User registration (`POST /register`) and login (`POST /login`).
-*   JWT-based authentication for protected endpoints.
-*   **Paid Route Creation:** Define target endpoints with associated methods and prices (`POST /links/shrink`).
-*   **Proxying:** Requests to `/<shortCode>` are proxied to the configured target URL and method.
-*   **Payment Enforcement (TODO):** Intended to verify L402 payments via a facilitator before proxying.
-*   **Payment Count Tracking:** Tracks the number of successful accesses/payments for each route.
-*   **Route Management:** List (`GET /links`) and delete (`DELETE /links/:linkID`) configured routes.
+```bash
+# Clone the repo
+git clone https://github.com/Fewsats/proxy402.git
+cd proxy402/client
 
-## Tech Stack
+# Copy sample env file
+cp .env.example .env
 
-*   **Language:** Go (1.23.3)
-*   **Web Framework:** Gin Gonic
-*   **Database:** PostgreSQL
-*   **ORM:** GORM
-*   **Authentication:** JWT (golang-jwt/jwt)
-*   **Password Hashing:** bcrypt
-*   **Payment Protocol (Partial):** L402 (using vendored code from `github.com/coinbase/x402`)
-*   **Containerization:** Docker & Docker Compose
+# Add your wallet keys to the .env file
+# You can generate these keys with cast (google how to install foundry, cast is part of the suite)
+# Then run the following command to get a test address
+cast w new
 
-## Local Setup & Running (Docker)
+# You will need Base Sepolia ETH & USDC. Get them from these faucets:
+- [Base Sepolia ETH](https://portal.cdp.coinbase.com/products/faucet)
+- [Base Sepolia USDC](https://faucet.circle.com/)
 
-This project uses Docker Compose to simplify local development and testing.
+# Install dependencies
+npm install
 
-**Prerequisites:**
+# Run client against a test endpoint (returns Bitcoin whitepaper)
+npm run client https://proxy402.com/wUUbqudYsM
 
-*   Docker ([Install Docker](https://docs.docker.com/get-docker/))
-*   Docker Compose ([Included with Docker Desktop or install separately](https://docs.docker.com/compose/install/))
+## Running Your Own Server
 
-**Steps:**
+### Prerequisites
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd linkshrink
-    ```
+- [Docker & Docker Compose](https://docs.docker.com/engine/install/)
 
-2.  **Create Environment File:**
-    Copy the example environment file and edit it.
-    ```bash
-    cp .env.example .env
-    nano .env # Or use your preferred editor
-    ```
-    *   **Crucial:** Set a secure `JWT_SECRET`.
+### Setup
 
-3.  **Build and Run:**
-    Use Docker Compose to build the application image and start the application and database containers.
-    ```bash
-    docker compose build
-    docker compose up -d # -d runs the containers in detached mode (background)
-    ```
-    *   **Note:** This setup uses `network_mode: host`. Ensure ports `5432` and `8080` (or `APP_PORT`) are free on your host machine.
-    *   The application should be accessible at `http://localhost:8080`.
+```bash
+# Clone the repo (if you haven't already)
+git clone https://github.com/Fewsats/proxy402.git
+cd proxy402
 
-4.  **View Logs (Optional):**
-    ```bash
-    docker compose logs -f app # View application logs
-    docker compose logs -f db  # View database logs
-    ```
+# Configure environment
+cp .env.example .env
+# Edit .env file with your details
 
-5.  **Stopping the Services:**
-    ```bash
-    docker compose down
-    ```
-    To also remove the database volume (lose data): `docker compose down -v`
+# Start the server with Docker Compose
+docker compose up
+```
 
-## API Usage
+Important .env variables:
+- `X402_TESTNET_PAYMENT_ADDRESS` & `X402_MAINNET_PAYMENT_ADDRESS`: Your Base addresses for receiving payments
+- `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`: For auth (obtain from [Google Cloud Console](https://console.cloud.google.com/apis/credentials))
 
-*   **Register:** `POST /register` (Body: `{"username": "user", "password": "pass"}`)
-*   **Login:** `POST /login` (Body: `{"username": "user", "password": "pass"}`) -> Returns a JWT token.
+### Creating Monetized Routes
 
-*   **(Authenticated)** **Create Paid Route:** `POST /links/shrink`
-    *   Requires `Authorization: Bearer <token>` header.
-    *   Body: `{"target_url": "https://api.example.com/data", "method": "POST", "price": "0.00001"}`
-    *   Returns details of the created route including `short_code` and `access_url`.
+1. Visit `http://localhost:8080` and log in
+2. Fill the form with:
+   - Target URL to monetize
+   - Price in USDC
+   - HTTP method
+   - Test mode (on/off)
+3. Use your new link: `http://localhost:8080/YOUR_SHORT_CODE`
 
-*   **(Authenticated)** **List Paid Routes:** `GET /links`
-    *   Requires `Authorization: Bearer <token>` header.
-    *   Returns a list of routes created by the user.
+## Target URL Verification
 
-*   **(Authenticated)** **Delete Paid Route:** `DELETE /links/:linkID`
-    *   Requires `Authorization: Bearer <token>` header.
-    *   Deletes the route with the specified ID (if owned by the user).
+Proxy402 adds a `Proxy402-Secret` header to forwarded requests:
 
-*   **Access Paid Route:** `ANY /<shortCode>` (e.g., `POST /aBc1De2`)
-    *   Requires appropriate L402 payment header (`Authorization: L402 ...` or legacy `X-PAYMENT`) - **Verification logic is currently placeholder/incomplete.**
-    *   If payment is valid (or verification skipped), proxies the request (method, headers, body) to the configured `target_url`.
-    *   Returns the response from the target service.
+```javascript
+// Node.js example
+app.get('/api/data', (req, res) => {
+  if (req.headers['proxy402-secret'] !== 'YOUR_SECRET_FROM_USER_SETTINGS') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  res.json({ data: 'Your protected data' });
+});
+```
 
-## Development Notes
+## Additional Information
 
-*   The core payment verification logic in `internal/api/handlers/paid_route_handler.go` (`HandlePaidRoute`) and the L402 token parsing/handling in `internal/x402/middleware.go` (`VerifyX402Payment`) need implementation.
-*   The current implementation assumes the `price` stored for a route is the direct crypto amount (e.g., ETH). Real-world use might require conversion from other currencies (e.g., USD) using an oracle/price feed.
+### Client Setup Details
+
+The client uses your private key to make payments on Base:
+
+```dotenv
+# client/.env
+PRIVATE_KEY="YOUR_CLIENT_WALLET_PRIVATE_KEY" # Never commit this to Git
+```
+
+### Server API Example
+
+```bash
+# Create route via API
+curl -X POST http://localhost:8080/links/shrink \
+     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "target_url": "https://raw.githubusercontent.com/ibz/bitcoin-whitepaper-markdown/refs/heads/master/bitcoin-whitepaper.md",
+           "method": "GET",
+           "price": "0.0001", 
+           "is_test": true
+         }'
+```
+
+### How It Works
+
+1. Client requests protected resource
+2. Server returns 402 with x402 payment token
+3. Client pays using Base and x402-axios library
+4. Client retries with proof of payment
+5. Server forwards request to target URL
+
+For more details visit [x402.org](https://x402.org)
+---
