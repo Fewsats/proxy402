@@ -28,6 +28,7 @@ npm install
 
 # Run client against a test endpoint (returns Bitcoin whitepaper)
 npm run client https://proxy402.com/wUUbqudYsM
+```
 
 ## Running Your Own Server
 
