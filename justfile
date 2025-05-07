@@ -33,10 +33,12 @@ status:
 # DATABASE MIGRATIONS
 # ===================
 migrate-up:
-    migrate -path store/sqlc/migrations -database "postgres://user:password@localhost:5432/linkshrink?sslmode=disable" -verbose up
+    source .env
+    migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose up
 
 migrate-down:
-    migrate -path store/sqlc/migrations -database "postgres://user:password@localhost:5432/linkshrink?sslmode=disable" -verbose down 1
+    
+    migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose down 1
 
 migrate-create name:
     migrate create -dir store/sqlc/migrations -seq -ext sql {{name}}
@@ -58,4 +60,15 @@ sqlc-check: sqlc
         exit 1; \
     else \
         echo "SQL models generated correctly."; \
-    fi 
+    fi
+
+# ===============
+# DB MISC
+# ===============
+list-tables:
+    source .env
+    docker exec linkshrink_db psql -U $DB_USER -d $DB_NAME -c "\dt;"
+
+show-table table="purchases":
+    source .env
+    docker exec linkshrink_db psql -U $DB_USER -d $DB_NAME -t -c "SELECT json_agg(row_to_json(p)) FROM (SELECT * FROM {{table}} ORDER BY id) p;" | jq

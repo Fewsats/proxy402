@@ -77,7 +77,8 @@ func DecodePaymentPayloadFromBase64(encoded string) (*PaymentPayload, error) {
 	}
 
 	var payload PaymentPayload
-	if err := json.Unmarshal(decodedBytes, &payload); err != nil {
+	err = json.Unmarshal(decodedBytes, &payload)
+	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal payment payload: %w", err)
 	}
 

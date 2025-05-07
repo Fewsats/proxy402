@@ -125,7 +125,7 @@ a:hover {
 .welcome-section {
     text-align: center;
     max-width: 800px;
-    margin: 3rem auto;
+    margin: 5rem auto 3rem;
 }
 
 /* Typography */
@@ -179,7 +179,7 @@ h2 {
 
 /* Button styles */
 .btn, .login-btn {
-    background-color: var(--bg-color);
+    background-color: rgba(30, 50, 90, 1);
     color: var(--primary-color);
     border: 1px solid var(--primary-color);
     border-radius: 6px;
@@ -192,6 +192,7 @@ h2 {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn {
@@ -209,9 +210,117 @@ h2 {
 }
 
 .login-btn:hover {
-    background-color: rgba(134, 184, 255, 0.2);
-    transform: translateY(-2px);
+    background-color: rgba(45, 65, 105, 1);
+    border-color: #a8d1ff;
+    color: #a8d1ff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Documentation buttons */
+.documentation-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+/* Documentation Navigation */
+.docs-navbar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 10;
+}
+
+.docs-nav-container {
+    display: flex;
+    justify-content: flex-end;
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.docs-nav-links {
+    display: flex;
+    gap: 1rem;
+}
+
+.docs-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-color);
+    background-color: rgba(40, 70, 120, 0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(134, 184, 255, 0.4);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.docs-nav-link i {
+    color: var(--primary-color);
+}
+
+.docs-nav-link:hover {
+    background-color: rgba(50, 80, 130, 0.95);
+    color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary-color);
+}
+
+/* Ensure navbar and fixed navbar links align horizontally */
+.navbar .docs-nav-links {
+    margin-right: 1.5rem;
+    position: relative;
+    top: 1px; /* Fine-tune vertical alignment */
+}
+
+.navbar .docs-nav-link {
+    background-color: rgba(40, 70, 120, 0.7);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid rgba(134, 184, 255, 0.25);
+    padding: 0.5rem 0.75rem;
+}
+
+.navbar .docs-nav-link:hover {
+    background-color: rgba(50, 80, 130, 0.85);
+    border-color: var(--primary-color);
+}
+
+/* Keep the old doc-btn styles for backwards compatibility */
+.doc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.doc-btn i {
+    margin-right: 0.5rem;
+}
+
+/* Hide API Reference button until it's ready */
+.api-ref-btn {
+    display: none;
 }
 
 /* Form elements */
