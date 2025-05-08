@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"linkshrink/routes"
 	"linkshrink/store/sqlc"
@@ -106,9 +107,11 @@ func (s *Store) ListUserRoutes(ctx context.Context, userID uint64) ([]routes.Pai
 
 // DeleteRoute soft-deletes a paid route.
 func (s *Store) DeleteRoute(ctx context.Context, routeID uint64, userID uint64) error {
+	now := s.clock.Now()
 	err := s.queries.DeletePaidRoute(ctx, sqlc.DeletePaidRouteParams{
-		ID:     int64(routeID),
-		UserID: int64(userID),
+		ID:        int64(routeID),
+		UserID:    int64(userID),
+		DeletedAt: pgtype.Timestamptz{Time: now, Valid: true},
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
