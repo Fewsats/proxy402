@@ -256,7 +256,7 @@ h2 {
 
 .docs-nav-container {
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
@@ -700,6 +700,11 @@ input:focus, select:focus {
     display: none;
 }
 
+/* Hide doc links in user menu by default, they are shown on mobile via media query */
+.user-menu-item-doc-link {
+    display: none;
+}
+
 @media (min-width: 768px) {
     .user-email-short {
         display: inline;
@@ -798,6 +803,10 @@ input:focus, select:focus {
 @media (max-width: 768px) {
     .navbar {
         padding: 0.75rem 1rem;
+    }
+    
+    .docs-nav-container {
+        justify-content: center;
     }
     
     .main-container {
