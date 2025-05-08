@@ -21,12 +21,14 @@ type UIHandler struct {
 
 	templatesFS embed.FS
 
+	config *Config
 	logger *slog.Logger
 }
 
 // NewUIHandler creates a new UIHandler instance
 func NewUIHandler(paidRouteService *routes.PaidRouteService,
-	authService *auth.Service, userService *users.UserService, templatesFS embed.FS, logger *slog.Logger) *UIHandler {
+	authService *auth.Service, userService *users.UserService,
+	cfg *Config, templatesFS embed.FS, logger *slog.Logger) *UIHandler {
 
 	return &UIHandler{
 		paidRouteService: paidRouteService,
@@ -35,24 +37,27 @@ func NewUIHandler(paidRouteService *routes.PaidRouteService,
 
 		templatesFS: templatesFS,
 
+		config: cfg,
 		logger: logger,
 	}
 }
 
 // UIPaidRoute is a UI model for displaying PaidRoute with formatted price
 type UIPaidRoute struct {
-	ID           uint64
-	UserID       uint64
-	ShortCode    string
-	TargetURL    string
-	Method       string
-	Price        string
-	IsEnabled    bool
+	ID        uint64
+	UserID    uint64
+	ShortCode string
+	TargetURL string
+	Method    string
+	Price     string
+
+	IsTest    bool
+	IsEnabled bool
+
 	AttemptCount uint64
 	PaymentCount uint64
 	AccessCount  uint64
 	CreatedAt    string
-	IsTest       bool
 }
 
 // getBaseURL returns the base URL (scheme + host) for the current request
@@ -97,7 +102,8 @@ func (h *UIHandler) handleLandingPage(gCtx *gin.Context) {
 
 	// Render landing page for non-authenticated users
 	gCtx.HTML(http.StatusOK, "landing.html", gin.H{
-		"baseURL": h.getBaseURL(gCtx),
+		"baseURL":           h.getBaseURL(gCtx),
+		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 	})
 }
 
@@ -113,8 +119,9 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	user, err := h.userService.GetUserByID(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{
-			"error": "Unable to fetch user details",
-			"user":  user,
+			"error":             "Unable to fetch user details",
+			"user":              user,
+			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 		})
 		return
 	}
@@ -123,8 +130,9 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	dbLinks, err := h.paidRouteService.ListUserRoutes(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{
-			"error": "Unable to fetch links",
-			"user":  user,
+			"error":             "Unable to fetch links",
+			"user":              user,
+			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 		})
 		return
 	}
@@ -152,10 +160,11 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	host := gCtx.Request.Host
 
 	gCtx.HTML(http.StatusOK, "dashboard.html", gin.H{
-		"user":    user,
-		"links":   uiLinks,
-		"host":    host,
-		"baseURL": baseURL,
+		"user":              user,
+		"links":             uiLinks,
+		"host":              host,
+		"baseURL":           baseURL,
+		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 	})
 }
 
@@ -175,17 +184,19 @@ func (h *UIHandler) handleSettings(gCtx *gin.Context) {
 			"userID", userID,
 			"error", err)
 		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
-			"error": "Unable to fetch user details",
-			"user":  user,
+			"error":             "Unable to fetch user details",
+			"user":              user,
+			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 		})
 		return
 	}
 
 	// Pass data to the template
 	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
-		"user":            user,
-		"proxy_secret":    user.Proxy402Secret,
-		"payment_address": user.PaymentAddress,
+		"user":              user,
+		"proxy_secret":      user.Proxy402Secret,
+		"payment_address":   user.PaymentAddress,
+		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 	})
 }
 
@@ -202,18 +213,20 @@ func (h *UIHandler) handleRegenerateSecret(gCtx *gin.Context) {
 	user, err := h.userService.UpdateProxySecret(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
-			"error":  "Failed to regenerate secret",
-			"userID": userID,
+			"error":             "Failed to regenerate secret",
+			"userID":            userID,
+			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 		})
 		return
 	}
 
 	// Return form with success message
 	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
-		"user":            user,
-		"proxy_secret":    user.Proxy402Secret,
-		"payment_address": user.PaymentAddress,
-		"message":         "Secret regenerated successfully",
+		"user":              user,
+		"proxy_secret":      user.Proxy402Secret,
+		"payment_address":   user.PaymentAddress,
+		"message":           "Secret regenerated successfully",
+		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 	})
 }
 
@@ -229,8 +242,9 @@ func (h *UIHandler) handleUpdatePaymentAddress(gCtx *gin.Context) {
 	user, err := h.userService.GetUserByID(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
-			"error": "Unable to fetch user details",
-			"user":  users.User{},
+			"error":             "Unable to fetch user details",
+			"user":              users.User{},
+			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 		})
 		return
 	}
@@ -242,15 +256,17 @@ func (h *UIHandler) handleUpdatePaymentAddress(gCtx *gin.Context) {
 		userID, paymentAddress)
 	if err != nil {
 		gCtx.HTML(http.StatusBadRequest, "settings.html", gin.H{
-			"error": "Failed to update payment address: " + err.Error(),
-			"user":  user,
+			"error":             "Failed to update payment address: " + err.Error(),
+			"user":              user,
+			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 		})
 		return
 	}
 
 	// Render updated form
 	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
-		"user":    user,
-		"message": "Payment address updated successfully",
+		"user":              user,
+		"message":           "Payment address updated successfully",
+		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 	})
 }

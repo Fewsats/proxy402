@@ -63,7 +63,7 @@ func (s *Server) SetupRoutes() error {
 	oauthHandler := auth.NewAuthHandler(s.userService, s.authService, &s.config.Auth)
 	paidRouteHandler := routes.NewPaidRouteHandler(s.routeService,
 		s.purchaseService, s.userService, &s.config.Routes, s.logger)
-	uiHandler := ui.NewUIHandler(s.routeService, s.authService, s.userService, s.templatesFS, s.logger)
+	uiHandler := ui.NewUIHandler(s.routeService, s.authService, s.userService, &s.config.UI, s.templatesFS, s.logger)
 	purchaseHandler := purchases.NewPurchaseHandler(s.purchaseService)
 
 	// Parse HTML templates and set them before registering any routes or it will cause a warning

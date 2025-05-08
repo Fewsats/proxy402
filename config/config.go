@@ -13,6 +13,7 @@ import (
 	"linkshrink/auth"
 	"linkshrink/routes"
 	"linkshrink/store"
+	"linkshrink/ui"
 )
 
 // Config holds application configuration values.
@@ -39,6 +40,9 @@ type Config struct {
 		Token    string
 		Endpoint string
 	}
+
+	// UI configuration
+	UI ui.Config `group:"ui" namespace:"ui"`
 }
 
 var AppConfig *Config
@@ -84,6 +88,7 @@ func DefaultConfig() *Config {
 		Auth: auth.Config{
 			JWTExpirationHours: 72 * time.Hour,
 		},
+		UI: ui.DefaultConfig(),
 	}
 }
 
@@ -132,6 +137,9 @@ func LoadConfig(logger *slog.Logger) *Config {
 	// BetterStack configuration
 	AppConfig.BetterStack.Token = getEnv("BETTERSTACK_TOKEN", "")
 	AppConfig.BetterStack.Endpoint = getEnv("BETTERSTACK_ENDPOINT", "")
+
+	// UI configuration
+	AppConfig.UI.GoogleAnalyticsID = getEnv("GOOGLE_ANALYTICS_ID", AppConfig.UI.GoogleAnalyticsID)
 
 	logger.Info("Configuration loaded.")
 

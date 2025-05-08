@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
+    {{if .GoogleAnalyticsID}}
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{.GoogleAnalyticsID}}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', '{{.GoogleAnalyticsID}}');
+    </script>
+    {{end}}
+    
     <title>Proxy402 - Monetize Any Link</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Turn your URLs into paid content with Proxy402. Set a price, share your link, and collect payments instantly.">
@@ -10,6 +22,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- External CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
+
+
 </head>
 <body>
     <!-- Documentation Navigation -->
