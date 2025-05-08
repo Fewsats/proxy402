@@ -22,6 +22,10 @@
     padding: 0;
 }
 
+html {
+    overflow-x: hidden;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: var(--text-color);
@@ -126,7 +130,7 @@ a:hover {
 .main-container {
     flex: 1;
     max-width: 1600px;
-    margin: 2rem auto;
+    margin: 1rem auto;
     width: calc(100% - 2rem);
     padding-left: 1rem;
     padding-right: 1rem;
@@ -286,10 +290,7 @@ h2 {
 }
 
 .docs-nav-link:hover {
-    background-color: rgba(50, 80, 130, 0.95);
-    color: var(--primary-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    background-color: rgba(50, 80, 130, 0.85);
     border-color: var(--primary-color);
 }
 
@@ -806,7 +807,10 @@ input:focus, select:focus {
     }
     
     .main-container {
-        padding: 1.5rem 1rem;
+        padding: 0 1rem 1.5rem;
+        max-width: 100%;
+        margin: 0 auto 2rem;
+        width: calc(100% - 1rem);
     }
     
     h1 {
@@ -830,6 +834,46 @@ input:focus, select:focus {
         display: block;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+    }
+
+    /* Settings page adjustments for small screens */
+    .settings-container {
+        padding: 0 10px;
+    }
+
+    .settings-field-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .settings-field label {
+        width: auto;
+        margin-bottom: 5px;
+    }
+
+    .settings-value,
+    .payment-address-field .settings-input {
+        width: 100%;
+    }
+
+    .settings-note {
+        margin-left: 0;
+        padding-left: 10px;
+    }
+
+    .payment-address-field .btn-settings-save {
+        width: 100%;
+        margin-top: 10px;
+    }
+
+    /* Hide navbar doc links on mobile */
+    .navbar .docs-nav-links {
+        display: none;
+    }
+    
+    /* Show doc links in user menu on mobile */
+    .user-menu-item-doc-link {
+        display: flex; /* Or block, depending on desired layout, flex matches other user-menu-items */
     }
 }
 
@@ -1112,8 +1156,8 @@ th.sortable.desc::after {
 /* Settings Page Styles */
 .settings-container {
     max-width: 800px;
-    margin: 20px auto;
-    padding: 0 20px;
+    margin: 10px auto;
+    padding: 0 10px;
 }
 
 .settings-container h1 {
@@ -1143,7 +1187,7 @@ th.sortable.desc::after {
 
 .settings-field-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 8px;
 }
 
@@ -1156,7 +1200,15 @@ th.sortable.desc::after {
     flex-shrink: 0;
 }
 
-.settings-value {
+.input-area {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 5px; /* Add some space between input/value and note */
+}
+
+.settings-value,
+.payment-input-group {
     padding: 10px 12px;
     background: #325082;
     border-radius: 6px;
@@ -1166,7 +1218,28 @@ th.sortable.desc::after {
     align-items: center;
     justify-content: space-between;
     word-break: break-all;
-    flex: 1;
+    width: 100%; /* Make it take full width of input-area */
+}
+
+.payment-input-group {
+    /* Specific styles for payment input group if different from settings-value */
+    /* For now, inherits most from .settings-value above */
+    /* Ensure input and button are spaced correctly if needed */
+    gap: 10px; /* Space between input and button */
+}
+
+.payment-input-group .settings-input {
+    flex: 1; /* Allow input to grow */
+    /* Resetting padding/border if they come from .settings-input base style */
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+}
+
+.payment-input-group .settings-input:focus {
+    outline: none;
+    box-shadow: none;
 }
 
 .secret-field {
@@ -1216,7 +1289,8 @@ th.sortable.desc::after {
 .settings-note {
     font-size: 12px;
     color: var(--text-muted);
-    margin: 5px 0 15px 120px;
+    margin: 5px 0 15px 0; /* Adjusted margin */
+    width: 100%; /* Ensure it takes full width of input-area */
 }
 
 .regenerate-form {

@@ -49,6 +49,7 @@
             </span>
         </div>
         <div class="navbar-menu">
+            <div class="docs-nav-links">  <a href="https://docs.proxy402.com/getting-started/create-your-first-url" class="docs-nav-link"> <i data-lucide="book-open"></i> <span>Getting Started</span> </a> <a href="https://docs.proxy402.com/api" class="docs-nav-link api-ref-btn"> <i data-lucide="code"></i> <span>API Reference</span> </a> </div>
             <div class="user-menu">
                 <div class="user-menu-trigger" id="user-menu-trigger">
                     <div class="user-avatar">{{slice .user.Email 0 1 }}</div>
@@ -64,6 +65,7 @@
                         <i data-lucide="settings" width="16" height="16"></i>
                         <span>Settings</span>
                     </a>
+                    <a href="https://docs.proxy402.com/getting-started/create-your-first-url" class="user-menu-item user-menu-item-doc-link"> <i data-lucide="book-open" width="16" height="16"></i> <span>Getting Started</span> </a> <a href="https://docs.proxy402.com/api" class="user-menu-item user-menu-item-doc-link api-ref-btn"> <i data-lucide="code" width="16" height="16"></i> <span>API Reference</span> </a>
                     <a href="/logout" class="user-menu-item">
                         <i data-lucide="log-out" width="16" height="16"></i>
                         <span>Logout</span>
@@ -98,40 +100,41 @@
             
             <div class="settings-card">
                 <h2>
-                    API Authentication
+                    Proxy402 API Secret
                     <span class="tooltip th-tooltip" data-tooltip="This secret is added as a 'Proxy402-Secret' header to all requests proxied through the service, allowing your target server to verify the request's authenticity.">
                         <i data-lucide="help-circle" width="16" height="16"></i>
                     </span>
                 </h2>
                 <div class="settings-field">
                     <div class="settings-field-row">
-                        <label>Proxy402 Secret</label>
-                        <div class="settings-value secret-field">
-                            <span id="secret-value">{{.user.Proxy402Secret}}</span>
-                            <button id="toggle-secret" class="icon-btn" data-tooltip="Toggle visibility">
-                                <i data-lucide="eye" width="16" height="16"></i>
-                            </button>
-                            <button class="copy-btn" data-value="{{.user.Proxy402Secret}}" data-tooltip="Copy to clipboard">
-                                <i data-lucide="copy" width="16" height="16"></i>
-                            </button>
-                            <button class="icon-btn regen-btn" data-tooltip="Regenerate Secret"
-                                    hx-post="/settings/regenerate-secret"
-                                    hx-target="#secret-value"
-                                    hx-select="#secret-value"
-                                    hx-swap="outerHTML"
-                                    hx-confirm="Are you sure? Regenerating your secret will invalidate any existing integrations using it.">
-                                <i data-lucide="refresh-cw" width="16" height="16"></i>
-                                <span class="htmx-indicator">↻</span>
-                            </button>
+                        <div class="input-area">
+                            <div class="settings-value secret-field">
+                                <span id="secret-value">{{.user.Proxy402Secret}}</span>
+                                <button id="toggle-secret" class="icon-btn" data-tooltip="Toggle visibility">
+                                    <i data-lucide="eye" width="16" height="16"></i>
+                                </button>
+                                <button class="copy-btn" data-value="{{.user.Proxy402Secret}}" data-tooltip="Copy to clipboard">
+                                    <i data-lucide="copy" width="16" height="16"></i>
+                                </button>
+                                <button class="icon-btn regen-btn" data-tooltip="Regenerate Secret"
+                                        hx-post="/settings/regenerate-secret"
+                                        hx-target="#secret-value"
+                                        hx-select="#secret-value"
+                                        hx-swap="outerHTML"
+                                        hx-confirm="Are you sure? Regenerating your secret will invalidate any existing integrations using it.">
+                                    <i data-lucide="refresh-cw" width="16" height="16"></i>
+                                    <span class="htmx-indicator">↻</span>
+                                </button>
+                            </div>
+                            <div class="settings-note">Use this secret on your server to verify requests are coming from Proxy402</div>
                         </div>
                     </div>
-                    <div class="settings-note">Use this secret on your server to verify requests are coming from Proxy402</div>
                 </div>
             </div>
             
             <div class="settings-card">
                 <h2>
-                    Payment Address
+                    Base Payment Address
                     <span class="tooltip th-tooltip" data-tooltip="Your Base address (0x...) where payments for your routes will be sent. If not set, the system default will be used.">
                         <i data-lucide="help-circle" width="16" height="16"></i>
                     </span>
@@ -142,18 +145,19 @@
                         action="/settings/update-payment-address"
                         method="POST">
                         <div class="settings-field-row payment-address-field">
-                            <label for="payment-address">Base Address</label>
-                            <input type="text"
-                                   id="payment-address"
-                                   name="payment_address" 
-                                   class="settings-input" 
-                                   value="{{.user.PaymentAddress}}" 
-                                   pattern="^0x[a-fA-F0-9]{40}$"
-                                   placeholder="0x..." />
-                            <button type="submit" class="btn btn-settings-save">Save</button>
+                            <div class="input-area">
+                                <input type="text"
+                                        id="payment-address"
+                                        name="payment_address" 
+                                        class="settings-input" 
+                                        value="{{.user.PaymentAddress}}" 
+                                        pattern="^0x[a-fA-F0-9]{40}$"
+                                        placeholder="0x..." />
+                                <button type="submit" class="btn btn-settings-save">Save</button>
+                                <div class="settings-note">Enter a Base address containing 0x followed by 40 hex characters</div>
+                                <div id="address-validation-message" class="settings-error hidden"></div>
+                            </div>
                         </div>
-                        <div class="settings-note">Enter a Base address containing 0x followed by 40 hex characters</div>
-                        <div id="address-validation-message" class="settings-error hidden"></div>
                     </form>
                 </div>
             </div>
