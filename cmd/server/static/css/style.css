@@ -256,7 +256,7 @@ h2 {
 
 .docs-nav-container {
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
@@ -814,7 +814,7 @@ input:focus, select:focus {
     h2 {
         font-size: 1.5rem;
     }
-    1
+    
     
     .data-table th, .data-table td {
         padding: 0.75rem 0.5rem;
