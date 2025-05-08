@@ -105,7 +105,7 @@ a:hover {
 
 .navbar-logo-inline {
     max-height: 34px;
-    margin-left: 8px;
+    margin-left: 6px;
     vertical-align: middle;
 }
 
@@ -1293,5 +1293,5 @@ th.sortable.desc::after {
 
 .landing-logo-inline {
     max-height: 34px;
-    margin-left: 8px;
+    margin-left: 6px;
 }
