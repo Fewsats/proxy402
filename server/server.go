@@ -2,6 +2,7 @@ package server
 
 import (
 	"embed"
+	"html/template"
 	"io/fs"
 	"log"
 	"log/slog"
@@ -64,6 +65,14 @@ func (s *Server) SetupRoutes() error {
 		s.purchaseService, s.userService, &s.config.Routes, s.logger)
 	uiHandler := ui.NewUIHandler(s.routeService, s.authService, s.userService, s.templatesFS, s.logger)
 	purchaseHandler := purchases.NewPurchaseHandler(s.purchaseService)
+
+	// Parse HTML templates and set them before registering any routes or it will cause a warning
+	tmpl, err := template.ParseFS(s.templatesFS, "templates/*.html")
+	if err != nil {
+		s.logger.Error("Failed to parse HTML templates", "error", err)
+		return err
+	}
+	s.router.SetHTMLTemplate(tmpl)
 
 	// Serve static files from embedded filesystem
 	staticFileSystem, err := fs.Sub(s.staticFS, "static")

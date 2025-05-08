@@ -2,8 +2,6 @@ package ui
 
 import (
 	"embed"
-	"html/template"
-	"log"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -71,13 +69,6 @@ func (h *UIHandler) getBaseURL(gCtx *gin.Context) string {
 
 // SetupRoutes registers UI routes to the provided router
 func (h *UIHandler) SetupRoutes(router *gin.Engine) {
-	// Parse HTML templates
-	tmpl, err := template.ParseFS(h.templatesFS, "templates/*.html")
-	if err != nil {
-		log.Fatalf("failed to parse HTML templates: %v", err)
-	}
-	router.SetHTMLTemplate(tmpl)
-
 	// Public landing page for non-authenticated users
 	router.GET("/", h.handleLandingPage)
 
