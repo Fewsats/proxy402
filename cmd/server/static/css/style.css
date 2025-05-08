@@ -354,12 +354,6 @@ h2 {
     flex-wrap: wrap;
 }
 
-.form-controls {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: nowrap;
-    align-items: center;
-}
 
 input, select {
     padding: 0.75rem 1rem;
@@ -807,7 +801,7 @@ input:focus, select:focus {
     }
     
     .main-container {
-        padding: 0 1rem 1.5rem;
+        padding: 1rem;
         max-width: 100%;
         margin: 0 auto 2rem;
         width: calc(100% - 1rem);
@@ -820,10 +814,7 @@ input:focus, select:focus {
     h2 {
         font-size: 1.5rem;
     }
-    
-    .form-controls {
-        flex-direction: column;
-    }
+    1
     
     .data-table th, .data-table td {
         padding: 0.75rem 0.5rem;
@@ -1079,7 +1070,6 @@ input:focus, select:focus {
     }
     
     .stats-item {
-        flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
     }
