@@ -171,15 +171,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Initialize Lucide icons
+// Initialize Lucide icons and fix .01 price
+// Initialize Lucide icons, tooltips, and fix leading-dot price inputs
 document.addEventListener('DOMContentLoaded', function() {
+    // 1) Lucide
     if (window.lucide) {
         lucide.createIcons();
     }
     
-    // Enhanced tooltips for long URLs
+    // 2) Enhanced tooltips
     initializeEnhancedTooltips();
+
+    // 3) Auto-prefix leading “.x” with “0.x” on price input
+    const priceInput = document.getElementById('price-input');
+    if (priceInput) {
+        priceInput.addEventListener('blur', () => {
+            const v = priceInput.value.trim();
+            if (v.startsWith('.') && /^\.\d+$/.test(v)) {
+                priceInput.value = '0' + v;
+            }
+        });
+    }
 });
+
 
 // Function to initialize enhanced tooltips for long URLs
 function initializeEnhancedTooltips() {
