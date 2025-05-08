@@ -4,6 +4,8 @@ import (
 	"embed"
 	"log/slog"
 
+	betterstackPkg "github.com/samber/slog-betterstack"
+
 	"linkshrink/auth"
 	"linkshrink/config"
 	"linkshrink/purchases"
@@ -20,12 +22,34 @@ var templatesFS embed.FS
 //go:embed static
 var staticFS embed.FS
 
+// configureLogger creates a logger based on configuration
+func configureLogger(cfg *config.Config) *slog.Logger {
+	// Start with default logger
+	logger := slog.Default()
+
+	// Configure BetterStack if credentials are available
+	if cfg.BetterStack.Token != "" && cfg.BetterStack.Endpoint != "" {
+		logger = slog.New(
+			betterstackPkg.Option{
+				Token:    cfg.BetterStack.Token,
+				Endpoint: cfg.BetterStack.Endpoint,
+			}.NewBetterstackHandler(),
+		)
+		logger.Info("BetterStack logging enabled")
+	}
+
+	return logger
+}
+
 func main() {
 	// Use the default logger until the configuration is loaded.
 	logger := slog.Default()
 
 	// Load the configuration.
 	cfg := config.LoadConfig(logger)
+
+	// Configure the logger based on settings
+	logger = configureLogger(cfg)
 
 	logger.Info(
 		"Logger configuration",

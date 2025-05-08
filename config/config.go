@@ -33,6 +33,12 @@ type Config struct {
 
 	// Auth configuration
 	Auth auth.Config `group:"auth" namespace:"auth"`
+
+	// BetterStack logging configuration
+	BetterStack struct {
+		Token    string
+		Endpoint string
+	}
 }
 
 var AppConfig *Config
@@ -122,6 +128,10 @@ func LoadConfig(logger *slog.Logger) *Config {
 	AppConfig.Auth.GoogleClientID = getEnvOrFatal("GOOGLE_CLIENT_ID")
 	AppConfig.Auth.GoogleClientSecret = getEnvOrFatal("GOOGLE_CLIENT_SECRET")
 	AppConfig.Auth.GoogleRedirectURL = getEnvOrFatal("GOOGLE_REDIRECT_URL")
+
+	// BetterStack configuration
+	AppConfig.BetterStack.Token = getEnv("BETTERSTACK_TOKEN", "")
+	AppConfig.BetterStack.Endpoint = getEnv("BETTERSTACK_ENDPOINT", "")
 
 	logger.Info("Configuration loaded.")
 
