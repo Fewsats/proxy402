@@ -331,9 +331,9 @@ h2 {
     margin-right: 0.5rem;
 }
 
-/* Hide API Reference button until it's ready */
+/* API Reference button styling */
 .api-ref-btn {
-    display: none;
+    display: inline-flex;
 }
 
 /* Form elements */
