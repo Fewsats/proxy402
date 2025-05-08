@@ -96,6 +96,19 @@ a:hover {
     align-items: center;
 }
 
+.navbar-tagline {
+    margin-left: 20px;
+    display: inline-flex;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.navbar-logo-inline {
+    max-height: 34px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
 .logo {
     font-size: 1.5rem;
     font-weight: 700;
@@ -1266,4 +1279,19 @@ th.sortable.desc::after {
     background-color: #a8d1ff; /* Lighter hover */
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Match dashboard button hover */
-} 
+}
+
+.landing-tagline {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    margin-top: -1rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.landing-logo-inline {
+    max-height: 34px;
+    margin-left: 8px;
+}
