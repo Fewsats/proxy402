@@ -52,6 +52,8 @@ type CreatePaidRouteRequest struct {
 	Method    string `json:"method" binding:"required"`
 	Price     string `json:"price" binding:"required,numeric"` // Validate as numeric string
 	IsTest    bool   `json:"is_test" binding:"omitempty"`      // Optional, defaults to true if omitted
+	Type      string `json:"type" binding:"omitempty"`         // Optional, defaults to "credit"
+	Credits   uint64 `json:"credits" binding:"omitempty"`      // Optional, defaults to 1
 }
 
 // getRequestScheme determines the scheme (http/https) based on the request.
@@ -79,6 +81,14 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 		return
 	}
 
+	// Set default values for Type and Credits if not provided
+	if req.Type == "" {
+		req.Type = "credit"
+	}
+	if req.Credits == 0 {
+		req.Credits = 1
+	}
+
 	// Get user ID from the context (set by AuthMiddleware)
 	authPayload, exists := gCtx.Get(auth.AuthorizationPayloadKey)
 	if !exists {
@@ -88,7 +98,7 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	payload := authPayload.(*auth.Claims)
 
 	// Call the service to create the route, passing isTestValue
-	route, err := h.paidRouteService.CreatePaidRoute(gCtx.Request.Context(), req.TargetURL, req.Method, req.Price, req.IsTest, payload.UserID)
+	route, err := h.paidRouteService.CreatePaidRoute(gCtx.Request.Context(), req.TargetURL, req.Method, req.Price, req.IsTest, payload.UserID, req.Type, req.Credits)
 	if err != nil {
 		// Handle specific validation errors from the service
 		gCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -100,27 +110,33 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 
 	gCtx.JSON(http.StatusCreated, gin.H{
-		"id":            route.ID,
-		"short_code":    route.ShortCode,
-		"access_url":    accessURL,
-		"target_url":    route.TargetURL,
-		"method":        route.Method,
-		"price":         h.formatPrice(route.Price),
-		"is_test":       route.IsTest,
-		"is_enabled":    route.IsEnabled,
+		"id":         route.ID,
+		"short_code": route.ShortCode,
+		"target_url": route.TargetURL,
+		"method":     route.Method,
+
+		"access_url": accessURL,
+
+		"price":      h.formatPrice(route.Price),
+		"type":       route.Type,
+		"credits":    route.Credits,
+		"is_test":    route.IsTest,
+		"is_enabled": route.IsEnabled,
+
 		"attempt_count": route.AttemptCount,
 		"payment_count": route.PaymentCount,
 		"access_count":  route.AccessCount,
-		"created_at":    route.CreatedAt,
+
+		"created_at": route.CreatedAt,
 	})
 }
 
-// HandlePaidRoute handles requests to the dynamic /:shortCode endpoints.
-// This performs DB lookup, method check, payment verification, and then proxies the request.
-func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
+// getAndValidateRoute retrieves the paid route configuration based on the shortCode
+// from the request path and validates the request method.
+// It sends an error response and returns shouldReturn=true if validation fails or route is not found.
+func (h *PaidRouteHandler) getAndValidateRoute(gCtx *gin.Context) (*PaidRoute, bool) {
 	shortCode := gCtx.Param("shortCode")
 
-	// Find the enabled route configuration by its short code.
 	route, err := h.paidRouteService.FindEnabledRouteByShortCode(gCtx.Request.Context(), shortCode)
 	if err != nil {
 		if errors.Is(err, ErrRouteNotFound) {
@@ -130,34 +146,109 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 			h.logger.Error("Error retrieving route config", "shortCode", shortCode, "error", err)
 			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving route configuration."})
 		}
-		return
+		return nil, true
 	}
 
-	// Check if the request method matches the configured method for the route.
 	if gCtx.Request.Method != route.Method {
+		h.logger.Warn("Method not allowed for route",
+			"shortCode", shortCode,
+			"requestMethod", gCtx.Request.Method,
+			"allowedMethod", route.Method)
 		gCtx.JSON(http.StatusMethodNotAllowed, gin.H{"error": fmt.Sprintf("Method %s not allowed for this route. Allowed: %s", gCtx.Request.Method, route.Method)})
-		return
+		return nil, true // Indicate main handler should return
 	}
 
-	// --- Payment Verification Step ---
-	// 3. Parse route.Price string to *big.Float
-	// Convert int64 price to string and then to *big.Float
+	return route, false // Route is valid, continue
+}
+
+// tryExistingPayment checks if a client-provided X-Payment header corresponds to a valid, usable purchase.
+// It attempts to use a credit from such a purchase.
+// Returns:
+//   - usedExistingCredit: true if an existing purchase was found and a credit was successfully used.
+//   - proceedToNewPayment: true if a new payment flow should be initiated (e.g., no header, purchase not found, no credits, error using credit).
+func (h *PaidRouteHandler) tryExistingPayment(gCtx *gin.Context, route *PaidRoute) (usedExistingCredit bool, proceedToNewPayment bool) {
+	clientPaymentHeader := gCtx.GetHeader("X-Payment")
+	if clientPaymentHeader == "" {
+		// No header, so must proceed to new payment flow.
+		return false, true
+	}
+
+	h.logger.Debug("Client provided X-Payment header, checking for existing purchase",
+		"shortCode", route.ShortCode, "routeID", route.ID, "clientPaymentHeader", clientPaymentHeader)
+
+	existingPurchase, err := h.purchaseService.GetPurchaseByRouteIDAndPaymentHeader(gCtx.Request.Context(), route.ID, clientPaymentHeader)
+
+	if err != nil {
+		if !errors.Is(err, purchases.ErrPurchaseNotFound) {
+			// Log actual errors, but still proceed to new payment as a fallback.
+			h.logger.Debug("Error checking for existing purchase with payment header",
+				"shortCode", route.ShortCode, "paymentHeader", clientPaymentHeader, "error", err)
+		}
+		// If purchase not found or other error, proceed to new payment.
+		return false, true
+	}
+
+	if existingPurchase == nil { // Should be covered by ErrPurchaseNotFound, but as a safeguard.
+		return false, true
+	}
+
+	h.logger.Debug("Existing purchase record found for payment header",
+		"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID,
+		"creditsUsed", existingPurchase.CreditsUsed, "creditsAvailable", existingPurchase.CreditsAvailable)
+
+	if existingPurchase.CreditsUsed >= existingPurchase.CreditsAvailable {
+		h.logger.Info("Existing purchase (via header) has no credits left. Proceeding to new payment.",
+			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
+		return false, true // No credits left, proceed to new payment.
+	}
+
+	// Credits are available, attempt to use one.
+	h.logger.Debug("Existing purchase has available credits. Attempting to use one credit.",
+		"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
+
+	errIncrement := h.purchaseService.IncrementCreditsUsed(gCtx.Request.Context(), existingPurchase.ID)
+	if errIncrement != nil {
+		h.logger.Error("Failed to increment credits_used for existing purchase. Proceeding to new payment.",
+			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID, "error", errIncrement)
+		return false, true // Failed to use credit, proceed to new payment.
+	}
+
+	// Successfully used a credit from an existing purchase.
+	h.logger.Info("Successfully used a credit from existing purchase via payment header.",
+		"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
+
+	// Increment overall access count for the route.
+	if err := h.paidRouteService.IncrementAccessCount(gCtx.Request.Context(), route.ShortCode); err != nil {
+		h.logger.Error("Failed to increment access count (existing payment with credit used)",
+			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID, "error", err)
+		// Log error but still consider existing credit used successfully for proxying.
+	}
+
+	return true, false // Existing credit used, DO NOT proceed to new payment.
+}
+
+// executeNewPaymentFlow handles the entire process of a new payment if an existing one isn't used.
+// Returns:
+//   - paymentProcessedSuccessfully: true if a new payment was completed and purchase recorded.
+//   - requestHandled: true if a response was sent (e.g., 402, 500 error) and the main handler should stop.
+func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidRoute) (paymentProcessedSuccessfully bool, requestHandled bool) {
+	// Parse route.Price string to *big.Float
 	priceFloat, ok := new(big.Float).SetString(h.formatPrice(route.Price))
 	if !ok {
-		h.logger.Error("Invalid price format", "shortCode", shortCode, "price", route.Price)
+		h.logger.Error("Invalid price format in executeNewPaymentFlow", "shortCode", route.ShortCode, "price", route.Price)
 		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route price."})
-		return
+		return false, true // Request handled (error sent)
 	}
 
 	scheme := getRequestScheme(gCtx)
 	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
-	h.logger.Info("Access URL created", "shortCode", shortCode, "accessURL", accessURL)
+	h.logger.Debug("Access URL for new payment flow created", "shortCode", route.ShortCode, "accessURL", accessURL)
 
-	// Try to get the user's payment address if they have one configured
 	user, err := h.userService.GetUserByID(gCtx.Request.Context(), route.UserID)
 	if err != nil {
-		h.logger.Error("Error fetching user", "shortCode", shortCode, "userID", route.UserID, "error", err)
-		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request after payment."})
+		h.logger.Error("Error fetching user in executeNewPaymentFlow", "shortCode", route.ShortCode, "userID", route.UserID, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request for payment."})
+		return false, true // Request handled (error sent)
 	}
 
 	paymentAddress := h.config.X402PaymentAddress // Default to configured address
@@ -167,111 +258,124 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 
 	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress,
 		x402.OptionWithFacilitatorURL(h.config.X402FacilitatorURL),
-		x402.OptionWithTestnet(route.IsTest), // Use the value from the route
+		x402.OptionWithTestnet(route.IsTest),
 		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
 		x402.OptionWithResource(accessURL),
-		// Add other options like OptionWithMaxTimeoutSeconds if needed
 	)
 
-	// 6. Check if the payment function aborted the request
 	if gCtx.IsAborted() {
-		// If aborted with 402, increment attempt count
 		if gCtx.Writer.Status() == http.StatusPaymentRequired {
-			err := h.paidRouteService.IncrementAttemptCount(gCtx.Request.Context(), shortCode)
-			if err != nil {
-				// Log error, but don't overwrite the original 402 response
-				h.logger.Error("Error incrementing attempt count after 402", "shortCode", shortCode, "error", err)
+			h.logger.Info("Payment required (402) by x402.Payment", "shortCode", route.ShortCode)
+			if err := h.paidRouteService.IncrementAttemptCount(gCtx.Request.Context(), route.ShortCode); err != nil {
+				h.logger.Error("Error incrementing attempt count after 402", "shortCode", route.ShortCode, "error", err)
 			}
 		}
-		return // Stop processing, response already sent by x402.Payment
+		// If x402.Payment aborted (e.g. sent 402), the request is handled.
+		return false, true
 	}
+
 	// If we get here, payment verification within x402.Payment succeeded.
-	// --- END Payment Verification ---
-
-	// Save purchase record
-	h.logger.Info("Saving purchase record", "shortCode", shortCode, "routeID", route.ID)
-	err = h.savePurchaseRecord(gCtx.Request.Context(), route, paymentAddress, paymentPayload, settleResponse)
+	paymentHeaderForNewPurchase := gCtx.GetHeader("X-Payment")
+	err = h.savePurchaseRecord(gCtx.Request.Context(), route, paymentAddress, paymentPayload, settleResponse, paymentHeaderForNewPurchase)
 	if err != nil {
-		h.logger.Error("Failed to save purchase record", "shortCode", shortCode, "routeID", route.ID, "error", err)
-		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
+		h.logger.Error("Failed to save purchase record after new payment", "shortCode", route.ShortCode, "routeID", route.ID, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after payment."})
+		return false, true // Request handled (error sent)
 	}
 
-	// Increment access count *after* successful verification check
-	if err := h.paidRouteService.IncrementAccessCount(gCtx.Request.Context(), shortCode); err != nil {
-		// Log the error, but proceed with proxying? Or return 500?
-		// Let's log and return 500 for now, as failing to count access is an internal issue.
-		h.logger.Error("Failed to increment access count", "shortCode", shortCode, "error", err)
-		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request after payment."})
-		return
+	// Increment payment count as a new payment was successfully processed and saved.
+	if err := h.paidRouteService.IncrementPaymentCount(gCtx.Request.Context(), route.ShortCode); err != nil {
+		h.logger.Error("Failed to increment payment count after new payment", "shortCode", route.ShortCode, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after processing payment counts."})
+		return true, true // Payment was processed, but this is a critical error for accounting, request is handled.
 	}
 
-	err = h.paidRouteService.IncrementPaymentCount(gCtx.Request.Context(), shortCode)
-	if err != nil {
-		h.logger.Error("Failed to increment payment count", "shortCode", shortCode, "error", err)
-		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request after payment."})
-		return
+	// Increment access count as a new payment was made and purchase recorded.
+	if err := h.paidRouteService.IncrementAccessCount(gCtx.Request.Context(), route.ShortCode); err != nil {
+		h.logger.Error("Failed to increment access count after new payment", "shortCode", route.ShortCode, "error", err)
+		// Log error, but consider payment successful for proxying. This count is secondary for the current access.
+		// gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after processing access counts."})
+		// return true, true // If we want to stop here
 	}
 
-	// --- Perform Reverse Proxy ---
+	return true, false // New payment processed successfully, request not yet fully handled (proxying is next).
+}
 
-	// 7. Parse the target URL
-	h.logger.Info("Parsing target URL", "shortCode", shortCode, "targetURL", route.TargetURL)
+// proxyRequest sets up and executes the reverse proxy to the target URL.
+func (h *PaidRouteHandler) proxyRequest(gCtx *gin.Context, route *PaidRoute) {
+	h.logger.Debug("Attempting to proxy request", "shortCode", route.ShortCode, "targetURL", route.TargetURL)
+
 	targetURL, err := url.Parse(route.TargetURL)
 	if err != nil {
-		h.logger.Error("Failed to parse target URL", "shortCode", shortCode, "targetURL", route.TargetURL, "error", err)
-		gCtx.Error(fmt.Errorf("failed to parse target URL for route %s: %w", shortCode, err))
-		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route target."})
+		h.logger.Error("Failed to parse target URL for proxy",
+			"shortCode", route.ShortCode, "targetURL", route.TargetURL, "error", err)
+		// gCtx.Error() might have already been called by a previous step if this was part of it
+		// However, if this is the first time parsing it in a refactored flow, an error response is needed.
+		if !gCtx.IsAborted() { // Avoid double writing headers
+			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route target."})
+		}
 		return
 	}
 
-	// 8. Create the reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
-	// 9. Define the Director to modify the request before forwarding
-	originalDirector := proxy.Director // Keep original director for basic setup
+	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
-		originalDirector(req) // Apply default modifications (Scheme, Host, Path)
-		// Ensure the Host header is set correctly for the target server
+		originalDirector(req)
 		req.Host = targetURL.Host
-		// Explicitly set the path to the target path, overwriting the incoming one
-		req.URL.Path = targetURL.Path
+		req.URL.Path = targetURL.Path // Explicitly set the path to the target path
 
-		// --- Add Proxy402-Secret Header ---
+		// Add Proxy402-Secret Header if configured for the user
 		user, err := h.userService.GetUserByID(gCtx.Request.Context(), route.UserID)
 		if err != nil {
-			// Log the error, but don't expose details to the client via headers.
-			// The proxy error handler below will catch this if the request fails later.
-			h.logger.Error("Error fetching user for Proxy402-Secret", "shortCode", shortCode, "error", err)
+			h.logger.Error("Error fetching user for Proxy402-Secret in proxy director",
+				"shortCode", route.ShortCode, "userID", route.UserID, "error", err)
 		} else if user != nil && user.Proxy402Secret != "" {
 			req.Header.Set("Proxy402-Secret", user.Proxy402Secret)
 		}
-		// --- End Add Proxy402-Secret Header ---
-
-		// Optional: Clean up headers specific to the incoming request if needed
-		// req.Header.Del("X-Forwarded-For")
-
-		// Note: The default reverse proxy handles X-Forwarded-For etc. automatically.
-		// We mostly just need to ensure req.Host is correct.
-		// The original gCtx.Request.URL path should be preserved by default director.
 	}
 
-	// Optional: Custom error handling
 	proxy.ErrorHandler = func(rw http.ResponseWriter, req *http.Request, err error) {
-		h.logger.Error("Reverse proxy error", "shortCode", shortCode,
-			"targetURL", route.TargetURL, "error", err)
-
-		rw.WriteHeader(http.StatusBadGateway)
+		h.logger.Error("Reverse proxy error occurred",
+			"shortCode", route.ShortCode, "targetURL", route.TargetURL, "error", err)
 		// Avoid writing detailed errors to the client unless necessary
-		// rw.Write([]byte("Proxy error"))
+		// Check if headers have already been written to avoid http.ErrHeaderSent panic
+		if !gCtx.Writer.Written() {
+			rw.WriteHeader(http.StatusBadGateway)
+		}
 	}
 
-	// 10. Serve the request using the proxy
-	// This forwards the request (method, headers, body) to the targetURL
-	// and streams the response back to the original client (gCtx.Writer).
 	proxy.ServeHTTP(gCtx.Writer, gCtx.Request)
+}
 
-	// --- END Reverse Proxy ---
+// HandlePaidRoute handles requests to the dynamic /:shortCode endpoints.
+func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
+	route, shouldReturn := h.getAndValidateRoute(gCtx)
+	if shouldReturn {
+		return
+	}
+
+	usedExistingCredit, proceedToNewPayment := h.tryExistingPayment(gCtx, route)
+
+	var newPaymentProcessedSuccessfully bool = false
+
+	if proceedToNewPayment {
+		var requestAlreadyHandled bool
+		newPaymentProcessedSuccessfully, requestAlreadyHandled = h.executeNewPaymentFlow(gCtx, route)
+		if requestAlreadyHandled {
+			return
+		}
+	}
+
+	if !usedExistingCredit && !newPaymentProcessedSuccessfully {
+		if !gCtx.IsAborted() {
+			h.logger.Error("Logical error: Reached proxy stage without a clear payment path and context not aborted.", "shortCode", route.ShortCode)
+			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server processing error."})
+		}
+		return
+	}
+
+	h.proxyRequest(gCtx, route)
 }
 
 // GetUserPaidRoutes handles GET requests to retrieve all paid routes for the authenticated user.
@@ -299,19 +403,25 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(gCtx *gin.Context) {
 		scheme := getRequestScheme(gCtx)
 		accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 		responseRoutes[i] = gin.H{
-			"id":            route.ID,
-			"short_code":    route.ShortCode,
-			"access_url":    accessURL,
-			"target_url":    route.TargetURL,
-			"method":        route.Method,
-			"price":         h.formatPrice(route.Price),
-			"is_test":       route.IsTest,
-			"is_enabled":    route.IsEnabled,
+			"id":         route.ID,
+			"short_code": route.ShortCode,
+			"target_url": route.TargetURL,
+			"method":     route.Method,
+
+			"access_url": accessURL,
+
+			"price":      h.formatPrice(route.Price),
+			"type":       route.Type,
+			"credits":    route.Credits,
+			"is_test":    route.IsTest,
+			"is_enabled": route.IsEnabled,
+
 			"attempt_count": route.AttemptCount,
 			"payment_count": route.PaymentCount,
 			"access_count":  route.AccessCount,
-			"created_at":    route.CreatedAt,
-			"updated_at":    route.UpdatedAt,
+
+			"created_at": route.CreatedAt,
+			"updated_at": route.UpdatedAt,
 		}
 	}
 
@@ -359,7 +469,7 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context,
 	route *PaidRoute, paymentAddress string,
 	paymentPayload *x402.PaymentPayload,
-	settleResponse *x402.SettleResponse) error {
+	settleResponse *x402.SettleResponse, paymentHeader string) error {
 
 	// Convert paymentPayload to JSON
 	paymentPayloadJson, err := json.Marshal(paymentPayload)
@@ -377,15 +487,21 @@ func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context,
 
 	// Create purchase record
 	purchase := &purchases.Purchase{
-		ShortCode:      route.ShortCode,
-		TargetURL:      route.TargetURL,
-		Method:         route.Method,
-		Price:          route.Price,
-		IsTest:         route.IsTest,
-		PaidRouteID:    route.ID,
+		ShortCode:        route.ShortCode,
+		TargetURL:        route.TargetURL,
+		Method:           route.Method,
+		Price:            route.Price,
+		Type:             route.Type,
+		CreditsAvailable: route.Credits,
+		CreditsUsed:      1, // If we create a purchase record, we know it's a new payment. (1 use already)
+		IsTest:           route.IsTest,
+
+		PaidRouteID:   route.ID,
+		PaidToAddress: paymentAddress,
+
+		PaymentHeader:  paymentHeader,
 		PaymentPayload: paymentPayloadJson,
 		SettleResponse: settleResponseJson,
-		PaidToAddress:  paymentAddress,
 	}
 	h.logger.Info("Purchase record created", "purchase", fmt.Sprintf("%+v", purchase))
 

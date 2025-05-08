@@ -52,6 +52,8 @@ type UIPaidRoute struct {
 	Price     string
 
 	IsTest    bool
+	Type      string
+	Credits   uint64
 	IsEnabled bool
 
 	AttemptCount uint64
@@ -141,18 +143,23 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	var uiLinks []UIPaidRoute
 	for _, link := range dbLinks {
 		uiLinks = append(uiLinks, UIPaidRoute{
-			ID:           link.ID,
-			UserID:       link.UserID,
-			ShortCode:    link.ShortCode,
-			TargetURL:    link.TargetURL,
-			Method:       link.Method,
-			Price:        strconv.FormatFloat(float64(link.Price)/1000000, 'f', -1, 64),
-			IsEnabled:    link.IsEnabled,
+			ID:        link.ID,
+			ShortCode: link.ShortCode,
+			TargetURL: link.TargetURL,
+			Method:    link.Method,
+
+			Price:     strconv.FormatFloat(float64(link.Price)/1000000, 'f', -1, 64),
+			Type:      link.Type,
+			Credits:   link.Credits,
+			IsTest:    link.IsTest,
+			UserID:    link.UserID,
+			IsEnabled: link.IsEnabled,
+
 			AttemptCount: link.AttemptCount,
 			PaymentCount: link.PaymentCount,
 			AccessCount:  link.AccessCount,
-			IsTest:       link.IsTest,
-			CreatedAt:    link.CreatedAt.Format("2006-01-02"),
+
+			CreatedAt: link.CreatedAt.Format("2006-01-02"),
 		})
 	}
 

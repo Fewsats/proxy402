@@ -2,10 +2,12 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	pkgPurchases "linkshrink/purchases"
@@ -16,16 +18,21 @@ import (
 func (s *Store) CreatePurchase(ctx context.Context, purchase *pkgPurchases.Purchase) (uint64, error) {
 	now := s.clock.Now()
 	params := sqlc.CreatePurchaseParams{
-		ShortCode:      purchase.ShortCode,
-		TargetUrl:      purchase.TargetURL,
-		Method:         purchase.Method,
-		Price:          int32(purchase.Price),
-		IsTest:         purchase.IsTest,
+		ShortCode:        purchase.ShortCode,
+		TargetUrl:        purchase.TargetURL,
+		Method:           purchase.Method,
+		Price:            int32(purchase.Price),
+		Type:             purchase.Type,
+		CreditsAvailable: int32(purchase.CreditsAvailable),
+		CreditsUsed:      int32(purchase.CreditsUsed),
+		IsTest:           purchase.IsTest,
+
+		PaidRouteID:   int64(purchase.PaidRouteID),
+		PaidToAddress: purchase.PaidToAddress,
+
+		PaymentHeader:  pgtype.Text{String: purchase.PaymentHeader, Valid: purchase.PaymentHeader != ""},
 		PaymentPayload: []byte(purchase.PaymentPayload),
 		SettleResponse: []byte(purchase.SettleResponse),
-
-		PaidToAddress: purchase.PaidToAddress,
-		PaidRouteID:   int64(purchase.PaidRouteID),
 
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -74,6 +81,7 @@ func (s *Store) ListPurchasesByShortCode(ctx context.Context, shortCode string) 
 			&p.ID, &p.ShortCode, &p.TargetUrl, &p.Method, &p.Price,
 			&p.IsTest, &p.PaymentPayload, &p.SettleResponse, &p.PaidRouteID,
 			&p.PaidToAddress, &p.CreatedAt, &p.UpdatedAt,
+			&p.Type, &p.CreditsAvailable, &p.CreditsUsed, &p.PaymentHeader,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan purchase row: %w", err)
 		}
@@ -200,21 +208,60 @@ func padDailyStats(stats []pkgPurchases.DailyStats, days uint64) []pkgPurchases.
 
 // Helper function to convert sqlc Purchase to pkgPurchases.Purchase
 func convertToPurchaseModel(dbPurchase sqlc.Purchase) *pkgPurchases.Purchase {
+	var paymentHeaderStr string
+	if dbPurchase.PaymentHeader.Valid {
+		paymentHeaderStr = dbPurchase.PaymentHeader.String
+	}
+
 	purchase := &pkgPurchases.Purchase{
-		ID:             uint64(dbPurchase.ID),
-		ShortCode:      dbPurchase.ShortCode,
-		TargetURL:      dbPurchase.TargetUrl,
-		Method:         dbPurchase.Method,
-		Price:          uint64(dbPurchase.Price),
-		IsTest:         dbPurchase.IsTest,
+		ID:               uint64(dbPurchase.ID),
+		ShortCode:        dbPurchase.ShortCode,
+		TargetURL:        dbPurchase.TargetUrl,
+		Method:           dbPurchase.Method,
+		Price:            uint64(dbPurchase.Price),
+		Type:             dbPurchase.Type,
+		CreditsAvailable: uint64(dbPurchase.CreditsAvailable),
+		CreditsUsed:      uint64(dbPurchase.CreditsUsed),
+		IsTest:           dbPurchase.IsTest,
+
+		PaidRouteID:   uint64(dbPurchase.PaidRouteID),
+		PaidToAddress: dbPurchase.PaidToAddress,
+
+		PaymentHeader:  paymentHeaderStr,
 		PaymentPayload: []byte(dbPurchase.PaymentPayload),
 		SettleResponse: []byte(dbPurchase.SettleResponse),
-		PaidRouteID:    uint64(dbPurchase.PaidRouteID),
-		PaidToAddress:  dbPurchase.PaidToAddress,
 
 		CreatedAt: dbPurchase.CreatedAt,
 		UpdatedAt: dbPurchase.UpdatedAt,
 	}
 
 	return purchase
+}
+
+func (s *Store) GetPurchaseByRouteIDAndPaymentHeader(ctx context.Context, routeID uint64, paymentHeader string) (*pkgPurchases.Purchase, error) {
+	params := sqlc.GetPurchaseByRouteIDAndPaymentHeaderParams{
+		PaidRouteID:   int64(routeID),
+		PaymentHeader: pgtype.Text{String: paymentHeader, Valid: paymentHeader != ""},
+	}
+	dbPurchase, err := s.queries.GetPurchaseByRouteIDAndPaymentHeader(ctx, params)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, pkgPurchases.ErrPurchaseNotFound
+		}
+		return nil, fmt.Errorf("failed to get purchase by route ID and payment header: %w", err)
+	}
+	return convertToPurchaseModel(dbPurchase), nil
+}
+
+// IncrementPurchaseCreditsUsed increments the credits_used count for a specific purchase ID.
+func (s *Store) IncrementPurchaseCreditsUsed(ctx context.Context, purchaseID uint64) error {
+	params := sqlc.IncrementPurchaseCreditsUsedParams{
+		ID:        int64(purchaseID),
+		UpdatedAt: s.clock.Now(),
+	}
+	err := s.queries.IncrementPurchaseCreditsUsed(ctx, params)
+	if err != nil {
+		return fmt.Errorf("failed to execute increment credits_used query: %w", err)
+	}
+	return nil
 }

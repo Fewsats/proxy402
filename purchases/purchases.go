@@ -5,16 +5,20 @@ import (
 )
 
 type Purchase struct {
-	ID        uint64 `json:"-"`
-	ShortCode string `json:"short_code"`
-	TargetURL string `json:"target_url"`
-	Method    string `json:"method"`
-	Price     uint64 `json:"price"`
-	IsTest    bool   `json:"is_test"`
+	ID               uint64 `json:"-"`
+	ShortCode        string `json:"short_code"`
+	TargetURL        string `json:"target_url"`
+	Method           string `json:"method"`
+	Price            uint64 `json:"price"`
+	Type             string `json:"type,omitempty"`
+	CreditsAvailable uint64 `json:"credits_available,omitempty"`
+	CreditsUsed      uint64 `json:"credits_used,omitempty"`
+	IsTest           bool   `json:"is_test"`
 
 	PaidRouteID   uint64 `json:"-"`
 	PaidToAddress string `json:"-"`
 
+	PaymentHeader  string `json:"-"` // Internal tracking, not usually in API response for purchase list
 	PaymentPayload []byte `json:"-"`
 	SettleResponse []byte `json:"-"`
 

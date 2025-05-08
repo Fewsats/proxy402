@@ -62,13 +62,26 @@ document.addEventListener('DOMContentLoaded', function() {
             const price = document.getElementById('price-input').value;
             const method = document.getElementById('method-select').value;
             const isTest = Boolean(document.getElementById('is-test-input').checked);
+            // Get new fields
+            const type = document.getElementById('type-select').value;
+            const creditsValue = parseInt(document.getElementById('credits-input').value, 10); // Parse as integer
+
+            // Basic validation for credits
+            if (isNaN(creditsValue) || creditsValue < 1) {
+                errorDiv.textContent = 'Credits must be a number greater than or equal to 1.';
+                errorDiv.style.display = 'block';
+                if (spinner) spinner.style.display = 'none';
+                return; // Stop submission
+            }
             
             // Create payload
             const payload = {
                 target_url: targetUrl,
                 price: price,
                 method: method,
-                is_test: isTest
+                is_test: isTest,
+                type: type,         // Add type
+                credits: creditsValue // Add credits (now a number)
             };
             
             try {

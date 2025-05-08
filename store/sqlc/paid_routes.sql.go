@@ -31,22 +31,29 @@ const createPaidRoute = `-- name: CreatePaidRoute :one
 INSERT INTO paid_routes (
     short_code, target_url, method, price, is_test,
     user_id, is_enabled, attempt_count, payment_count, access_count,
-    created_at, updated_at
+    created_at, updated_at,
+    type, credits
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, 0, 0, 0, $8, $9
-) RETURNING id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+    $13, $14
+) RETURNING id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits
 `
 
 type CreatePaidRouteParams struct {
-	ShortCode string
-	TargetUrl string
-	Method    string
-	Price     int32
-	IsTest    bool
-	UserID    int64
-	IsEnabled bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ShortCode    string
+	TargetUrl    string
+	Method       string
+	Price        int32
+	IsTest       bool
+	UserID       int64
+	IsEnabled    bool
+	AttemptCount int32
+	PaymentCount int32
+	AccessCount  int32
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Type         string
+	Credits      int32
 }
 
 // CreatePaidRoute creates a new paid route.
@@ -59,8 +66,13 @@ func (q *Queries) CreatePaidRoute(ctx context.Context, arg CreatePaidRouteParams
 		arg.IsTest,
 		arg.UserID,
 		arg.IsEnabled,
+		arg.AttemptCount,
+		arg.PaymentCount,
+		arg.AccessCount,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.Type,
+		arg.Credits,
 	)
 	var i PaidRoute
 	err := row.Scan(
@@ -78,6 +90,8 @@ func (q *Queries) CreatePaidRoute(ctx context.Context, arg CreatePaidRouteParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Type,
+		&i.Credits,
 	)
 	return i, err
 }
@@ -101,7 +115,7 @@ func (q *Queries) DeletePaidRoute(ctx context.Context, arg DeletePaidRouteParams
 }
 
 const getEnabledPaidRouteByShortCode = `-- name: GetEnabledPaidRouteByShortCode :one
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits FROM paid_routes
 WHERE short_code = $1 AND is_enabled = true AND deleted_at IS NULL
 `
 
@@ -124,12 +138,14 @@ func (q *Queries) GetEnabledPaidRouteByShortCode(ctx context.Context, shortCode 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Type,
+		&i.Credits,
 	)
 	return i, err
 }
 
 const getPaidRouteByID = `-- name: GetPaidRouteByID :one
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits FROM paid_routes
 WHERE id = $1 AND deleted_at IS NULL
 `
 
@@ -152,12 +168,14 @@ func (q *Queries) GetPaidRouteByID(ctx context.Context, id int64) (PaidRoute, er
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Type,
+		&i.Credits,
 	)
 	return i, err
 }
 
 const getPaidRouteByShortCode = `-- name: GetPaidRouteByShortCode :one
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits FROM paid_routes
 WHERE short_code = $1 AND deleted_at IS NULL
 `
 
@@ -180,6 +198,8 @@ func (q *Queries) GetPaidRouteByShortCode(ctx context.Context, shortCode string)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Type,
+		&i.Credits,
 	)
 	return i, err
 }
@@ -239,7 +259,7 @@ func (q *Queries) IncrementPaymentCount(ctx context.Context, arg IncrementPaymen
 }
 
 const listUserPaidRoutes = `-- name: ListUserPaidRoutes :many
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits FROM paid_routes
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC
 `
@@ -269,6 +289,8 @@ func (q *Queries) ListUserPaidRoutes(ctx context.Context, userID int64) ([]PaidR
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.Type,
+			&i.Credits,
 		); err != nil {
 			return nil, err
 		}

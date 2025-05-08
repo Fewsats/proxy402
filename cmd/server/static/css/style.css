@@ -901,10 +901,13 @@ input:focus, select:focus {
     font-weight: 500;
     padding: 0.4rem 0.75rem;
     border-radius: 4px;
-    white-space: nowrap;
+    white-space: pre-line;
     bottom: calc(100% + 8px);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-color);
+    min-width: 250px;
+    max-width: 400px;
+    text-align: left;
 }
 
 [data-tooltip]::before {

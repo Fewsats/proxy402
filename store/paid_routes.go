@@ -35,10 +35,18 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 		ShortCode: shortCode,
 		TargetUrl: route.TargetURL,
 		Method:    route.Method,
+
 		Price:     int32(route.Price),
+		Type:      route.Type,
+		Credits:   int32(route.Credits),
 		IsTest:    route.IsTest,
 		UserID:    int64(route.UserID),
 		IsEnabled: route.IsEnabled,
+
+		AttemptCount: 0,
+		PaymentCount: 0,
+		AccessCount:  0,
+
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -199,19 +207,24 @@ func (s *Store) GenerateUniqueShortCode(ctx context.Context,
 // Helper function to convert sqlc PaidRoute to models.PaidRoute
 func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *routes.PaidRoute {
 	route := &routes.PaidRoute{
-		ID:           uint64(dbRoute.ID),
-		ShortCode:    dbRoute.ShortCode,
-		TargetURL:    dbRoute.TargetUrl,
-		Method:       dbRoute.Method,
-		Price:        uint64(dbRoute.Price),
-		IsTest:       dbRoute.IsTest,
-		UserID:       uint64(dbRoute.UserID),
-		IsEnabled:    dbRoute.IsEnabled,
+		ID:        uint64(dbRoute.ID),
+		ShortCode: dbRoute.ShortCode,
+		TargetURL: dbRoute.TargetUrl,
+		Method:    dbRoute.Method,
+
+		Price:     uint64(dbRoute.Price),
+		Type:      dbRoute.Type,
+		Credits:   uint64(dbRoute.Credits),
+		IsTest:    dbRoute.IsTest,
+		UserID:    uint64(dbRoute.UserID),
+		IsEnabled: dbRoute.IsEnabled,
+
 		AttemptCount: uint64(dbRoute.AttemptCount),
 		PaymentCount: uint64(dbRoute.PaymentCount),
 		AccessCount:  uint64(dbRoute.AccessCount),
-		CreatedAt:    dbRoute.CreatedAt,
-		UpdatedAt:    dbRoute.UpdatedAt,
+
+		CreatedAt: dbRoute.CreatedAt,
+		UpdatedAt: dbRoute.UpdatedAt,
 	}
 
 	// Convert DeletedAt if it exists
