@@ -180,6 +180,42 @@
                             <i data-lucide="help-circle" width="16" height="16"></i>
                         </span>
                     </div>
+                    
+                    <select id="method-select" name="method" required>
+                        <option value="GET">GET</option>
+                        <option value="PUT">PUT</option>
+                        <option value="POST">POST</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                    </select> 
+
+                    <select id="type-select" name="type" required>
+                        <option value="credit">Credit</option>
+                        <option value="one-time" selected>One-time payment</option>
+                        <!-- Add other types here if needed, e.g., <option value="subscription">Subscription</option> -->
+                    </select>
+                    <span class="tooltip" data-tooltip="ONE-TIME PAYMENT: User pays once for a single access.&#xA;CREDIT: User pays once for a set number of accesses.&#xA; (To use credits for subsequent visits, the client must resend the `X-Payment` header from the original successful payment.)">
+                        <i data-lucide="help-circle" width="16" height="16"></i>
+                    </span>
+
+                    <div class="input-with-tooltip" id="credits-input-container">
+                        <input type="number" id="credits-input" name="credits" placeholder="Credits" min="1" value="1" required>
+                        <!-- Old tooltip for credits-input was here, now removed -->
+                    </div>
+                    
+                    <div class="toggle-switch">
+                        <label class="toggle-switch-label">
+                            <input type="checkbox" id="is-test-input" name="is_test">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Test Mode
+                                <span class="tooltip" data-tooltip="When enabled, uses test USDC on base sepolia network">
+                                    <i data-lucide="help-circle" width="16" height="16"></i>
+                                </span>
+                            </span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn">Add URL <span id="spinner" class="htmx-indicator">↻</span></button>
                         
                     <select id="method-select" name="method" required>
                         <option value="GET">GET</option>
@@ -271,8 +307,7 @@
                             <th>Proxy URL</th>
                             <th>Method</th>
                             <th class="sortable" data-column="price">Price</th>
-                            <th>Type</th>
-                            <th>Credits</th>
+                            <th>Payment Model</th>
                             <th class="th-with-tooltip">
                                 <span>Attempts</span>
                                 <span class="tooltip th-tooltip" data-tooltip="Total times payment was attempted">
@@ -314,8 +349,16 @@
                             </td>
                             <td>{{.Method}}</td>
                             <td>${{.Price}} USDC</td>
-                            <td>{{.Type}}</td>
-                            <td>{{.Credits}}</td>
+                            <td>
+                                {{if and (eq .Type "credit") (eq .Credits 1)}}
+                                    One-time payment
+                                {{else}}
+                                    {{/* Capitalize first letter of Type for display */}}
+                                    {{$typeDisplay := .Type}}
+                                    {{/* A bit verbose for simple capitalization in Go templates without custom funcs */}}
+                                    {{if eq $typeDisplay "credit"}}Credit{{else}}{{$typeDisplay}}{{end}}: {{.Credits}} / User
+                                {{end}}
+                            </td>
                             <td>{{.AttemptCount}}</td>
                             <td>{{.PaymentCount}}</td>
                             <!-- <td>{{.AccessCount}}</td> -->
@@ -631,6 +674,45 @@
             // Initial filter on load
             filterTable(); 
         });
+
+        // ---- START NEW LOGIC FOR ONE-TIME PAYMENT ----
+        document.addEventListener('DOMContentLoaded', function() {
+            const typeSelect = document.getElementById('type-select');
+            const creditsInputContainer = document.getElementById('credits-input-container');
+            const creditsInput = document.getElementById('credits-input');
+            const linkForm = document.getElementById('link-form');
+
+            function toggleCreditsField() {
+                if (typeSelect.value === 'one-time') {
+                    creditsInputContainer.style.display = 'none';
+                    creditsInput.value = '1';
+                } else {
+                    creditsInputContainer.style.display = 'inline-flex'; // Explicitly set to its styled display type
+                    // Optionally, you might want to clear creditsInput.value or set a default
+                }
+            }
+
+            if (typeSelect && creditsInputContainer && creditsInput && linkForm) {
+                // Initial check
+                toggleCreditsField();
+
+                // Listener for type select change
+                typeSelect.addEventListener('change', toggleCreditsField);
+
+                // Listener for form submission
+                linkForm.addEventListener('submit', function(event) {
+                    // Check the original UI selection, not the potentially modified one
+                    const selectedTypeInUI = document.getElementById('type-select').value; 
+                    if (selectedTypeInUI === 'one-time') {
+                        // If 'one-time' was selected, change the actual select value to 'credit' for backend
+                        // The creditsInput.value is already '1' due to toggleCreditsField
+                        document.getElementById('type-select').value = 'credit';
+                    }
+                    // The form will now submit with type='credit' and credits='1' if 'one-time' was chosen
+                });
+            }
+        });
+        // ---- END NEW LOGIC FOR ONE-TIME PAYMENT ----
 
     </script>
 </body>

@@ -21,6 +21,11 @@ build:
 run: build
     ./linkshrink
 
+# Run the application with live reload using air
+dev:
+    @echo "Starting application with air for live reload..."
+    air
+
 # Clean up binaries
 clean:
     rm -f linkshrink
@@ -37,7 +42,6 @@ migrate-up:
     migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose up
 
 migrate-down:
-    
     migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose down 1
 
 migrate-create name:
