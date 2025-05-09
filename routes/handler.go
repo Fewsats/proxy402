@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -196,26 +197,50 @@ func (h *PaidRouteHandler) tryExistingPayment(gCtx *gin.Context, route *PaidRout
 		"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID,
 		"creditsUsed", existingPurchase.CreditsUsed, "creditsAvailable", existingPurchase.CreditsAvailable)
 
-	if existingPurchase.CreditsUsed >= existingPurchase.CreditsAvailable {
-		h.logger.Info("Existing purchase (via header) has no credits left. Proceeding to new payment.",
+	switch existingPurchase.Type {
+	case "credit":
+		if existingPurchase.CreditsUsed >= existingPurchase.CreditsAvailable {
+			h.logger.Info("Existing 'credit' purchase (via header) has no credits left. Proceeding to new payment.",
+				"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
+			return false, true // No credits left, proceed to new payment.
+		}
+
+		// Credits are available for 'credit' type, attempt to use one.
+		h.logger.Debug("Existing 'credit' purchase has available credits. Attempting to use one credit.",
 			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
-		return false, true // No credits left, proceed to new payment.
+
+		errIncrement := h.purchaseService.IncrementCreditsUsed(gCtx.Request.Context(), existingPurchase.ID)
+		if errIncrement != nil {
+			h.logger.Error("Failed to increment credits_used for 'credit' purchase. Proceeding to new payment.",
+				"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID, "error", errIncrement)
+			return false, true // Failed to use credit, proceed to new payment.
+		}
+		h.logger.Info("Successfully used a credit from existing 'credit' purchase via payment header.",
+			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
+
+	case "subscription":
+		// For subscription, check if the subscription period is still valid (1 month from CreatedAt)
+		expiryDate := existingPurchase.CreatedAt.AddDate(0, 1, 0) // Add 1 month
+		currentTime := time.Now()
+
+		if currentTime.After(expiryDate) {
+			h.logger.Info("Existing 'subscription' purchase (via header) has expired. Proceeding to new payment.",
+				"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID,
+				"createdAt", existingPurchase.CreatedAt, "expiryDate", expiryDate)
+			return false, true // Subscription expired, proceed to new payment.
+		}
+
+		// Subscription is active. No credit decrement needed for time-based access.
+		h.logger.Info("Successfully validated active 'subscription' via payment header.",
+			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID, "expiryDate", expiryDate)
+
+	default:
+		// Unknown or unhandled purchase type with an existing payment header.
+		// This case should ideally not be reached if route creation is validated properly.
+		h.logger.Warn("Encountered unknown purchase type with existing payment header. Proceeding to new payment.",
+			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID, "purchaseType", existingPurchase.Type)
+		return false, true // Proceed to new payment as a safe default.
 	}
-
-	// Credits are available, attempt to use one.
-	h.logger.Debug("Existing purchase has available credits. Attempting to use one credit.",
-		"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
-
-	errIncrement := h.purchaseService.IncrementCreditsUsed(gCtx.Request.Context(), existingPurchase.ID)
-	if errIncrement != nil {
-		h.logger.Error("Failed to increment credits_used for existing purchase. Proceeding to new payment.",
-			"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID, "error", errIncrement)
-		return false, true // Failed to use credit, proceed to new payment.
-	}
-
-	// Successfully used a credit from an existing purchase.
-	h.logger.Info("Successfully used a credit from existing purchase via payment header.",
-		"shortCode", route.ShortCode, "purchaseID", existingPurchase.ID)
 
 	// Increment overall access count for the route.
 	if err := h.paidRouteService.IncrementAccessCount(gCtx.Request.Context(), route.ShortCode); err != nil {
