@@ -58,6 +58,15 @@ func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
 	// Convert to integer (USDC * 10^6)
 	priceInt := uint64(priceFloat * 1000000)
 
+	// 4. Validate Route Type
+	allowedTypes := map[string]bool{
+		"credit":       true,
+		"subscription": true,
+	}
+	if !allowedTypes[routeType] {
+		return nil, fmt.Errorf("invalid route type specified: %s", routeType)
+	}
+
 	// Create and Save Route (short code will be generated in the store)
 	route := &PaidRoute{
 		TargetURL: targetURL,
