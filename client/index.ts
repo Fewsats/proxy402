@@ -2,7 +2,7 @@ import { config } from "dotenv";
 import { createWalletClient, http, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { withPaymentInterceptor } from "x402-axios";
-import axios from "axios";
+import axios, { AxiosRequestConfig } from "axios";
 import { baseSepolia, base } from "viem/chains";
 
 config();
@@ -12,6 +12,7 @@ const args = process.argv.slice(2);
 let targetUrl = '';
 let httpMethod = 'GET';
 let network = 'base-sepolia'; // Default to testnet
+let paymentHeader: string | undefined; // Variable to hold the payment header
 
 // Parse arguments
 for (let i = 0; i < args.length; i++) {
@@ -24,6 +25,11 @@ for (let i = 0; i < args.length; i++) {
   
   if (arg === '--method' && i + 1 < args.length) {
     httpMethod = args[++i].toUpperCase();
+    continue;
+  }
+
+  if (arg === '--payment-header' && i + 1 < args.length) { // Check for payment header flag
+    paymentHeader = args[++i];
     continue;
   }
   
@@ -42,7 +48,7 @@ if (!PRIVATE_KEY) {
 
 if (!targetUrl) {
   console.error("Missing required target URL");
-  console.error("Usage: npm run client -- <url> [--method GET|POST] [--network base-sepolia|base-mainnet]");
+  console.error("Usage: npm run client -- <url> [--method GET|POST] [--network base-sepolia|base-mainnet] [--payment-header <header_value>]");
   process.exit(1);
 }
 
@@ -58,6 +64,9 @@ if (network === 'base-mainnet' || network === 'base') {
 }
 
 console.log(`Making a ${httpMethod} request to: ${targetUrl}`);
+if (paymentHeader) {
+  console.log(`Including X-Payment header: ${paymentHeader}`);
+}
 
 const account = privateKeyToAccount(PRIVATE_KEY as `0x${string}`);
 const client = createWalletClient({
@@ -94,9 +103,21 @@ const api = withPaymentInterceptor(
   client,
 );
 
+// Prepare request config
+const requestConfig: AxiosRequestConfig = {
+  method: httpMethod,
+  url: '', // Use empty url if baseURL is set to the full targetUrl
+         // Or set url: targetUrl and baseURL: undefined if targetUrl includes path
+  headers: {}
+};
+
+// Conditionally add the X-Payment header
+if (paymentHeader) {
+  requestConfig.headers!['X-Payment'] = paymentHeader;
+}
+
 api
-  // Use the specified method
-  .request({ method: httpMethod, url: '' })
+  .request(requestConfig) // Use the prepared request config
   .then(response => {
     console.log("Response Headers:", response.headers);
     console.log("Response Data:", response.data);
