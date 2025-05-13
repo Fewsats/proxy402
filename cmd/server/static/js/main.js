@@ -44,6 +44,148 @@ function formatChartLegendValue(value) {
     return value.toFixed(6);
 }
 
+// Initialize tab switching and file upload functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab switching functionality
+    initTabs();
+    
+    // File upload functionality
+    initFileUpload();
+});
+
+// Initialize tab switching
+function initTabs() {
+    const tabs = document.querySelectorAll('.tab');
+    if (!tabs.length) return;
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            tab.classList.add('active');
+            
+            // Get target section
+            const targetId = tab.getAttribute('data-target');
+            
+            // Hide all sections
+            document.querySelectorAll('#url-section, #file-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show target section
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.style.display = 'block';
+            }
+            
+            // Update submit button text
+            const submitBtn = document.getElementById('submit-btn');
+            if (submitBtn) {
+                submitBtn.textContent = targetId === 'url-section' ? 'Add Link ' : 'Upload File ';
+                // Add the spinner back
+                const spinner = document.createElement('span');
+                spinner.id = 'spinner';
+                spinner.className = 'htmx-indicator';
+                spinner.textContent = '↻';
+                submitBtn.appendChild(spinner);
+            }
+            
+            // Update required fields
+            const urlInput = document.getElementById('target-url');
+            const fileInput = document.getElementById('file-input');
+            if (urlInput && fileInput) {
+                urlInput.required = targetId === 'url-section';
+                fileInput.required = targetId === 'file-section';
+            }
+        });
+    });
+}
+
+// Initialize file upload functionality
+function initFileUpload() {
+    const dropzone = document.getElementById('file-dropzone');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    
+    if (!dropzone || !fileInput || !filePreview) return;
+    
+    // Handle file selection
+    function handleFile(file) {
+        if (!file) return;
+        
+        const fileName = filePreview.querySelector('.file-name');
+        const fileSize = filePreview.querySelector('.file-size');
+        
+        if (fileName && fileSize) {
+            // Display file info
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+        }
+        
+        // Show preview, hide dropzone
+        filePreview.style.display = 'flex';
+        dropzone.style.display = 'none';
+    }
+    
+    // Prevent default browser drag behavior
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+    
+    // Highlight effect
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => dropzone.classList.add('dragover'));
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, () => dropzone.classList.remove('dragover'));
+    });
+    
+    // Handle dropped files
+    dropzone.addEventListener('drop', e => {
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+    
+    // Handle file selection via input
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            handleFile(fileInput.files[0]);
+        }
+    });
+    
+    // Open file dialog when clicking on dropzone
+    dropzone.addEventListener('click', () => fileInput.click());
+    
+    // Remove file button
+    const removeButton = filePreview.querySelector('.remove-file');
+    if (removeButton) {
+        removeButton.addEventListener('click', () => {
+            fileInput.value = '';
+            filePreview.style.display = 'none';
+            dropzone.style.display = 'block';
+        });
+    }
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 // Form submission handler
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('link-form');
@@ -57,67 +199,87 @@ document.addEventListener('DOMContentLoaded', function() {
             // Show spinner
             if (spinner) spinner.style.display = 'inline-block';
             
-            // Get form data
-            const targetUrl = document.getElementById('target-url').value;
-            const price = document.getElementById('price-input').value;
-            const method = document.getElementById('method-select').value;
-            const isTest = Boolean(document.getElementById('is-test-input').checked);
-            // Get new fields
-            const type = document.getElementById('type-select').value;
-            const creditsValue = parseInt(document.getElementById('credits-input').value, 10); // Parse as integer
-
-            // Basic validation for credits
-            if (isNaN(creditsValue) || creditsValue < 1) {
-                errorDiv.textContent = 'Credits must be a number greater than or equal to 1.';
-                errorDiv.style.display = 'block';
-                if (spinner) spinner.style.display = 'none';
-                return; // Stop submission
-            }
-            
-            // Create payload
-            const payload = {
-                target_url: targetUrl,
-                price: price,
-                method: method,
-                is_test: isTest,
-                type: type,         // Add type
-                credits: creditsValue // Add credits (now a number)
-            };
+            // Get active tab
+            const activeTab = document.querySelector('.tab.active');
+            const isFileUpload = activeTab?.getAttribute('data-target') === 'file-section';
             
             try {
-                // Send request
-                const response = await fetch('/links/shrink', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-                
-                // Parse response
-                const data = await response.json();
-                console.log('Response data:', data); // Log response for debugging
-                
-                if (response.ok) {
-                    // Success - hide error and reset form
-                    errorDiv.textContent = '';
-                    errorDiv.style.display = 'none';
-                    form.reset();
-                    window.location.reload();
+                if (isFileUpload) {
+                    await handleFileUpload();
                 } else {
-                    // Show error message
-                    errorDiv.textContent = data.error || 'An error occurred';
-                    errorDiv.style.display = 'block';
+                    await handleUrlSubmission();
                 }
             } catch (error) {
-                errorDiv.textContent = 'Network error. Please try again.';
+                errorDiv.textContent = error.message || 'Network error. Please try again.';
                 errorDiv.style.display = 'block';
                 console.error('Error submitting form:', error);
             } finally {
-                // Hide spinner
                 if (spinner) spinner.style.display = 'none';
             }
         });
+    }
+    
+    async function handleFileUpload() {
+        const fileInput = document.getElementById('file-input');
+        if (!fileInput.files.length) {
+            throw new Error('Please select a file to upload.');
+        }
+        
+        // Get form data
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        formData.append('price', document.getElementById('price-input').value);
+        formData.append('method', document.getElementById('method-select').value);
+        formData.append('is_test', document.getElementById('is-test-input').checked);
+        formData.append('type', document.getElementById('type-select').value);
+        formData.append('credits', document.getElementById('credits-input').value);
+        
+        // Send request
+        const response = await fetch('/files/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            errorDiv.style.display = 'none';
+            form.reset();
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'An error occurred');
+        }
+    }
+    
+    async function handleUrlSubmission() {
+        // Create payload
+        const payload = {
+            target_url: document.getElementById('target-url').value,
+            price: document.getElementById('price-input').value,
+            method: document.getElementById('method-select').value,
+            is_test: document.getElementById('is-test-input').checked,
+            type: document.getElementById('type-select').value,
+            credits: document.getElementById('credits-input').value
+        };
+        
+        // Send request
+        const response = await fetch('/links/shrink', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            errorDiv.style.display = 'none';
+            form.reset();
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'An error occurred');
+        }
     }
 });
 
@@ -195,7 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 2) Enhanced tooltips
     initializeEnhancedTooltips();
 
-    // 3) Auto-prefix leading “.x” with “0.x” on price input
+    // 3) Auto-prefix leading "x" with "0.x" on price input
     const priceInput = document.getElementById('price-input');
     if (priceInput) {
         priceInput.addEventListener('blur', () => {
