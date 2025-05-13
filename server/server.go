@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/auth"
+	"linkshrink/cloudflare"
 	"linkshrink/config"
 	"linkshrink/purchases"
 	"linkshrink/routes"
@@ -33,14 +34,17 @@ type Server struct {
 
 // NewServer creates and configures a new server instance
 func NewServer(
-	logger *slog.Logger,
-	cfg *config.Config,
 	userService *users.UserService,
 	routeService *routes.PaidRouteService,
 	purchaseService *purchases.PurchaseService,
 	authService *auth.Service,
+	cloudflareService *cloudflare.Service,
+
 	templatesFS embed.FS,
 	staticFS embed.FS,
+
+	logger *slog.Logger,
+	cfg *config.Config,
 ) *Server {
 	router := gin.Default() // Includes Logger and Recovery middleware
 

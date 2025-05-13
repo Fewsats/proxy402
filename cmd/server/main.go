@@ -7,6 +7,7 @@ import (
 	betterstackPkg "github.com/samber/slog-betterstack"
 
 	"linkshrink/auth"
+	"linkshrink/cloudflare"
 	"linkshrink/config"
 	"linkshrink/purchases"
 	"linkshrink/routes"
@@ -82,17 +83,28 @@ func main() {
 	paidRouteService := routes.NewPaidRouteService(logger, store)
 	purchaseService := purchases.NewPurchaseService(logger, store)
 	authService := auth.NewAuthService(&cfg.Auth)
+	cloudflareService, err := cloudflare.NewService(&cfg.Cloudflare)
+	if err != nil {
+		logger.Error(
+			"Unable to create Cloudflare service",
+			"error", err,
+		)
+		return
+	}
 
 	// Create and configure the server
 	srv := server.NewServer(
-		logger,
-		cfg,
 		userService,
 		paidRouteService,
 		purchaseService,
 		authService,
+		cloudflareService,
+
 		templatesFS,
 		staticFS,
+
+		logger,
+		cfg,
 	)
 
 	// Setup routes
@@ -105,7 +117,8 @@ func main() {
 	}
 
 	// Start the server
-	if err := srv.Run(); err != nil {
+	err = srv.Run()
+	if err != nil {
 		logger.Error(
 			"Server failed to start",
 			"error", err,
