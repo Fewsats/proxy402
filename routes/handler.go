@@ -12,6 +12,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -26,6 +27,7 @@ type PaidRouteHandler struct {
 	paidRouteService *PaidRouteService
 	purchaseService  *purchases.PurchaseService
 	userService      *users.UserService
+	priceUtils       PriceUtils
 
 	config *Config
 	logger *slog.Logger
@@ -40,20 +42,11 @@ func NewPaidRouteHandler(routeService *PaidRouteService,
 		paidRouteService: routeService,
 		purchaseService:  purchaseService,
 		userService:      userService,
+		priceUtils:       NewPriceUtils(),
 
 		config: config,
 		logger: logger,
 	}
-}
-
-// CreatePaidRouteRequest defines the JSON body for creating a paid route.
-type CreatePaidRouteRequest struct {
-	TargetURL string `json:"target_url" binding:"required,url"`
-	Method    string `json:"method" binding:"required"`
-	Price     string `json:"price" binding:"required,numeric"` // Validate as numeric string
-	IsTest    bool   `json:"is_test" binding:"omitempty"`      // Optional, defaults to true if omitted
-	Type      string `json:"type" binding:"omitempty"`         // Optional, defaults to "credit"
-	Credits   uint64 `json:"credits" binding:"omitempty"`      // Optional, defaults to 1
 }
 
 // getRequestScheme determines the scheme (http/https) based on the request.
@@ -67,29 +60,65 @@ func getRequestScheme(gCtx *gin.Context) string {
 	return scheme
 }
 
-// formatPrice converts price from integer (USDC * 10^6) to a decimal string
-func (h *PaidRouteHandler) formatPrice(priceInt uint64) string {
-	return fmt.Sprintf("%.6f", float64(priceInt)/1000000)
+// setDefaultTypeAndCredits sets default values for Type and Credits if not provided.
+func setDefaultTypeAndCredits(routeType *string, credits *uint64) {
+	if *routeType == "" {
+		*routeType = "credit"
+	}
+	if *credits == 0 {
+		*credits = 1
+	}
+}
+
+// CreatePaidRouteRequest defines the JSON body for creating a paid route.
+type CreatePaidRouteRequest struct {
+	TargetURL string `json:"target_url" binding:"required,url"`
+	Method    string `json:"method" binding:"required"`
+	Price     string `json:"price" binding:"required,numeric"` // Validate as numeric string
+	IsTest    bool   `json:"is_test" binding:"omitempty"`      // Optional, defaults to true if omitted
+	Type      string `json:"type" binding:"omitempty"`         // Optional, defaults to "credit"
+	Credits   uint64 `json:"credits" binding:"omitempty"`      // Optional, defaults to 1
+}
+
+// Validate performs business rule validation for the route creation request.
+func (r *CreatePaidRouteRequest) Validate() error {
+	// Validate Method
+	upperMethod := strings.ToUpper(r.Method)
+	validMethods := map[string]bool{
+		"GET":    true,
+		"POST":   true,
+		"PUT":    true,
+		"DELETE": true,
+		"PATCH":  true,
+	}
+	if !validMethods[upperMethod] {
+		return errors.New("invalid HTTP method provided")
+	}
+
+	// Validate Price - we just need validation, not the conversion
+	priceUtils := NewPriceUtils()
+	_, err := priceUtils.ParsePrice(r.Price)
+	return err
 }
 
 // CreatePaidRouteHandler handles POST requests to create new paid routes.
 // NOTE: Currently doesn't enforce specific auth/admin checks, assumes authenticated user.
 func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	var req CreatePaidRouteRequest
-	if err := gCtx.ShouldBindJSON(&req); err != nil {
+	err := gCtx.ShouldBindJSON(&req)
+	if err != nil {
 		gCtx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
 		return
 	}
 
-	// Set default values for Type and Credits if not provided
-	if req.Type == "" {
-		req.Type = "credit"
-	}
-	if req.Credits == 0 {
-		req.Credits = 1
+	setDefaultTypeAndCredits(&req.Type, &req.Credits)
+
+	err = req.Validate()
+	if err != nil {
+		gCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	// Get user ID from the context (set by AuthMiddleware)
 	authPayload, exists := gCtx.Get(auth.AuthorizationPayloadKey)
 	if !exists {
 		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
@@ -97,8 +126,9 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	}
 	payload := authPayload.(*auth.Claims)
 
-	// Call the service to create the route, passing isTestValue
-	route, err := h.paidRouteService.CreatePaidRoute(gCtx.Request.Context(), req.TargetURL, req.Method, req.Price, req.IsTest, payload.UserID, req.Type, req.Credits)
+	route, err := h.paidRouteService.CreatePaidRoute(gCtx.Request.Context(),
+		req.TargetURL, req.Method, req.Price, req.IsTest,
+		payload.UserID, req.Type, req.Credits)
 	if err != nil {
 		// Handle specific validation errors from the service
 		gCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -117,7 +147,7 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 
 		"access_url": accessURL,
 
-		"price":      h.formatPrice(route.Price),
+		"price":      h.priceUtils.FormatPrice(route.Price),
 		"type":       route.Type,
 		"credits":    route.Credits,
 		"is_test":    route.IsTest,
@@ -128,6 +158,75 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 		"access_count":  route.AccessCount,
 
 		"created_at": route.CreatedAt,
+	})
+}
+
+// CreateFileRouteRequest defines the JSON body for creating a paid route for file uploads.
+type CreateFileRouteRequest struct {
+	OriginalFilename string `json:"original_filename" binding:"required"`
+	Price            string `json:"price" binding:"required,numeric"`
+	IsTest           bool   `json:"is_test" binding:"omitempty"`
+	Type             string `json:"type" binding:"omitempty"`    // Optional, defaults to "credit"
+	Credits          uint64 `json:"credits" binding:"omitempty"` // Optional, defaults to 1
+}
+
+// Validate performs business rule validation for the file route creation request.
+func (r *CreateFileRouteRequest) Validate() error {
+	// Validate Price - we just need validation, not the conversion
+	priceUtils := NewPriceUtils()
+	_, err := priceUtils.ParsePrice(r.Price)
+	return err
+}
+
+// FileRouteResponse represents a response to creating a file route.
+type FileRouteResponse struct {
+	UploadURL string `json:"upload_url"`
+}
+
+// CreateFileRouteHandler handles POST requests to create a paid route
+// for file uploads.
+// The method does not upload the file itself, it just creates the SQL route
+// and returns a presigned R2 upload URL for the client to upload the file to.
+func (h *PaidRouteHandler) CreateFileRouteHandler(gCtx *gin.Context) {
+	var req CreateFileRouteRequest
+	err := gCtx.ShouldBindJSON(&req)
+	if err != nil {
+		gCtx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body: " + err.Error()})
+		return
+	}
+
+	setDefaultTypeAndCredits(&req.Type, &req.Credits)
+
+	err = req.Validate()
+	if err != nil {
+		gCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	authPayload, exists := gCtx.Get(auth.AuthorizationPayloadKey)
+	if !exists {
+		gCtx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+	payload := authPayload.(*auth.Claims)
+
+	_, uploadURL, err := h.paidRouteService.CreateFileRoute(
+		gCtx.Request.Context(),
+		payload.UserID,
+		req.Price,
+		"GET", // Always use GET for file downloads
+		req.IsTest,
+		req.Type,
+		req.Credits,
+		req.OriginalFilename,
+	)
+	if err != nil {
+		gCtx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	gCtx.JSON(http.StatusCreated, FileRouteResponse{
+		UploadURL: uploadURL,
 	})
 }
 
@@ -233,7 +332,7 @@ func (h *PaidRouteHandler) tryExistingPayment(gCtx *gin.Context, route *PaidRout
 //   - requestHandled: true if a response was sent (e.g., 402, 500 error) and the main handler should stop.
 func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidRoute) (paymentProcessedSuccessfully bool, requestHandled bool) {
 	// Parse route.Price string to *big.Float
-	priceFloat, ok := new(big.Float).SetString(h.formatPrice(route.Price))
+	priceFloat, ok := new(big.Float).SetString(h.priceUtils.FormatPrice(route.Price))
 	if !ok {
 		h.logger.Error("Invalid price format in executeNewPaymentFlow", "shortCode", route.ShortCode, "price", route.Price)
 		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal configuration error for route price."})
@@ -410,7 +509,7 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(gCtx *gin.Context) {
 
 			"access_url": accessURL,
 
-			"price":      h.formatPrice(route.Price),
+			"price":      h.priceUtils.FormatPrice(route.Price),
 			"type":       route.Type,
 			"credits":    route.Credits,
 			"is_test":    route.IsTest,
