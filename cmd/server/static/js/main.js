@@ -80,6 +80,20 @@ function initTabs() {
                 targetSection.style.display = 'block';
             }
             
+            // Set method to GET for file uploads and disable the dropdown
+            const methodSelect = document.getElementById('method-select');
+            const methodTooltip = document.getElementById('method-tooltip');
+            if (methodSelect && methodTooltip) {
+                if (targetId === 'file-section') {
+                    methodSelect.value = 'GET';
+                    methodSelect.disabled = true;
+                    methodTooltip.style.display = 'inline-block';
+                } else {
+                    methodSelect.disabled = false;
+                    methodTooltip.style.display = 'none';
+                }
+            }
+            
             // Update submit button text
             const submitBtn = document.getElementById('submit-btn');
             if (submitBtn) {
@@ -225,30 +239,50 @@ document.addEventListener('DOMContentLoaded', function() {
             throw new Error('Please select a file to upload.');
         }
         
-        // Get form data
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        formData.append('price', document.getElementById('price-input').value);
-        formData.append('method', document.getElementById('method-select').value);
-        formData.append('is_test', document.getElementById('is-test-input').checked);
-        formData.append('type', document.getElementById('type-select').value);
-        formData.append('credits', document.getElementById('credits-input').value);
+        const file = fileInput.files[0];
         
-        // Send request
-        const response = await fetch('/files/upload', {
+        // Step 1: Create the route and get the signed upload URL
+        const routePayload = {
+            original_filename: file.name,
+            price: document.getElementById('price-input').value,
+            is_test: document.getElementById('is-test-input').checked,
+            type: document.getElementById('type-select').value,
+            credits: parseInt(document.getElementById('credits-input').value) || 0
+        };
+        
+        // Send request to create the route and get the signed URL
+        const routeResponse = await fetch('/files/upload', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(routePayload)
         });
         
-        const data = await response.json();
-        
-        if (response.ok) {
-            errorDiv.style.display = 'none';
-            form.reset();
-            window.location.reload();
-        } else {
-            throw new Error(data.error || 'An error occurred');
+        if (!routeResponse.ok) {
+            const errorData = await routeResponse.json();
+            throw new Error(errorData.error || 'Failed to create file route');
         }
+        
+        const routeData = await routeResponse.json();
+        
+        // Step 2: Upload the file to the signed URL
+        const uploadResponse = await fetch(routeData.upload_url, {
+            method: 'PUT',
+            body: file,
+            headers: {
+                'Content-Type': file.type || 'application/octet-stream'
+            }
+        });
+        
+        if (!uploadResponse.ok) {
+            throw new Error('Failed to upload file to storage. Please try again.');
+        }
+        
+        // Success, reload the page to show the new file route
+        errorDiv.style.display = 'none';
+        form.reset();
+        window.location.reload();
     }
     
     async function handleUrlSubmission() {

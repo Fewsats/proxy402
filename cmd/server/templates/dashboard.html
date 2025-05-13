@@ -220,6 +220,9 @@
                         <option value="DELETE">DELETE</option>
                         <option value="PATCH">PATCH</option>
                     </select> 
+                    <span id="method-tooltip" class="tooltip" style="display: none;" data-tooltip="File uploads only support GET method">
+                        <i data-lucide="help-circle" width="16" height="16"></i>
+                    </span>
 
                     <select id="type-select" name="type" required>
                         <option value="credit">Credit</option>
@@ -284,8 +287,8 @@
             <table id="links-table" class="data-table">
                     <thead>
                         <tr>
-                            <th>Target URL</th>
-                            <th>Proxy URL</th>
+                            <th>Target</th>
+                            <th>Access URL</th>
                             <th>Method</th>
                             <th class="sortable" data-column="price">Price</th>
                             <th>Payment Model</th>
@@ -318,8 +321,15 @@
                     </thead>
                     <tbody>
                         {{range .links}}
-                        <tr data-method="{{.Method}}" data-mode="{{if .IsTest}}Test{{else}}Live{{end}}" data-type="{{.Type}}">
-                            <td class="ellipsis" data-tooltip="{{.TargetURL}}">{{.TargetURL}}</td>
+                        <tr data-method="{{.Method}}" data-mode="{{if .IsTest}}Test{{else}}Live{{end}}" data-type="{{.Type}}" data-resource-type="{{.ResourceType}}">
+                            <td class="ellipsis" data-tooltip="{{.Target}}">
+                                {{if eq .ResourceType "file"}}
+                                    <i data-lucide="file" width="12" height="12" style="margin-right: 4px; vertical-align: text-bottom;"></i>
+                                {{else}}
+                                    <i data-lucide="link-2" width="12" height="12" style="margin-right: 4px; vertical-align: text-bottom;"></i>
+                                {{end}}
+                                {{.Target}}
+                            </td>
                             <td>
                                 <div class="short-url-container">
                                     <a href="/{{.ShortCode}}" target="_blank">{{$.baseURL}}/{{.ShortCode}}</a>

@@ -22,6 +22,7 @@ run: build
     ./linkshrink
 
 # Run the application with live reload using air
+# Requires go install github.com/air-verse/air@latest
 dev:
     @echo "Starting application with air for live reload..."
     air

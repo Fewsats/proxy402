@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -139,26 +140,30 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	scheme := getRequestScheme(gCtx)
 	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
 
-	gCtx.JSON(http.StatusCreated, gin.H{
-		"id":         route.ID,
-		"short_code": route.ShortCode,
-		"target_url": route.TargetURL,
-		"method":     route.Method,
+	response := RouteResponse{
+		ID:           route.ID,
+		ShortCode:    route.ShortCode,
+		Target:       route.TargetURL,
+		Method:       route.Method,
+		ResourceType: "url", // This is always "url" for this handler
 
-		"access_url": accessURL,
+		AccessURL: accessURL,
 
-		"price":      h.priceUtils.FormatPrice(route.Price),
-		"type":       route.Type,
-		"credits":    route.Credits,
-		"is_test":    route.IsTest,
-		"is_enabled": route.IsEnabled,
+		Price:     h.priceUtils.FormatPrice(route.Price),
+		Type:      route.Type,
+		Credits:   route.Credits,
+		IsTest:    route.IsTest,
+		IsEnabled: route.IsEnabled,
 
-		"attempt_count": route.AttemptCount,
-		"payment_count": route.PaymentCount,
-		"access_count":  route.AccessCount,
+		AttemptCount: route.AttemptCount,
+		PaymentCount: route.PaymentCount,
+		AccessCount:  route.AccessCount,
 
-		"created_at": route.CreatedAt,
-	})
+		CreatedAt: route.CreatedAt,
+		UpdatedAt: route.UpdatedAt,
+	}
+
+	gCtx.JSON(http.StatusCreated, response)
 }
 
 // CreateFileRouteRequest defines the JSON body for creating a paid route for file uploads.
@@ -477,6 +482,30 @@ func (h *PaidRouteHandler) HandlePaidRoute(gCtx *gin.Context) {
 	h.proxyRequest(gCtx, route)
 }
 
+// RouteResponse represents a standardized response for route data
+type RouteResponse struct {
+	ID           uint64 `json:"id"`
+	ShortCode    string `json:"short_code"`
+	Target       string `json:"target"`
+	Method       string `json:"method"`
+	ResourceType string `json:"resource_type"`
+
+	AccessURL string `json:"access_url"`
+
+	Price     string `json:"price"`
+	Type      string `json:"type"`
+	Credits   uint64 `json:"credits"`
+	IsTest    bool   `json:"is_test"`
+	IsEnabled bool   `json:"is_enabled"`
+
+	AttemptCount uint64 `json:"attempt_count"`
+	PaymentCount uint64 `json:"payment_count"`
+	AccessCount  uint64 `json:"access_count"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // GetUserPaidRoutes handles GET requests to retrieve all paid routes for the authenticated user.
 func (h *PaidRouteHandler) GetUserPaidRoutes(gCtx *gin.Context) {
 	// Get user ID from the context
@@ -496,31 +525,41 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(gCtx *gin.Context) {
 		return
 	}
 
-	// Format the response (similar to Create response, maybe factor out a helper)
-	responseRoutes := make([]gin.H, len(routes))
+	// Format the response using RouteResponse struct
+	responseRoutes := make([]RouteResponse, len(routes))
 	for i, route := range routes {
 		scheme := getRequestScheme(gCtx)
 		accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
-		responseRoutes[i] = gin.H{
-			"id":         route.ID,
-			"short_code": route.ShortCode,
-			"target_url": route.TargetURL,
-			"method":     route.Method,
 
-			"access_url": accessURL,
+		// Determine what to show as "target" based on resource type
+		var target string
+		if route.ResourceType == "file" && route.OriginalFilename != nil {
+			target = *route.OriginalFilename
+		} else {
+			target = route.TargetURL
+		}
 
-			"price":      h.priceUtils.FormatPrice(route.Price),
-			"type":       route.Type,
-			"credits":    route.Credits,
-			"is_test":    route.IsTest,
-			"is_enabled": route.IsEnabled,
+		responseRoutes[i] = RouteResponse{
+			ID:           route.ID,
+			ShortCode:    route.ShortCode,
+			Target:       target,
+			Method:       route.Method,
+			ResourceType: route.ResourceType,
 
-			"attempt_count": route.AttemptCount,
-			"payment_count": route.PaymentCount,
-			"access_count":  route.AccessCount,
+			AccessURL: accessURL,
 
-			"created_at": route.CreatedAt,
-			"updated_at": route.UpdatedAt,
+			Price:     h.priceUtils.FormatPrice(route.Price),
+			Type:      route.Type,
+			Credits:   route.Credits,
+			IsTest:    route.IsTest,
+			IsEnabled: route.IsEnabled,
+
+			AttemptCount: route.AttemptCount,
+			PaymentCount: route.PaymentCount,
+			AccessCount:  route.AccessCount,
+
+			CreatedAt: route.CreatedAt,
+			UpdatedAt: route.UpdatedAt,
 		}
 	}
 

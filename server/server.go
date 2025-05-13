@@ -108,6 +108,7 @@ func (s *Server) SetupRoutes() error {
 		// Consider if this is still needed or if everything should be a paid route.
 		// Rerouting /links/shrink to create a PaidRoute instead of a standard Link
 		authRequired.POST("/links/shrink", paidRouteHandler.CreatePaidRouteHandler)
+		authRequired.POST("/files/upload", paidRouteHandler.CreateFileRouteHandler)
 
 		// User-specific link management (standard links)
 		// These might become obsolete if only PaidRoutes are used

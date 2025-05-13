@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"log/slog"
+	"os"
 
 	betterstackPkg "github.com/samber/slog-betterstack"
 
@@ -80,17 +81,14 @@ func main() {
 	}
 
 	userService := users.NewUserService(logger, store)
-	paidRouteService := routes.NewPaidRouteService(logger, store)
-	purchaseService := purchases.NewPurchaseService(logger, store)
-	authService := auth.NewAuthService(&cfg.Auth)
 	cloudflareService, err := cloudflare.NewService(&cfg.Cloudflare)
 	if err != nil {
-		logger.Error(
-			"Unable to create Cloudflare service",
-			"error", err,
-		)
-		return
+		logger.Error("Failed to create Cloudflare service", "error", err)
+		os.Exit(1)
 	}
+	paidRouteService := routes.NewPaidRouteService(logger, store, cloudflareService)
+	purchaseService := purchases.NewPurchaseService(logger, store)
+	authService := auth.NewAuthService(&cfg.Auth)
 
 	// Create and configure the server
 	srv := server.NewServer(

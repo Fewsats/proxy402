@@ -31,6 +31,13 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 
 	now := s.clock.Now()
 
+	// Prepare original_filename for database
+	var originalFilename pgtype.Text
+	if route.OriginalFilename != nil {
+		originalFilename.String = *route.OriginalFilename
+		originalFilename.Valid = true
+	}
+
 	params := sqlc.CreatePaidRouteParams{
 		ShortCode: shortCode,
 		TargetUrl: route.TargetURL,
@@ -49,6 +56,10 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 
 		CreatedAt: now,
 		UpdatedAt: now,
+
+		// Add these fields
+		ResourceType:     route.ResourceType,
+		OriginalFilename: originalFilename,
 	}
 
 	dbRoute, err := s.queries.CreatePaidRoute(ctx, params)
@@ -225,12 +236,21 @@ func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *routes.PaidRoute {
 
 		CreatedAt: dbRoute.CreatedAt,
 		UpdatedAt: dbRoute.UpdatedAt,
+
+		// Add these fields from the database model
+		ResourceType: dbRoute.ResourceType,
 	}
 
 	// Convert DeletedAt if it exists
 	if dbRoute.DeletedAt.Valid {
 		deletedAt := dbRoute.DeletedAt.Time
 		route.DeletedAt = &deletedAt
+	}
+
+	// Convert OriginalFilename if it exists
+	if dbRoute.OriginalFilename.Valid {
+		filename := dbRoute.OriginalFilename.String
+		route.OriginalFilename = &filename
 	}
 
 	return route

@@ -44,16 +44,17 @@ func NewUIHandler(paidRouteService *routes.PaidRouteService,
 
 // UIPaidRoute is a UI model for displaying PaidRoute with formatted price
 type UIPaidRoute struct {
-	ID        uint64
-	UserID    uint64
-	ShortCode string
-	TargetURL string
-	Method    string
-	Price     string
+	ID           uint64
+	UserID       uint64
+	ShortCode    string
+	Target       string
+	Method       string
+	ResourceType string
 
-	IsTest    bool
+	Price     string
 	Type      string
 	Credits   uint64
+	IsTest    bool
 	IsEnabled bool
 
 	AttemptCount uint64
@@ -141,12 +142,22 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 
 	// Convert DB models to UI models
 	var uiLinks []UIPaidRoute
+
 	for _, link := range dbLinks {
+		// Determine what to show as "target" based on resource type
+		var target string
+		if link.ResourceType == "file" && link.OriginalFilename != nil {
+			target = *link.OriginalFilename
+		} else {
+			target = link.TargetURL
+		}
+
 		uiLinks = append(uiLinks, UIPaidRoute{
-			ID:        link.ID,
-			ShortCode: link.ShortCode,
-			TargetURL: link.TargetURL,
-			Method:    link.Method,
+			ID:           link.ID,
+			ShortCode:    link.ShortCode,
+			Target:       target,
+			Method:       link.Method,
+			ResourceType: link.ResourceType,
 
 			Price:     strconv.FormatFloat(float64(link.Price)/1000000, 'f', -1, 64),
 			Type:      link.Type,
