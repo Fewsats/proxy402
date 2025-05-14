@@ -2,6 +2,7 @@ package cloudflare
 
 import (
 	"context" // Keep context for method signature consistency if desired
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -48,36 +49,18 @@ func (r *R2Service) PresignUploadURL(ctx context.Context, key string, expires ti
 	return req.Presign(expires)
 }
 
-func (r *R2Service) PresignDownloadURL(ctx context.Context, key string, expires time.Duration) (string, error) {
-	req, _ := r.r2.GetObjectRequest(&s3.GetObjectInput{
+func (r *R2Service) PresignDownloadURL(ctx context.Context, key string, expires time.Duration, originalFilename string) (string, error) {
+	input := &s3.GetObjectInput{
 		Bucket: aws.String(r.bucket),
 		Key:    aws.String(key),
-	})
-	// req.SetContext(ctx)
+	}
+	// setting the disposition is used to set the filename
+	// in the browser download dialog
+	if originalFilename != "" {
+		disposition := fmt.Sprintf("attachment; filename=\"%s\"", originalFilename)
+		input.ResponseContentDisposition = aws.String(disposition)
+	}
+
+	req, _ := r.r2.GetObjectRequest(input)
 	return req.Presign(expires)
 }
-
-// func (r *R2Service) publicFileURL(key string) string {
-// 	// TODO(pol) this is a dev access to staging bucket hardcoded
-// 	return fmt.Sprintf("https://pub-3c55410f5c574362bbaa52948499969e.r2.dev/%s", key)
-// }
-
-// func (r *R2Service) uploadPublicFile(ctx context.Context, key string, reader io.ReadSeeker) (string, error) {
-// 	_, err := r.r2.PutObjectWithContext(ctx, &s3.PutObjectInput{
-// 		Bucket: aws.String(r.publicBucket),
-// 		Key:    aws.String(key),
-// 		Body:   reader,
-// 	})
-// 	if err != nil {
-// 		return "", err
-// 	}
-// 	return r.publicFileURL(key), nil
-// }
-
-// func (r *R2Service) deletePublicFile(ctx context.Context, key string) error {
-// 	_, err := r.r2.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
-// 		Bucket: aws.String(r.publicBucket),
-// 		Key:    aws.String(key),
-// 	})
-// 	return err
-// }

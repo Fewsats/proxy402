@@ -22,7 +22,7 @@ func (s *Service) GetUploadURL(ctx context.Context, key string) (string, error) 
 	return s.r2.PresignUploadURL(ctx, key, 2*time.Hour)
 }
 
-func (s *Service) GetDownloadURL(ctx context.Context, key string) (string, error) {
+func (s *Service) GetDownloadURL(ctx context.Context, key string, originalFilename string) (string, error) {
 	// e.g. 24 hours
-	return s.r2.PresignDownloadURL(ctx, key, 24*time.Hour)
+	return s.r2.PresignDownloadURL(ctx, key, 24*time.Hour, originalFilename)
 }

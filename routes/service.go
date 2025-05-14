@@ -171,3 +171,14 @@ func (s *PaidRouteService) CreateFileRoute(ctx context.Context, userID uint64, p
 
 	return createdRoute, uploadURL, nil
 }
+
+// GetFileDownloadURL generates a presigned URL for downloading a file from R2
+func (s *PaidRouteService) GetFileDownloadURL(ctx context.Context, key string, originalFilename string) (string, error) {
+	// Use the cloudflare service to generate a presigned download URL
+	downloadURL, err := s.cloudflareService.GetDownloadURL(ctx, key, originalFilename)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate download URL: %w", err)
+	}
+
+	return downloadURL, nil
+}

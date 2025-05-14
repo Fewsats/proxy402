@@ -407,8 +407,44 @@ func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidR
 
 // proxyRequest sets up and executes the reverse proxy to the target URL.
 func (h *PaidRouteHandler) proxyRequest(gCtx *gin.Context, route *PaidRoute) {
-	h.logger.Debug("Attempting to proxy request", "shortCode", route.ShortCode, "targetURL", route.TargetURL)
+	h.logger.Debug("Attempting to proxy request",
+		"shortCode", route.ShortCode,
+		"targetURL", route.TargetURL,
+		"resourceType", route.ResourceType)
 
+	// Handle file resources differently - detect by ResourceType or URL format
+	if route.ResourceType == "file" || !strings.Contains(route.TargetURL, "://") {
+		h.logger.Debug("Detected file resource, generating presigned URL",
+			"shortCode", route.ShortCode,
+			"r2Key", route.TargetURL)
+
+		var originalFilenameToShow string
+		if route.OriginalFilename != nil {
+			originalFilenameToShow = *route.OriginalFilename
+		} else {
+			// This case should not happen for ResourceType == "file"
+			h.logger.Warn("File route is missing OriginalFilename", "shortCode", route.ShortCode, "r2Key", route.TargetURL)
+			originalFilenameToShow = route.TargetURL // use r2 key as fallback
+		}
+
+		// Generate a presigned download URL
+		downloadURL, err := h.paidRouteService.GetFileDownloadURL(gCtx.Request.Context(), route.TargetURL, originalFilenameToShow)
+		if err != nil {
+			h.logger.Error("Failed to generate presigned download URL",
+				"shortCode", route.ShortCode, "r2Key", route.TargetURL, "error", err)
+			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate download link"})
+			return
+		}
+
+		// Return the URL as JSON for programmatic clients
+		gCtx.JSON(http.StatusOK, gin.H{
+			"download_url": downloadURL,
+			"filename":     originalFilenameToShow,
+		})
+		return
+	}
+
+	// Normal URL proxy for resource_type = "url"
 	targetURL, err := url.Parse(route.TargetURL)
 	if err != nil {
 		h.logger.Error("Failed to parse target URL for proxy",
