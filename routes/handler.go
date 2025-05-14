@@ -102,9 +102,9 @@ func (r *CreatePaidRouteRequest) Validate() error {
 	return err
 }
 
-// CreatePaidRouteHandler handles POST requests to create new paid routes.
+// CreateURLRouteHandler handles POST requests to create new URL paid routes.
 // NOTE: Currently doesn't enforce specific auth/admin checks, assumes authenticated user.
-func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
+func (h *PaidRouteHandler) CreateURLRouteHandler(gCtx *gin.Context) {
 	var req CreatePaidRouteRequest
 	err := gCtx.ShouldBindJSON(&req)
 	if err != nil {
@@ -127,7 +127,7 @@ func (h *PaidRouteHandler) CreatePaidRouteHandler(gCtx *gin.Context) {
 	}
 	payload := authPayload.(*auth.Claims)
 
-	route, err := h.paidRouteService.CreatePaidRoute(gCtx.Request.Context(),
+	route, err := h.paidRouteService.CreateURLRoute(gCtx.Request.Context(),
 		req.TargetURL, req.Method, req.Price, req.IsTest,
 		payload.UserID, req.Type, req.Credits)
 	if err != nil {

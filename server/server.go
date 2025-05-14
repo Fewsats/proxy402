@@ -107,7 +107,7 @@ func (s *Server) SetupRoutes() error {
 		// Original /shrink endpoint for simple link shortening (kept for now?)
 		// Consider if this is still needed or if everything should be a paid route.
 		// Rerouting /links/shrink to create a PaidRoute instead of a standard Link
-		authRequired.POST("/links/shrink", paidRouteHandler.CreatePaidRouteHandler)
+		authRequired.POST("/links/shrink", paidRouteHandler.CreateURLRouteHandler)
 		authRequired.POST("/files/upload", paidRouteHandler.CreateFileRouteHandler)
 
 		// User-specific link management (standard links)

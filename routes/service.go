@@ -38,9 +38,10 @@ var validMethods = map[string]bool{
 	"PATCH":  true,
 }
 
-// CreatePaidRoute validates input, generates a unique short code, and saves the route.
-func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
-	method, priceStr string, isTest bool, userID uint64, routeType string, credits uint64) (*PaidRoute, error) {
+// CreateURLRoute validates input, generates a unique short code, and saves the route.
+func (s *PaidRouteService) CreateURLRoute(ctx context.Context, targetURL,
+	method, priceStr string, isTest bool,
+	userID uint64, routeType string, credits uint64) (*PaidRoute, error) {
 
 	// 1. Validate target URL
 	parsedURL, err := url.ParseRequestURI(targetURL)
@@ -56,14 +57,15 @@ func (s *PaidRouteService) CreatePaidRoute(ctx context.Context, targetURL,
 
 	// 3. Create and Save Route (short code will be generated in the store)
 	route := &PaidRoute{
-		TargetURL: targetURL,
-		Method:    strings.ToUpper(method),
-		Price:     priceInt,
-		IsTest:    isTest,
-		UserID:    userID,
-		IsEnabled: true,
-		Type:      routeType,
-		Credits:   credits,
+		TargetURL:    targetURL,
+		Method:       strings.ToUpper(method),
+		Price:        priceInt,
+		IsTest:       isTest,
+		UserID:       userID,
+		IsEnabled:    true,
+		Type:         routeType, // payment type, e.g. "credit", "one-time"
+		Credits:      credits,
+		ResourceType: "url",
 	}
 
 	createdRoute, err := s.store.CreateRoute(ctx, route)
