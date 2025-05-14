@@ -114,4 +114,9 @@ curl -X POST http://localhost:8080/links/shrink \
 5. Server forwards request to target URL
 
 For more details visit [x402.org](https://x402.org)
+
+## Need Help?
+
+Join our [Discord](https://discord.gg/2tPYBgWzQm) for support and discussions.
+
 ---

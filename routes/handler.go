@@ -13,6 +13,8 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/coinbase/x402/go/pkg/coinbasefacilitator"
+	"github.com/coinbase/x402/go/pkg/types"
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/auth"
@@ -256,11 +258,13 @@ func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidR
 		paymentAddress = user.PaymentAddress
 	}
 
+	facilitatorConfig := coinbasefacilitator.CreateFacilitatorConfig(h.config.CDPAPIKeyID, h.config.CDPAPIKeySecret)
+
 	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress,
-		x402.OptionWithFacilitatorURL(h.config.X402FacilitatorURL),
-		x402.OptionWithTestnet(route.IsTest),
-		x402.OptionWithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
-		x402.OptionWithResource(accessURL),
+		x402.WithFacilitatorConfig(facilitatorConfig),
+		x402.WithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
+		x402.WithResource(accessURL),
+		x402.WithTestnet(route.IsTest),
 	)
 
 	if gCtx.IsAborted() {
@@ -468,8 +472,8 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 // savePurchaseRecord is a helper method to save the purchase record in the database.
 func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context,
 	route *PaidRoute, paymentAddress string,
-	paymentPayload *x402.PaymentPayload,
-	settleResponse *x402.SettleResponse, paymentHeader string) error {
+	paymentPayload *types.PaymentPayload,
+	settleResponse *types.SettleResponse, paymentHeader string) error {
 
 	// Convert paymentPayload to JSON
 	paymentPayloadJson, err := json.Marshal(paymentPayload)
