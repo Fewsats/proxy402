@@ -293,7 +293,8 @@ document.addEventListener('DOMContentLoaded', function() {
             method: document.getElementById('method-select').value,
             is_test: document.getElementById('is-test-input').checked,
             type: document.getElementById('type-select').value,
-            credits: document.getElementById('credits-input').value
+            credits: parseInt(document.getElementById('credits-input').value) || 0
+
         };
         
         // Send request
