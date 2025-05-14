@@ -12,4 +12,6 @@ func DefaultConfig() *Config {
 type Config struct {
 	X402PaymentAddress string `long:"x402_payment_address" description:"Payment address for X402"`
 	X402FacilitatorURL string `long:"x402_facilitator_url" description:"URL for X402 facilitator"`
+	CDPAPIKeyID        string `long:"cdp_api_key_id" description:"API key ID for CDP"`
+	CDPAPIKeySecret    string `long:"cdp_api_key_secret" description:"API key secret for CDP"`
 }

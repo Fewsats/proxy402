@@ -3,6 +3,7 @@ module linkshrink
 go 1.23.3
 
 require (
+	github.com/coinbase/x402/go v0.0.0-20250513235022-8b9fe11666c9
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.18.3
@@ -18,6 +19,7 @@ require (
 	github.com/bytedance/sonic v1.13.2 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
+	github.com/coinbase/cdp-sdk/go v0.0.0-20250506223104-85d38372d771 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
 	github.com/gin-contrib/sse v1.0.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
