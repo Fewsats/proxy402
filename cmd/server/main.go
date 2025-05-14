@@ -3,8 +3,10 @@ package main
 import (
 	"embed"
 	"log/slog"
+	"os"
 
 	betterstackPkg "github.com/samber/slog-betterstack"
+	multiHandlerPkg "github.com/searKing/golang/go/log/slog"
 
 	"linkshrink/auth"
 	"linkshrink/config"
@@ -24,19 +26,23 @@ var staticFS embed.FS
 
 // configureLogger creates a logger based on configuration
 func configureLogger(cfg *config.Config) *slog.Logger {
-	// Start with default logger
-	logger := slog.Default()
+	// Create console handler for stdout logging
+	consoleHandler := slog.NewTextHandler(os.Stdout, nil)
 
-	// Configure BetterStack if credentials are available
-	if cfg.BetterStack.Token != "" && cfg.BetterStack.Endpoint != "" {
-		logger = slog.New(
-			betterstackPkg.Option{
-				Token:    cfg.BetterStack.Token,
-				Endpoint: cfg.BetterStack.Endpoint,
-			}.NewBetterstackHandler(),
-		)
-		logger.Info("BetterStack logging enabled")
+	// Use only console logging if BetterStack is not configured
+	if cfg.BetterStack.Token == "" || cfg.BetterStack.Endpoint == "" {
+		return slog.New(consoleHandler)
 	}
+
+	// Create BetterStack handler
+	bsHandler := betterstackPkg.Option{
+		Token:    cfg.BetterStack.Token,
+		Endpoint: cfg.BetterStack.Endpoint,
+	}.NewBetterstackHandler()
+
+	// Use MultiHandler to log to both console and BetterStack
+	logger := slog.New(multiHandlerPkg.MultiHandler(consoleHandler, bsHandler))
+	logger.Info("BetterStack logging enabled")
 
 	return logger
 }
