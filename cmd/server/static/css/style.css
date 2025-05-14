@@ -226,6 +226,21 @@ h2 {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Disabled button styling */
+.btn:disabled, .btn.loading {
+    opacity: 0.7;
+    background-color: #6b92cc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.btn:disabled:hover, .btn.loading:hover {
+    background-color: #6b92cc;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .login-btn:hover {
     background-color: rgba(45, 65, 105, 1);
     border-color: #a8d1ff;
@@ -780,12 +795,19 @@ input:focus, select:focus {
 }
 
 /* Loading indicator */
-.htmx-indicator {
+#spinner {
     display: none;
-    animation: spin 1s linear infinite;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    margin-left: 8px;
+    animation: spin 0.8s linear infinite;
 }
 
-.htmx-request .htmx-indicator {
+.htmx-request #spinner,
+.loading #spinner {
     display: inline-block;
 }
 
@@ -1494,4 +1516,16 @@ th.sortable.desc::after {
 
 .hidden {
     display: none;
+}
+
+/* Loading button state */
+.btn.loading {
+    position: relative;
+    animation: subtle-pulse 2s infinite;
+}
+
+@keyframes subtle-pulse {
+    0% { opacity: 0.7; }
+    50% { opacity: 0.9; }
+    100% { opacity: 0.7; }
 }

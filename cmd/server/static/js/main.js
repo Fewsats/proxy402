@@ -94,16 +94,13 @@ function initTabs() {
                 }
             }
             
-            // Update submit button text
+
             const submitBtn = document.getElementById('submit-btn');
             if (submitBtn) {
-                submitBtn.textContent = targetId === 'url-section' ? 'Add Link ' : 'Upload File ';
-                // Add the spinner back
-                const spinner = document.createElement('span');
-                spinner.id = 'spinner';
-                spinner.className = 'htmx-indicator';
-                spinner.textContent = '↻';
-                submitBtn.appendChild(spinner);
+                const textEl = submitBtn.querySelector('p');
+                if (textEl) {
+                    textEl.textContent = targetId === 'url-section' ? 'Add Link' : 'Upload File';
+                }
             }
             
             // Update required fields
@@ -204,14 +201,18 @@ function formatFileSize(bytes) {
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('link-form');
     const errorDiv = document.getElementById('form-error');
-    const spinner = document.getElementById('spinner');
-    
+
     if (form) {
+        const submitBtn = document.getElementById('submit-btn');
+
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Show spinner
-            if (spinner) spinner.style.display = 'inline-block';
+            // Add loading class to button to show spinner
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+            }
             
             // Get active tab
             const activeTab = document.querySelector('.tab.active');
@@ -228,7 +229,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 errorDiv.style.display = 'block';
                 console.error('Error submitting form:', error);
             } finally {
-                if (spinner) spinner.style.display = 'none';
+                // Remove loading class and enable button
+                if (submitBtn) {
+                    submitBtn.classList.remove('loading');
+                    submitBtn.disabled = false;
+                }
             }
         });
     }
