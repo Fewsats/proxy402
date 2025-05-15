@@ -115,8 +115,19 @@ curl -X POST http://localhost:8080/links/shrink \
 
 For more details visit [x402.org](https://x402.org)
 
+### Cloudflare R2 CORS Configuration
+
+If using file uploads with Cloudflare R2, configure CORS to allow direct browser uploads:
+
+You can configure it via Cloudflare dashboard:
+1. Go to R2 > Your bucket > Settings > CORS
+2. Add rules for both origins: `http://localhost:3009` and `https://your-domain.com`
+3. Allow methods: PUT, GET, HEAD, DELETE
+4. Allow all headers (`*`)
+
 ## Need Help?
 
 Join our [Discord](https://discord.gg/2tPYBgWzQm) for support and discussions.
+
 
 ---

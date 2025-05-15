@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"linkshrink/auth"
+	"linkshrink/cloudflare"
 	"linkshrink/routes"
 	"linkshrink/store"
 	"linkshrink/ui"
@@ -43,6 +44,9 @@ type Config struct {
 
 	// UI configuration
 	UI ui.Config `group:"ui" namespace:"ui"`
+
+	// Cloudflare configuration
+	Cloudflare cloudflare.Config `group:"cloudflare" namespace:"cloudflare"`
 }
 
 var AppConfig *Config
@@ -88,7 +92,8 @@ func DefaultConfig() *Config {
 		Auth: auth.Config{
 			JWTExpirationHours: 72 * time.Hour,
 		},
-		UI: ui.DefaultConfig(),
+		UI:         ui.DefaultConfig(),
+		Cloudflare: cloudflare.DefaultConfig(),
 	}
 }
 
@@ -142,6 +147,12 @@ func LoadConfig(logger *slog.Logger) *Config {
 
 	// UI configuration
 	AppConfig.UI.GoogleAnalyticsID = getEnv("GOOGLE_ANALYTICS_ID", AppConfig.UI.GoogleAnalyticsID)
+
+	// Cloudflare configuration
+	AppConfig.Cloudflare.Endpoint = getEnv("CLOUDFLARE_R2_ENDPOINT", "")
+	AppConfig.Cloudflare.AccessKey = getEnv("CLOUDFLARE_R2_ACCESS_KEY", "")
+	AppConfig.Cloudflare.SecretAccessKey = getEnv("CLOUDFLARE_R2_SECRET_ACCESS_KEY", "")
+	AppConfig.Cloudflare.BucketName = getEnv("CLOUDFLARE_R2_BUCKET_NAME", "")
 
 	logger.Info("Configuration loaded.")
 

@@ -11,22 +11,24 @@ import (
 )
 
 type PaidRoute struct {
-	ID           int64
-	ShortCode    string
-	TargetUrl    string
-	Method       string
-	Price        int32
-	IsTest       bool
-	UserID       int64
-	IsEnabled    bool
-	AttemptCount int32
-	PaymentCount int32
-	AccessCount  int32
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
-	DeletedAt    pgtype.Timestamptz
-	Type         string
-	Credits      int32
+	ID               int64
+	ShortCode        string
+	TargetUrl        string
+	Method           string
+	Price            int32
+	IsTest           bool
+	UserID           int64
+	IsEnabled        bool
+	AttemptCount     int32
+	PaymentCount     int32
+	AccessCount      int32
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	DeletedAt        pgtype.Timestamptz
+	Type             string
+	Credits          int32
+	ResourceType     string
+	OriginalFilename pgtype.Text
 }
 
 type Purchase struct {

@@ -9,6 +9,7 @@ import (
 	multiHandlerPkg "github.com/searKing/golang/go/log/slog"
 
 	"linkshrink/auth"
+	"linkshrink/cloudflare"
 	"linkshrink/config"
 	"linkshrink/purchases"
 	"linkshrink/routes"
@@ -85,20 +86,28 @@ func main() {
 	}
 
 	userService := users.NewUserService(logger, store)
-	paidRouteService := routes.NewPaidRouteService(logger, store)
+	cloudflareService, err := cloudflare.NewService(&cfg.Cloudflare)
+	if err != nil {
+		logger.Error("Failed to create Cloudflare service", "error", err)
+		os.Exit(1)
+	}
+	paidRouteService := routes.NewPaidRouteService(logger, store, cloudflareService)
 	purchaseService := purchases.NewPurchaseService(logger, store)
 	authService := auth.NewAuthService(&cfg.Auth)
 
 	// Create and configure the server
 	srv := server.NewServer(
-		logger,
-		cfg,
 		userService,
 		paidRouteService,
 		purchaseService,
 		authService,
+		cloudflareService,
+
 		templatesFS,
 		staticFS,
+
+		logger,
+		cfg,
 	)
 
 	// Setup routes
@@ -111,7 +120,8 @@ func main() {
 	}
 
 	// Start the server
-	if err := srv.Run(); err != nil {
+	err = srv.Run()
+	if err != nil {
 		logger.Error(
 			"Server failed to start",
 			"error", err,

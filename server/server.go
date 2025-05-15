@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/auth"
+	"linkshrink/cloudflare"
 	"linkshrink/config"
 	"linkshrink/purchases"
 	"linkshrink/routes"
@@ -33,14 +34,17 @@ type Server struct {
 
 // NewServer creates and configures a new server instance
 func NewServer(
-	logger *slog.Logger,
-	cfg *config.Config,
 	userService *users.UserService,
 	routeService *routes.PaidRouteService,
 	purchaseService *purchases.PurchaseService,
 	authService *auth.Service,
+	cloudflareService *cloudflare.Service,
+
 	templatesFS embed.FS,
 	staticFS embed.FS,
+
+	logger *slog.Logger,
+	cfg *config.Config,
 ) *Server {
 	router := gin.Default() // Includes Logger and Recovery middleware
 
@@ -103,7 +107,8 @@ func (s *Server) SetupRoutes() error {
 		// Original /shrink endpoint for simple link shortening (kept for now?)
 		// Consider if this is still needed or if everything should be a paid route.
 		// Rerouting /links/shrink to create a PaidRoute instead of a standard Link
-		authRequired.POST("/links/shrink", paidRouteHandler.CreatePaidRouteHandler)
+		authRequired.POST("/links/shrink", paidRouteHandler.CreateURLRouteHandler)
+		authRequired.POST("/files/upload", paidRouteHandler.CreateFileRouteHandler)
 
 		// User-specific link management (standard links)
 		// These might become obsolete if only PaidRoutes are used
