@@ -129,6 +129,8 @@ func LoadConfig(logger *slog.Logger) *Config {
 	// Routes configuration
 	AppConfig.Routes.X402PaymentAddress = getEnvOrFatal("X402_PAYMENT_ADDRESS")
 	AppConfig.Routes.X402FacilitatorURL = getEnv("X402_FACILITATOR_URL", AppConfig.Routes.X402FacilitatorURL)
+	AppConfig.Routes.CDPAPIKeyID = getEnv("CDP_API_KEY_ID", "")
+	AppConfig.Routes.CDPAPIKeySecret = getEnv("CDP_API_KEY_SECRET", "")
 
 	// Auth configuration
 	AppConfig.Auth.JWTSecret = getEnvOrFatal("JWT_SECRET")

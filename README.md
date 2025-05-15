@@ -125,4 +125,9 @@ You can configure it via Cloudflare dashboard:
 3. Allow methods: PUT, GET, HEAD, DELETE
 4. Allow all headers (`*`)
 
+## Need Help?
+
+Join our [Discord](https://discord.gg/2tPYBgWzQm) for support and discussions.
+
+
 ---
