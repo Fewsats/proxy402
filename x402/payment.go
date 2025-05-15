@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strings"
 
 	"github.com/coinbase/x402/go/pkg/facilitatorclient"
 	"github.com/coinbase/x402/go/pkg/types"
@@ -22,7 +21,6 @@ type PaymentOptions struct {
 	OutputSchema      *json.RawMessage
 	FacilitatorConfig *types.FacilitatorConfig
 	Testnet           bool
-	CustomPaywallHTML string
 	Resource          string
 	ResourceRootURL   string
 }
@@ -72,13 +70,6 @@ func WithTestnet(testnet bool) Options {
 	}
 }
 
-// WithCustomPaywallHTML is an option for the PaymentMiddleware to set the custom paywall HTML.
-func WithCustomPaywallHTML(customPaywallHTML string) Options {
-	return func(options *PaymentOptions) {
-		options.CustomPaywallHTML = customPaywallHTML
-	}
-}
-
 // WithResource is an option for the PaymentMiddleware to set the resource.
 func WithResource(resource string) Options {
 	return func(options *PaymentOptions) {
@@ -123,9 +114,6 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 
 	fmt.Println("Payment middleware checking request:", c.Request.URL)
 
-	userAgent := c.GetHeader("User-Agent")
-	acceptHeader := c.GetHeader("Accept")
-	isWebBrowser := strings.Contains(acceptHeader, "text/html") && strings.Contains(userAgent, "Mozilla")
 	var resource string
 	if options.Resource == "" {
 		resource = options.ResourceRootURL + c.Request.URL.Path
@@ -159,16 +147,6 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 	payment := c.GetHeader("X-PAYMENT")
 	paymentPayload, err := types.DecodePaymentPayloadFromBase64(payment)
 	if err != nil {
-		if isWebBrowser {
-			html := options.CustomPaywallHTML
-			if html == "" {
-				html = getPaywallHtml(options)
-			}
-			c.Abort()
-			c.Data(http.StatusPaymentRequired, "text/html", []byte(html))
-			return
-		}
-
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       "X-PAYMENT header is required",
 			"accepts":     []*types.PaymentRequirements{paymentRequirements},
@@ -225,9 +203,4 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 
 	c.Header("X-PAYMENT-RESPONSE", settleResponseHeader)
 	return
-}
-
-// getPaywallHtml is the default paywall HTML for the PaymentMiddleware.
-func getPaywallHtml(_ *PaymentOptions) string {
-	return "<html><body>Payment Required</body></html>"
 }

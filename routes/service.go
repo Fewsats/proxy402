@@ -63,7 +63,7 @@ func (s *PaidRouteService) CreateURLRoute(ctx context.Context, targetURL,
 		IsTest:       isTest,
 		UserID:       userID,
 		IsEnabled:    true,
-		Type:         routeType, // payment type, e.g. "credit", "one-time"
+		Type:         routeType, // payment type, e.g. "credit"
 		Credits:      credits,
 		ResourceType: "url",
 	}
