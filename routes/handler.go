@@ -364,6 +364,12 @@ func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidR
 
 	facilitatorConfig := coinbasefacilitator.CreateFacilitatorConfig(h.config.CDPAPIKeyID, h.config.CDPAPIKeySecret)
 
+	// Set resource type and original filename in the context for use in payment templates
+	gCtx.Set("ResourceType", route.ResourceType)
+	if route.ResourceType == "file" && route.OriginalFilename != nil {
+		gCtx.Set("OriginalFilename", *route.OriginalFilename)
+	}
+
 	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress,
 		x402.WithFacilitatorConfig(facilitatorConfig),
 		x402.WithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),

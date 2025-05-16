@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    {{if .GoogleAnalyticsID}}
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{.GoogleAnalyticsID}}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', '{{.GoogleAnalyticsID}}');
+    </script>
+    {{end}}
+    
+    {{if eq .ResourceType "file"}}
+    <title>{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required</title>
+    <meta name="description" content="Payment required to access this file. Secured by Proxy402.">
+    {{else}}
+    <title>Payment Required - Proxy402</title>
+    <meta name="description" content="Payment required to access this content. Secured by Proxy402.">
+    {{end}}
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1e2b4a">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    {{if eq .ResourceType "file"}}
+    <meta property="og:title" content="{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required">
+    <meta property="og:description" content="Payment required to access this file. Secured by Proxy402.">
+    {{else}}
+    <meta property="og:title" content="Payment Required - Proxy402">
+    <meta property="og:description" content="Payment required to access this content. Secured by Proxy402.">
+    {{end}}
+    <meta property="og:image" content="/static/img/og-payment.png">
+    <meta property="og:url" content="{{.Resource}}">
+    <meta property="og:site_name" content="Proxy402">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    {{if eq .ResourceType "file"}}
+    <meta name="twitter:title" content="{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required">
+    <meta name="twitter:description" content="Payment required to access {{if .OriginalFilename}}{{.OriginalFilename}}{{else}}this file{{end}}. Secured by Proxy402.">
+    {{else}}
+    <meta name="twitter:title" content="Payment Required - Proxy402">
+    <meta name="twitter:description" content="Payment required to access this content. Secured by Proxy402.">
+    {{end}}
+    <meta name="twitter:image" content="/static/img/og-payment.png">
+    <meta name="twitter:site" content="@fewsats">
+    
+    <!-- Additional Tags -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="monetization" content="$ilp.uphold.com/PAYMENT_POINTER">
+    <link rel="canonical" href="{{.Resource}}">
+
+    <!-- Favicon -->
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+    <!-- Include Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- External CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    <style>
+        body {
+            background-color: #1e2b4a;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        .payment-container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 30px;
+            background-color: #23395d;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        
+        .payment-header {
+            margin-bottom: 30px;
+        }
+        
+        .payment-title {
+            color: #fff;
+            font-size: 24px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .payment-subtitle {
+            color: #bbd0ff;
+            font-size: 16px;
+        }
+        
+        .payment-details {
+            background-color: rgba(255, 255, 255, 0.08);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        
+        .payment-detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #bbd0ff;
+        }
+        
+        .detail-value {
+            color: #fff;
+            word-break: break-all;
+        }
+        
+        .instruction-step {
+            margin-bottom: 15px;
+            color: #bbd0ff;
+        }
+        
+        .instruction-step strong {
+            color: #fff;
+        }
+        
+        .payment-footer {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #8ba3d4;
+        }
+        
+        .payment-footer a {
+            color: #79a9ff;
+            text-decoration: none;
+        }
+        
+        .payment-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .logo {
+            margin-bottom: 20px;
+            max-width: 150px;
+        }
+        
+        .error-message {
+            background-color: rgba(220, 50, 50, 0.2);
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            text-align: left;
+            color: #ff9d9d;
+            border-left: 4px solid #c62828;
+        }
+        
+        .resource-name {
+            font-weight: bold;
+            color: #fff;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="flow-container">
+        <svg class="flow-lines" width="100%" height="100%" viewBox="0 0 800 300">
+            <path class="flow-path" d="M0,150 C100,50 200,250 300,100 S500,150 800,70" />
+            <path class="flow-path" d="M0,100 C150,200 250,70 400,150 S600,50 800,180" style="animation-delay: -5s;" />
+            <path class="flow-path" d="M0,200 C120,100 220,180 350,120 S550,200 800,120" style="animation-delay: -10s;" />
+        </svg>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-container">
+        <div class="payment-container">
+            <div class="payment-header">
+                <img src="/static/img/logo.svg" alt="Fewsats Logo" class="logo">
+                <h1 class="payment-title">Payment Required</h1>
+                
+                {{if eq .ResourceType "file"}}
+                <p class="payment-subtitle">
+                    Pay to download {{if .OriginalFilename}}<span class="resource-name">{{.OriginalFilename}}</span>{{else}}this file{{end}}
+                </p>
+                {{else}}
+                <p class="payment-subtitle">
+                    Pay to access this content
+                </p>
+                {{end}}
+            </div>
+            
+            {{if .ErrorMessage}}
+            <div class="error-message">
+                <strong>Error:</strong> {{.ErrorMessage}}
+            </div>
+            {{end}}
+            
+            <div class="payment-details">
+                {{if eq .ResourceType "file"}}
+                {{if .OriginalFilename}}
+                <div class="payment-detail-item">
+                    <span class="detail-label">File:</span>
+                    <span class="detail-value">{{.OriginalFilename}}</span>
+                </div>
+                {{end}}
+                {{else}}
+                <div class="payment-detail-item">
+                    <span class="detail-label">Resource:</span>
+                    <span class="detail-value">{{.Resource}}</span>
+                </div>
+                {{end}}
+                <div class="payment-detail-item">
+                    <span class="detail-label">Amount:</span>
+                    <span class="detail-value">${{.AmountFormatted}} USD</span>
+                </div>
+            </div>
+            
+            <div class="payment-footer">
+                <p>Powered by <a href="https://proxy402.com" target="_blank">Proxy402</a> and the <a href="https://www.x402.org" target="_blank">x402 protocol</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        document.addEventListener("DOMContentLoaded", function() {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html> 

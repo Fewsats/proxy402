@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/coinbase/x402/go/pkg/facilitatorclient"
 	"github.com/coinbase/x402/go/pkg/types"
@@ -114,6 +115,10 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 
 	fmt.Println("Payment middleware checking request:", c.Request.URL)
 
+	userAgent := c.GetHeader("User-Agent")
+	acceptHeader := c.GetHeader("Accept")
+	isWebBrowser := strings.Contains(acceptHeader, "text/html") && strings.Contains(userAgent, "Mozilla")
+
 	var resource string
 	if options.Resource == "" {
 		resource = options.ResourceRootURL + c.Request.URL.Path
@@ -147,6 +152,23 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 	payment := c.GetHeader("X-PAYMENT")
 	paymentPayload, err := types.DecodePaymentPayloadFromBase64(payment)
 	if err != nil {
+		// For browser requests, always serve HTML template
+		if isWebBrowser {
+			// Format the amount for display (convert from big.Float to string)
+			amountString := amount.Text('f', 6)
+
+			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
+				"Resource":         resource,
+				"Description":      options.Description,
+				"AmountFormatted":  amountString,
+				"ResourceType":     c.GetString("ResourceType"),
+				"OriginalFilename": c.GetString("OriginalFilename"),
+			})
+			c.Abort()
+			return
+		}
+
+		// For API clients, return JSON
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       "X-PAYMENT header is required",
 			"accepts":     []*types.PaymentRequirements{paymentRequirements},
@@ -169,6 +191,24 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 
 	if !response.IsValid {
 		fmt.Println("Invalid payment: ", response.InvalidReason)
+
+		// For invalid payments from browsers, always serve HTML template
+		if isWebBrowser {
+			// Format the amount for display with 6 decimal places
+			amountString := amount.Text('f', 6)
+
+			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
+				"Resource":         resource,
+				"Description":      options.Description,
+				"AmountFormatted":  amountString,
+				"ErrorMessage":     response.InvalidReason,
+				"ResourceType":     c.GetString("ResourceType"),
+				"OriginalFilename": c.GetString("OriginalFilename"),
+			})
+			c.Abort()
+			return
+		}
+
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       response.InvalidReason,
 			"accepts":     []*types.PaymentRequirements{paymentRequirements},
@@ -184,6 +224,24 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 	if err != nil {
 		fmt.Println("x402 Abort: Settlement failed:", err)
 		fmt.Println("Settlement failed:", err)
+
+		// For settlement errors in browsers, always serve HTML template
+		if isWebBrowser {
+			// Format the amount for display with 6 decimal places
+			amountString := amount.Text('f', 6)
+
+			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
+				"Resource":         resource,
+				"Description":      options.Description,
+				"AmountFormatted":  amountString,
+				"ErrorMessage":     err.Error(),
+				"ResourceType":     c.GetString("ResourceType"),
+				"OriginalFilename": c.GetString("OriginalFilename"),
+			})
+			c.Abort()
+			return
+		}
+
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       err.Error(),
 			"accepts":     []*types.PaymentRequirements{paymentRequirements},

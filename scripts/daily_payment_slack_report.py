@@ -16,7 +16,8 @@ DB_USER = os.environ.get("DB_USER")
 DB_PASSWORD = os.environ.get("DB_PASSWORD")
 DB_NAME = os.environ.get("DB_NAME")
 
-SQL_QUERY_PAYMENT_STATS = """
+# SQL query for filtered stats (excluding @fewsats.com users)
+SQL_QUERY_FILTERED_STATS = """
 SELECT
     to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS purchase_date_str,
     COUNT(*) AS total_payments_on_day,
@@ -39,7 +40,26 @@ ORDER BY
     purchase_date_str DESC;
 """
 
-def fetch_payment_stats_from_db():
+# SQL query for unfiltered stats (all users)
+SQL_QUERY_UNFILTERED_STATS = """
+SELECT
+    to_char(p.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS purchase_date_str,
+    COUNT(*) AS total_payments_on_day,
+    COALESCE(SUM(p.price), 0) AS total_amount_on_day,
+    COUNT(CASE WHEN p.is_test = true THEN 1 END) AS test_payments_count,
+    COALESCE(SUM(CASE WHEN p.is_test = true THEN p.price ELSE 0 END), 0) AS test_payments_total_amount,
+    COUNT(CASE WHEN p.is_test = false THEN 1 END) AS live_payments_count,
+    COALESCE(SUM(CASE WHEN p.is_test = false THEN p.price ELSE 0 END), 0) AS live_payments_total_amount
+FROM
+    purchases p
+GROUP BY
+    purchase_date_str
+ORDER BY
+    purchase_date_str DESC;
+"""
+
+def fetch_payment_stats(query):
+    """Generic function to fetch payment stats using the given query"""
     conn = None
     if not all([DB_USER, DB_PASSWORD, DB_NAME]):
         print("Error: DB_USER, DB_PASSWORD, or DB_NAME environment variables not set.")
@@ -49,7 +69,7 @@ def fetch_payment_stats_from_db():
             host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME
         )
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute(SQL_QUERY_PAYMENT_STATS)
+            cur.execute(query)
             rows = cur.fetchall()
         data = []
         for row_dict in rows:
@@ -70,10 +90,20 @@ def fetch_payment_stats_from_db():
     finally:
         if conn: conn.close()
 
+def fetch_filtered_stats():
+    """Fetch payment stats excluding @fewsats.com users"""
+    return fetch_payment_stats(SQL_QUERY_FILTERED_STATS)
+
+def fetch_unfiltered_stats():
+    """Fetch payment stats for all users"""
+    return fetch_payment_stats(SQL_QUERY_UNFILTERED_STATS)
+
 def val_to_usdc_str(value_smallest_unit):
     if value_smallest_unit is None: return "N/A"
     usdc_value = value_smallest_unit / 1_000_000.0
-    return f"{usdc_value:.2f}" # Display with 2 decimal places for readability
+    # Format to 6 decimal places, then remove trailing zeros and unnecessary decimal point
+    formatted_value = f"{usdc_value:.6f}".rstrip('0').rstrip('.')
+    return formatted_value
 
 def format_delta(delta_smallest_unit, is_volume=False):
     if delta_smallest_unit is None: return ""
@@ -136,43 +166,51 @@ def calculate_stats(data_rows):
     
     return stats
 
-def format_slack_message_blocks(s):
-    if not s["has_today_data"]:
+def format_combined_slack_message(filtered_stats, unfiltered_stats):
+    if not filtered_stats["has_today_data"] and not unfiltered_stats["has_today_data"]:
         return {
             "blocks": [{
                 "type": "section",
-                "text": { "type": "mrkdwn", "text": "📈 *Daily Payment Stats (Live / Test)*\n- No transaction data for today."}
+                "text": { "type": "mrkdwn", "text": "📈 *Daily Payment Stats*\n- No transaction data for today."}
             }]
         }
 
     blocks = [
         {
             "type": "header",
-            "text": {"type": "plain_text", "text": "📈 Daily Payment Stats (Live / Test)", "emoji": True}
+            "text": {"type": "plain_text", "text": "📈 Daily Payment Stats", "emoji": True}
         },
+        # Side-by-side column headers
         {
             "type": "section",
             "fields": [
-                {"type": "mrkdwn", "text": f"*Live Transactions:*\n`{s['live_tx_today']}`{s['live_tx_delta_str']}"},
-                {"type": "mrkdwn", "text": f"*Test Transactions:*\n`{s['test_tx_today']}`{s['test_tx_delta_str']}"}
+                {"type": "mrkdwn", "text": "*All Users (Unfiltered)*"},
+                {"type": "mrkdwn", "text": "*External Users Only*\n*(Excluding @fewsats.com)*"}
             ]
         },
+        # Transactions (side by side)
         {
             "type": "section",
             "fields": [
-                {"type": "mrkdwn", "text": f"*Live Volume (USDC):*\n`{s['live_vol_today_usdc_str']}`{s['live_vol_delta_usdc_str']}"},
-                {"type": "mrkdwn", "text": f"*Test Volume (USDC):*\n`{s['test_vol_today_usdc_str']}`{s['test_vol_delta_usdc_str']}"}
+                {"type": "mrkdwn", "text": f"*Live Txns:* `{unfiltered_stats['live_tx_today']}`{unfiltered_stats['live_tx_delta_str']}\n*Test Txns:* `{unfiltered_stats['test_tx_today']}`{unfiltered_stats['test_tx_delta_str']}"},
+                {"type": "mrkdwn", "text": f"*Live Txns:* `{filtered_stats['live_tx_today']}`{filtered_stats['live_tx_delta_str']}\n*Test Txns:* `{filtered_stats['test_tx_today']}`{filtered_stats['test_tx_delta_str']}"}
             ]
         },
-        {"type": "divider"},
+        # Volumes (side by side)
         {
             "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "*Weekly Cumulative (Live / Test):*\n"
-                        f"• *Live:* `{s['weekly_live_tx']}` transactions (`{s['weekly_live_vol_usdc_str']}` USDC)\n"
-                        f"• *Test:* `{s['weekly_test_tx']}` transactions (`{s['weekly_test_vol_usdc_str']}` USDC)"
-            }
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Live Vol:* `{unfiltered_stats['live_vol_today_usdc_str']}`{unfiltered_stats['live_vol_delta_usdc_str']}\n*Test Vol:* `{unfiltered_stats['test_vol_today_usdc_str']}`{unfiltered_stats['test_vol_delta_usdc_str']}"},
+                {"type": "mrkdwn", "text": f"*Live Vol:* `{filtered_stats['live_vol_today_usdc_str']}`{filtered_stats['live_vol_delta_usdc_str']}\n*Test Vol:* `{filtered_stats['test_vol_today_usdc_str']}`{filtered_stats['test_vol_delta_usdc_str']}"}
+            ]
+        },
+        # Weekly (side by side)
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Weekly (All Users):*\n• Live: `{unfiltered_stats['weekly_live_tx']}` txns (`{unfiltered_stats['weekly_live_vol_usdc_str']}` USDC)\n• Test: `{unfiltered_stats['weekly_test_tx']}` txns (`{unfiltered_stats['weekly_test_vol_usdc_str']}` USDC)"},
+                {"type": "mrkdwn", "text": f"*Weekly (External Only):*\n• Live: `{filtered_stats['weekly_live_tx']}` txns (`{filtered_stats['weekly_live_vol_usdc_str']}` USDC)\n• Test: `{filtered_stats['weekly_test_tx']}` txns (`{filtered_stats['weekly_test_vol_usdc_str']}` USDC)"}
+            ]
         }
     ]
     return {"blocks": blocks}
@@ -196,19 +234,33 @@ def send_slack_message(payload):
 
 if __name__ == "__main__":
     print(f"Running daily payment stats report at {datetime.now()}...")
-    fetched_data = fetch_payment_stats_from_db()
     
-    if fetched_data is None:
-        error_payload = format_slack_message_blocks({"has_today_data": False, "error_message": "Failed to retrieve payment stats data from DB."})
+    # Fetch both filtered and unfiltered stats
+    filtered_data = fetch_filtered_stats()
+    unfiltered_data = fetch_unfiltered_stats()
+    
+    if filtered_data is None or unfiltered_data is None:
+        error_payload = {
+            "blocks": [{
+                "type": "section",
+                "text": { "type": "mrkdwn", "text": "❌ *Error*\nFailed to retrieve payment stats data from DB."}
+            }]
+        }
         print("Failed to retrieve payment stats data from DB.")
         send_slack_message(error_payload)
         exit(1)
 
-    calculated_values = calculate_stats(fetched_data)
-    slack_payload = format_slack_message_blocks(calculated_values)
+    # Calculate stats for both datasets
+    filtered_stats = calculate_stats(filtered_data)
+    unfiltered_stats = calculate_stats(unfiltered_data)
     
-    # For local checking, you might want to print the JSON or a summary
+    # Create combined message
+    slack_payload = format_combined_slack_message(filtered_stats, unfiltered_stats)
+    
+    # For local checking
     import json
     print(f"Formatted payload:\n{json.dumps(slack_payload, indent=2)}")
+    
+    # Send to Slack
     send_slack_message(slack_payload)
     print("Report finished.") 
