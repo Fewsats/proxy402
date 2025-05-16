@@ -339,26 +339,23 @@ document.addEventListener('click', async function(e) {
         await navigator.clipboard.writeText(textToCopy);
         
         // Show temporary "Copied!" message near the button
-        const existingMsg = copyButton.querySelector('.copy-success');
+        const existingMsg = document.querySelector('.copy-success');
         if (existingMsg) existingMsg.remove(); // Remove old message if any
 
         const message = document.createElement('span');
         message.classList.add('copy-success');
         message.textContent = 'Copied!';
-        document.body.appendChild(message); // Append to body for positioning
         
-        const rect = copyButton.getBoundingClientRect();
-        message.style.top = `${window.scrollY + rect.bottom + 5}px`;
-        message.style.left = `${window.scrollX + rect.left + rect.width / 2}px`;
+        // Add the message as a child of the copy button instead of body
+        copyButton.appendChild(message);
         
         // Show, then fade out
         requestAnimationFrame(() => {
-            message.style.opacity = '1';
-            message.style.transform = 'translate(-50%, 0)'; // Adjust final position
+            message.classList.add('show');
         });
 
         setTimeout(() => {
-            message.style.opacity = '0';
+            message.classList.remove('show');
             setTimeout(() => message.remove(), 300);
         }, 1500);
 

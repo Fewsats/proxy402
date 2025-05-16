@@ -736,6 +736,7 @@ input:focus, select:focus {
     padding: 0.25rem;
     transition: all 0.2s ease;
     opacity: 0.8;
+    position: relative;
 }
 
 .copy-btn:hover, .delete-btn:hover {
@@ -752,10 +753,10 @@ input:focus, select:focus {
 }
 
 .copy-success {
-    position: fixed;
-    transform: translate(-50%, 10px);
-    left: auto;
-    top: auto;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
     background-color: var(--card-bg);
     color: white;
     padding: 0.35rem 0.75rem;
@@ -768,6 +769,7 @@ input:focus, select:focus {
     pointer-events: none;
     border: 1px solid var(--border-color);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    margin-bottom: 8px;
 }
 
 .copy-success.show {
