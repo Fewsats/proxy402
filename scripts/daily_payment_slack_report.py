@@ -112,7 +112,7 @@ def format_delta(delta_smallest_unit, is_volume=False):
         return f" ({prefix}{val_to_usdc_str(delta_smallest_unit)} USDC)" # Add USDC unit
     return f" ({prefix}{delta_smallest_unit})"
 
-def calculate_stats(data_rows):
+def calculate_stats(data_rows, report_date):
     stats = {
         "live_tx_today": 0, "live_tx_delta_str": "",
         "test_tx_today": 0, "test_tx_delta_str": "",
@@ -120,44 +120,51 @@ def calculate_stats(data_rows):
         "test_vol_today_usdc_str": val_to_usdc_str(0), "test_vol_delta_usdc_str": "",
         "weekly_live_tx": 0, "weekly_live_vol_usdc_str": val_to_usdc_str(0),
         "weekly_test_tx": 0, "weekly_test_vol_usdc_str": val_to_usdc_str(0),
-        "has_today_data": False
+        "has_data_for_report_date": False
     }
 
     if not data_rows: return stats
 
-    today_data = data_rows[0]
-    stats["has_today_data"] = True
-    stats["live_tx_today"] = today_data['live_payments_count']
-    stats["test_tx_today"] = today_data['test_payments_count']
-    stats["live_vol_today_usdc_str"] = val_to_usdc_str(today_data['live_payments_total_amount'])
-    stats["test_vol_today_usdc_str"] = val_to_usdc_str(today_data['test_payments_total_amount'])
+    # Convert data_rows to a dictionary for easy lookup by date
+    data_by_date = {row['purchase_date_dt']: row for row in data_rows}
 
-    yesterday_data = data_rows[1] if len(data_rows) > 1 else None
-    if yesterday_data and (today_data['purchase_date_dt'] - yesterday_data['purchase_date_dt']).days == 1:
-        live_tx_delta = today_data['live_payments_count'] - yesterday_data['live_payments_count']
+    yesterday_report_date = report_date - timedelta(days=1)
+
+    actual_today_data = data_by_date.get(report_date)
+    actual_yesterday_data = data_by_date.get(yesterday_report_date)
+
+    if actual_today_data:
+        stats["has_data_for_report_date"] = True
+        stats["live_tx_today"] = actual_today_data['live_payments_count']
+        stats["test_tx_today"] = actual_today_data['test_payments_count']
+        stats["live_vol_today_usdc_str"] = val_to_usdc_str(actual_today_data['live_payments_total_amount'])
+        stats["test_vol_today_usdc_str"] = val_to_usdc_str(actual_today_data['test_payments_total_amount'])
+
+    if actual_today_data and actual_yesterday_data:
+        live_tx_delta = actual_today_data['live_payments_count'] - actual_yesterday_data['live_payments_count']
         stats["live_tx_delta_str"] = format_delta(live_tx_delta)
         
-        test_tx_delta = today_data['test_payments_count'] - yesterday_data['test_payments_count']
+        test_tx_delta = actual_today_data['test_payments_count'] - actual_yesterday_data['test_payments_count']
         stats["test_tx_delta_str"] = format_delta(test_tx_delta)
 
-        live_vol_delta = today_data['live_payments_total_amount'] - yesterday_data['live_payments_total_amount']
+        live_vol_delta = actual_today_data['live_payments_total_amount'] - actual_yesterday_data['live_payments_total_amount']
         stats["live_vol_delta_usdc_str"] = format_delta(live_vol_delta, is_volume=True)
 
-        test_vol_delta = today_data['test_payments_total_amount'] - yesterday_data['test_payments_total_amount']
+        test_vol_delta = actual_today_data['test_payments_total_amount'] - actual_yesterday_data['test_payments_total_amount']
         stats["test_vol_delta_usdc_str"] = format_delta(test_vol_delta, is_volume=True)
-
-    today_date_obj = today_data['purchase_date_dt']
-    start_of_week = today_date_obj - timedelta(days=6)
+    
+    # Weekly stats calculation: based on report_date
+    start_of_week = report_date - timedelta(days=6) # 7 days including report_date
     
     weekly_live_tx_sum, weekly_live_vol_sum_smallest_unit = 0, 0
     weekly_test_tx_sum, weekly_test_vol_sum_smallest_unit = 0, 0
 
-    for row in data_rows:
-        if start_of_week <= row['purchase_date_dt'] <= today_date_obj:
-            weekly_live_tx_sum += row['live_payments_count']
-            weekly_live_vol_sum_smallest_unit += row['live_payments_total_amount']
-            weekly_test_tx_sum += row['test_payments_count']
-            weekly_test_vol_sum_smallest_unit += row['test_payments_total_amount']
+    for row_date_key, row_data_value in data_by_date.items():
+        if start_of_week <= row_date_key <= report_date:
+            weekly_live_tx_sum += row_data_value['live_payments_count']
+            weekly_live_vol_sum_smallest_unit += row_data_value['live_payments_total_amount']
+            weekly_test_tx_sum += row_data_value['test_payments_count']
+            weekly_test_vol_sum_smallest_unit += row_data_value['test_payments_total_amount']
             
     stats["weekly_live_tx"] = weekly_live_tx_sum
     stats["weekly_live_vol_usdc_str"] = val_to_usdc_str(weekly_live_vol_sum_smallest_unit)
@@ -167,14 +174,6 @@ def calculate_stats(data_rows):
     return stats
 
 def format_combined_slack_message(filtered_stats, unfiltered_stats):
-    if not filtered_stats["has_today_data"] and not unfiltered_stats["has_today_data"]:
-        return {
-            "blocks": [{
-                "type": "section",
-                "text": { "type": "mrkdwn", "text": "📈 *Daily Payment Stats*\n- No transaction data for today."}
-            }]
-        }
-
     blocks = [
         {
             "type": "header",
@@ -233,7 +232,10 @@ def send_slack_message(payload):
         return False
 
 if __name__ == "__main__":
-    print(f"Running daily payment stats report at {datetime.now()}...")
+    script_run_datetime = datetime.now()
+    report_date = script_run_datetime.date()
+
+    print(f"Running daily payment stats report for {report_date} at {script_run_datetime}...")
     
     # Fetch both filtered and unfiltered stats
     filtered_data = fetch_filtered_stats()
@@ -251,8 +253,8 @@ if __name__ == "__main__":
         exit(1)
 
     # Calculate stats for both datasets
-    filtered_stats = calculate_stats(filtered_data)
-    unfiltered_stats = calculate_stats(unfiltered_data)
+    filtered_stats = calculate_stats(filtered_data, report_date)
+    unfiltered_stats = calculate_stats(unfiltered_data, report_date)
     
     # Create combined message
     slack_payload = format_combined_slack_message(filtered_stats, unfiltered_stats)

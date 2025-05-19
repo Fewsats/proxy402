@@ -1,11 +1,14 @@
 package routes
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"linkshrink/cloudflare"
 	"log/slog"
+	"mime/multipart"
 	"net/url"
 	"strings"
 	"time"
@@ -38,34 +41,55 @@ var validMethods = map[string]bool{
 	"PATCH":  true,
 }
 
+func generateCoverImageKey(userID uint64) string {
+	return fmt.Sprintf("%d/%d", userID, time.Now().UnixNano())
+}
+
 // CreateURLRoute validates input, generates a unique short code, and saves the route.
-func (s *PaidRouteService) CreateURLRoute(ctx context.Context, targetURL,
-	method, priceStr string, isTest bool,
-	userID uint64, routeType string, credits uint64) (*PaidRoute, error) {
+func (s *PaidRouteService) CreateURLRoute(ctx context.Context, req *CreatePaidRouteRequest, userID uint64) (*PaidRoute, error) {
 
 	// 1. Validate target URL
-	parsedURL, err := url.ParseRequestURI(targetURL)
+	parsedURL, err := url.ParseRequestURI(req.TargetURL)
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 		return nil, errors.New("invalid target URL provided")
 	}
 
 	// 2. Convert price string to integer (USDC * 10^6)
-	priceInt, err := s.priceUtils.ParsePrice(priceStr)
+	priceInt, err := s.priceUtils.ParsePrice(req.Price)
 	if err != nil {
 		return nil, err
 	}
 
 	// 3. Create and Save Route (short code will be generated in the store)
 	route := &PaidRoute{
-		TargetURL:    targetURL,
-		Method:       strings.ToUpper(method),
+		TargetURL:    req.TargetURL,
+		Method:       strings.ToUpper(req.Method),
 		Price:        priceInt,
-		IsTest:       isTest,
+		IsTest:       req.IsTest,
 		UserID:       userID,
 		IsEnabled:    true,
-		Type:         routeType, // payment type, e.g. "credit"
-		Credits:      credits,
+		Type:         req.Type,
+		Credits:      req.Credits,
 		ResourceType: "url",
+	}
+
+	// Handle title and description if provided
+	if req.Title != "" {
+		route.Title = &req.Title
+	}
+
+	if req.Description != "" {
+		route.Description = &req.Description
+	}
+
+	// Handle cover image if provided
+	if req.CoverImage != nil {
+		coverURL, err := s.ProcessAndUploadCoverImage(ctx,
+			generateCoverImageKey(userID), req.CoverImage)
+		if err != nil {
+			return nil, fmt.Errorf("failed to upload cover image: %w", err)
+		}
+		route.CoverImageURL = coverURL
 	}
 
 	createdRoute, err := s.store.CreateRoute(ctx, route)
@@ -132,43 +156,63 @@ func (s *PaidRouteService) DeleteRoute(ctx context.Context, routeID uint64, user
 }
 
 // CreateFileRoute creates a new paid route for a file and returns the route along with a signed upload URL.
-func (s *PaidRouteService) CreateFileRoute(ctx context.Context, userID uint64, priceStr string,
-	method string, isTest bool, routeType string, credits uint64, originalFilename string) (*PaidRoute, string, error) {
+func (s *PaidRouteService) CreateFileRoute(ctx context.Context, req *CreateFileRouteRequest, userID uint64) (*PaidRoute, string, error) {
 
 	// Convert price string to integer (USDC * 10^6)
-	priceInt, err := s.priceUtils.ParsePrice(priceStr)
+	priceInt, err := s.priceUtils.ParsePrice(req.Price)
 	if err != nil {
 		return nil, "", err
 	}
 
 	// Generate unique R2 key using userID and timestamp
 	r2Key := fmt.Sprintf("%d/%d", userID, time.Now().UnixNano())
-
-	// Create a new route with resource_type = "file"
-	route := &PaidRoute{
-		TargetURL:        r2Key,
-		Method:           strings.ToUpper(method),
-		Price:            priceInt,
-		IsTest:           isTest,
-		UserID:           userID,
-		IsEnabled:        true,
-		Type:             routeType,
-		Credits:          credits,
-		ResourceType:     "file",
-		OriginalFilename: &originalFilename,
-	}
-
-	// Save the route
-	createdRoute, err := s.store.CreateRoute(ctx, route)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to save file route: %w", err)
-	}
+	coverImageKey := generateCoverImageKey(userID)
 
 	// Generate signed upload URL
 	uploadURL, err := s.cloudflareService.GetUploadURL(ctx, r2Key)
 	if err != nil {
 		// Consider deleting the route if we can't get an upload URL
 		return nil, "", fmt.Errorf("failed to generate upload URL: %w", err)
+	}
+
+	// Create a new route with resource_type = "file"
+	route := &PaidRoute{
+		TargetURL:        r2Key,
+		Method:           "GET", // Always use GET for file downloads
+		Price:            priceInt,
+		IsTest:           req.IsTest,
+		UserID:           userID,
+		IsEnabled:        true,
+		Type:             req.Type,
+		Credits:          req.Credits,
+		ResourceType:     "file",
+		OriginalFilename: &req.OriginalFilename,
+	}
+
+	// Handle title and description if provided
+	if req.Title != "" {
+		route.Title = &req.Title
+	}
+
+	if req.Description != "" {
+		route.Description = &req.Description
+	}
+
+	// Handle cover image if provided
+	if req.CoverImage != nil {
+		coverURL, err := s.ProcessAndUploadCoverImage(ctx,
+			coverImageKey, req.CoverImage)
+		if err != nil {
+			s.logger.Error("Failed to upload cover image", "error", err)
+			return nil, "", fmt.Errorf("failed to upload cover image: %w", err)
+		}
+		route.CoverImageURL = coverURL
+	}
+
+	// Save the route
+	createdRoute, err := s.store.CreateRoute(ctx, route)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to save file route: %w", err)
 	}
 
 	return createdRoute, uploadURL, nil
@@ -183,4 +227,30 @@ func (s *PaidRouteService) GetFileDownloadURL(ctx context.Context, key string, o
 	}
 
 	return downloadURL, nil
+}
+
+// ProcessAndUploadCoverImage processes and uploads a cover image to R2
+func (s *PaidRouteService) ProcessAndUploadCoverImage(gCtx context.Context,
+	externalID string, coverImageHeader *multipart.FileHeader) (*string, error) {
+
+	file, err := coverImageHeader.Open()
+	if err != nil {
+		return nil, fmt.Errorf("failed to open cover image: %w", err)
+	}
+	defer file.Close()
+
+	coverImageBytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read cover image: %w", err)
+	}
+
+	coverImageReader := bytes.NewReader(coverImageBytes)
+
+	coverURL, err := s.cloudflareService.UploadPublicFile(gCtx, externalID,
+		"cover-images", coverImageReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload cover file: %w", err)
+	}
+
+	return &coverURL, nil
 }

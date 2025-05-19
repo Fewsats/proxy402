@@ -19,6 +19,12 @@ type PaidRoute struct {
 	ResourceType string `json:"resource_type"`
 	// Original filename is the filename of the file uploaded by the user when resource_type is "file"
 	OriginalFilename *string `json:"original_filename,omitempty"`
+	// CoverImageURL is the URL of the cover image uploaded by the user
+	CoverImageURL *string `json:"cover_image_url,omitempty"`
+	// Title of the route
+	Title *string `json:"title,omitempty"`
+	// Description of the route
+	Description *string `json:"description,omitempty"`
 
 	// Store price as int64 representing base units (USDC * 10^6)
 	Price     uint64 `json:"price"`
