@@ -51,6 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // File upload functionality
     initFileUpload();
+    
+    // Cover image preview functionality
+    initCoverImagePreview();
 });
 
 // Initialize tab switching
@@ -246,22 +249,27 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const file = fileInput.files[0];
         
-        // Step 1: Create the route and get the signed upload URL
-        const routePayload = {
-            original_filename: file.name,
-            price: document.getElementById('price-input').value,
-            is_test: document.getElementById('is-test-input').checked,
-            type: document.getElementById('type-select').value,
-            credits: parseInt(document.getElementById('credits-input').value) || 0
-        };
+        // Create FormData object
+        const formData = new FormData();
+        formData.append('original_filename', file.name);
+        formData.append('price', document.getElementById('price-input').value);
+        formData.append('is_test', document.getElementById('is-test-input').checked);
+        formData.append('type', document.getElementById('type-select').value);
+        formData.append('credits', document.getElementById('credits-input').value);
+        
+        // Add optional fields
+        const titleInput = document.getElementById('title-input');
+        const descriptionInput = document.getElementById('description-input');
+        const coverImageInput = document.getElementById('cover-image-input');
+        
+        if (titleInput.value) formData.append('title', titleInput.value);
+        if (descriptionInput.value) formData.append('description', descriptionInput.value);
+        if (coverImageInput.files.length) formData.append('cover_image', coverImageInput.files[0]);
         
         // Send request to create the route and get the signed URL
         const routeResponse = await fetch('/files/upload', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(routePayload)
+            body: formData
         });
         
         if (!routeResponse.ok) {
@@ -291,24 +299,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     async function handleUrlSubmission() {
-        // Create payload
-        const payload = {
-            target_url: document.getElementById('target-url').value,
-            price: document.getElementById('price-input').value,
-            method: document.getElementById('method-select').value,
-            is_test: document.getElementById('is-test-input').checked,
-            type: document.getElementById('type-select').value,
-            credits: parseInt(document.getElementById('credits-input').value) || 0
-
-        };
+        // Create FormData object
+        const formData = new FormData();
+        
+        // Add required fields
+        formData.append('target_url', document.getElementById('target-url').value);
+        formData.append('price', document.getElementById('price-input').value);
+        formData.append('method', document.getElementById('method-select').value);
+        formData.append('is_test', document.getElementById('is-test-input').checked);
+        formData.append('type', document.getElementById('type-select').value);
+        formData.append('credits', document.getElementById('credits-input').value);
+        
+        // Add optional fields
+        const titleInput = document.getElementById('title-input');
+        const descriptionInput = document.getElementById('description-input');
+        const coverImageInput = document.getElementById('cover-image-input');
+        
+        if (titleInput.value) formData.append('title', titleInput.value);
+        if (descriptionInput.value) formData.append('description', descriptionInput.value);
+        if (coverImageInput.files.length) formData.append('cover_image', coverImageInput.files[0]);
         
         // Send request
         const response = await fetch('/links/shrink', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
+            body: formData
         });
         
         const data = await response.json();
@@ -466,5 +480,77 @@ function initializeEnhancedTooltips() {
     const tableBody = document.querySelector('#links-table tbody');
     if (tableBody) {
         observer.observe(tableBody, { childList: true });
+    }
+}
+
+// Initialize cover image preview
+function initCoverImagePreview() {
+    const coverImageInput = document.getElementById('cover-image-input');
+    const coverImageDropzone = document.getElementById('cover-image-dropzone');
+    const coverImagePreview = document.getElementById('cover-image-preview');
+    
+    if (!coverImageInput || !coverImageDropzone || !coverImagePreview) return;
+    
+    // Handle image selection
+    function handleImage(file) {
+        if (!file) return;
+        
+        const fileName = coverImagePreview.querySelector('.file-name');
+        const fileSize = coverImagePreview.querySelector('.file-size');
+        
+        if (fileName && fileSize) {
+            // Display file info
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+        }
+        
+        // Show preview, hide dropzone
+        coverImagePreview.style.display = 'flex';
+        coverImageDropzone.style.display = 'none';
+    }
+    
+    // Prevent default browser drag behavior
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        coverImageDropzone.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+    
+    // Highlight effect
+    ['dragenter', 'dragover'].forEach(eventName => {
+        coverImageDropzone.addEventListener(eventName, () => coverImageDropzone.classList.add('dragover'));
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        coverImageDropzone.addEventListener(eventName, () => coverImageDropzone.classList.remove('dragover'));
+    });
+    
+    // Handle dropped files
+    coverImageDropzone.addEventListener('drop', e => {
+        if (e.dataTransfer.files.length) {
+            coverImageInput.files = e.dataTransfer.files;
+            handleImage(e.dataTransfer.files[0]);
+        }
+    });
+    
+    // Handle file selection via input
+    coverImageInput.addEventListener('change', () => {
+        if (coverImageInput.files.length) {
+            handleImage(coverImageInput.files[0]);
+        }
+    });
+    
+    // Open file dialog when clicking on dropzone
+    coverImageDropzone.addEventListener('click', () => coverImageInput.click());
+    
+    // Remove file button
+    const removeButton = coverImagePreview.querySelector('.remove-file');
+    if (removeButton) {
+        removeButton.addEventListener('click', function() {
+            coverImageInput.value = '';
+            coverImagePreview.style.display = 'none';
+            coverImageDropzone.style.display = 'block';
+        });
     }
 } 

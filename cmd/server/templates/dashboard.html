@@ -178,7 +178,7 @@
                 </div>
             </div>
             
-            <form id="link-form" class="url-form">
+            <form id="link-form" class="url-form" enctype="multipart/form-data">
                 <div class="form-group">
                     <!-- URL input section -->
                     <div id="url-section" class="file-section">
@@ -197,6 +197,34 @@
                         <div id="file-preview" class="file-preview" style="display: none;">
                             <div class="file-info">
                                 <i data-lucide="file" width="16" height="16"></i>
+                                <span class="file-name"></span>
+                                <span class="file-size"></span>
+                            </div>
+                            <button type="button" class="remove-file">
+                                <i data-lucide="x" width="16" height="16"></i>
+                            </button>
+                        </div>
+                    </div>
+                
+                    <!-- Title field (new) -->
+                    <input type="text" id="title-input" name="title" placeholder="Title (optional)">
+                    
+                    <!-- Description field (new) -->
+                    <textarea id="description-input" name="description" placeholder="Description (optional)" rows="3"></textarea>
+                    
+                    <!-- Cover image field (new) -->
+                    <div class="cover-image-container">
+                        <label for="cover-image-input">Cover Image (optional)</label>
+                        <div id="cover-image-dropzone" class="file-dropzone">
+                            <input type="file" id="cover-image-input" name="cover_image" accept="image/*" class="hidden">
+                            <div class="dropzone-content">
+                                <i data-lucide="image" width="24" height="24"></i>
+                                <span>Drag & drop an image here, or click to select</span>
+                            </div>
+                        </div>
+                        <div id="cover-image-preview" class="file-preview" style="display: none;">
+                            <div class="file-info">
+                                <i data-lucide="image" width="16" height="16"></i>
                                 <span class="file-name"></span>
                                 <span class="file-size"></span>
                             </div>

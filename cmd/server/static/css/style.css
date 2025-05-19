@@ -1531,3 +1531,62 @@ th.sortable.desc::after {
     50% { opacity: 0.9; }
     100% { opacity: 0.7; }
 }
+
+/* Cover image container */
+.cover-image-container {
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+.cover-image-container label {
+    display: block;
+    margin-bottom: 5px;
+    color: #a0aec0;
+    font-size: 0.9rem;
+}
+
+#cover-image-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #2d3748;
+    border-radius: 6px;
+    background-color: #1a202c;
+    color: #e2e8f0;
+}
+
+/* Title and description inputs */
+#description-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #2d3748;
+    border-radius: 6px;
+    background-color: #1a202c;
+    color: #e2e8f0;
+    resize: vertical;
+    min-height: 60px;
+    margin-bottom: 15px;
+    font-family: inherit;
+}
+
+#title-input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #2d3748;
+    border-radius: 6px;
+    background-color: #1a202c;
+    color: #e2e8f0;
+}
+
+/* Link title and cover image indicator in table */
+.link-title {
+    font-weight: 500;
+    color: #90cdf4;
+}
+
+.has-cover-image {
+    margin-left: 5px;
+    font-size: 12px;
+    vertical-align: middle;
+    opacity: 0.8;
+}

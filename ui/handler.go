@@ -42,13 +42,37 @@ func NewUIHandler(paidRouteService *routes.PaidRouteService,
 	}
 }
 
+// getRouteDisplayInfo determines the appropriate title, description and cover image
+// for a route based on its type and provided metadata
+func (h *UIHandler) getRouteDisplayInfo(link routes.PaidRoute) (title, description, coverImageURL string) {
+	// Override with actual values if provided
+	if link.Title != nil {
+		title = *link.Title
+	}
+
+	if link.Description != nil {
+		description = *link.Description
+	}
+
+	if link.CoverImageURL != nil {
+		coverImageURL = *link.CoverImageURL
+	}
+
+	return title, description, coverImageURL
+}
+
 // UIPaidRoute is a UI model for displaying PaidRoute with formatted price
 type UIPaidRoute struct {
-	ID           uint64
-	UserID       uint64
-	ShortCode    string
-	Target       string
-	Method       string
+	ID        uint64
+	UserID    uint64
+	ShortCode string
+	Target    string
+	Method    string
+
+	Title         string
+	Description   string
+	CoverImageURL string
+
 	ResourceType string
 
 	Price     string
@@ -87,10 +111,12 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 	router.GET("/settings", auth.AuthMiddleware(h.authService), h.handleSettings)
 
 	// Regenerate secret
-	router.POST("/settings/regenerate-secret", auth.AuthMiddleware(h.authService), h.handleRegenerateSecret)
+	router.POST("/settings/regenerate-secret",
+		auth.AuthMiddleware(h.authService), h.handleRegenerateSecret)
 
 	// Update payment address
-	router.POST("/settings/update-payment-address", auth.AuthMiddleware(h.authService), h.handleUpdatePaymentAddress)
+	router.POST("/settings/update-payment-address",
+		auth.AuthMiddleware(h.authService), h.handleUpdatePaymentAddress)
 }
 
 // handleLandingPage renders the landing page for non-authenticated users
@@ -148,9 +174,12 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 		var target string
 		if link.ResourceType == "file" && link.OriginalFilename != nil {
 			target = *link.OriginalFilename
-		} else {
+		} else { // URL
 			target = link.TargetURL
 		}
+
+		// Get display info for this route
+		title, description, coverImageURL := h.getRouteDisplayInfo(link)
 
 		uiLinks = append(uiLinks, UIPaidRoute{
 			ID:           link.ID,
@@ -158,6 +187,10 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 			Target:       target,
 			Method:       link.Method,
 			ResourceType: link.ResourceType,
+
+			Title:         title,
+			Description:   description,
+			CoverImageURL: coverImageURL,
 
 			Price:     strconv.FormatFloat(float64(link.Price)/1000000, 'f', -1, 64),
 			Type:      link.Type,
