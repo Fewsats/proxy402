@@ -32,22 +32,12 @@ INSERT INTO paid_routes (
     short_code, target_url, method, price, is_test,
     user_id, is_enabled, attempt_count, payment_count, access_count,
     created_at, updated_at,
-    type, credits, resource_type, original_filename
+    type, credits, resource_type, original_filename, cover_url,
+    title, description
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16
+    $13, $14, $15, $16, $17, $18, $19
 ) RETURNING *;
-
--- name: UpdatePaidRoute :exec
--- UpdatePaidRoute updates a paid route.
-UPDATE paid_routes SET
-    target_url = $2,
-    method = $3,
-    price = $4,
-    is_test = $5,
-    is_enabled = $6,
-    updated_at = $7
-WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: IncrementAttemptCount :exec
 -- IncrementAttemptCount increments the attempt_count for a route.

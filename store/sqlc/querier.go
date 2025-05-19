@@ -49,8 +49,6 @@ type Querier interface {
 	ListPurchasesByUserID(ctx context.Context, userID int64) ([]Purchase, error)
 	// ListUserPaidRoutes returns all paid routes for a specific user.
 	ListUserPaidRoutes(ctx context.Context, userID int64) ([]PaidRoute, error)
-	// UpdatePaidRoute updates a paid route.
-	UpdatePaidRoute(ctx context.Context, arg UpdatePaidRouteParams) error
 	// UpdateUserPaymentAddress updates a user's payment address.
 	UpdateUserPaymentAddress(ctx context.Context, arg UpdateUserPaymentAddressParams) (User, error)
 	UpdateUserProxySecret(ctx context.Context, arg UpdateUserProxySecretParams) (User, error)

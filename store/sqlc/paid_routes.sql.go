@@ -32,11 +32,12 @@ INSERT INTO paid_routes (
     short_code, target_url, method, price, is_test,
     user_id, is_enabled, attempt_count, payment_count, access_count,
     created_at, updated_at,
-    type, credits, resource_type, original_filename
+    type, credits, resource_type, original_filename, cover_url,
+    title, description
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-    $13, $14, $15, $16
-) RETURNING id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename
+    $13, $14, $15, $16, $17, $18, $19
+) RETURNING id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename, cover_url, title, description
 `
 
 type CreatePaidRouteParams struct {
@@ -56,6 +57,9 @@ type CreatePaidRouteParams struct {
 	Credits          int32
 	ResourceType     string
 	OriginalFilename pgtype.Text
+	CoverUrl         pgtype.Text
+	Title            pgtype.Text
+	Description      pgtype.Text
 }
 
 // CreatePaidRoute creates a new paid route.
@@ -77,6 +81,9 @@ func (q *Queries) CreatePaidRoute(ctx context.Context, arg CreatePaidRouteParams
 		arg.Credits,
 		arg.ResourceType,
 		arg.OriginalFilename,
+		arg.CoverUrl,
+		arg.Title,
+		arg.Description,
 	)
 	var i PaidRoute
 	err := row.Scan(
@@ -98,6 +105,9 @@ func (q *Queries) CreatePaidRoute(ctx context.Context, arg CreatePaidRouteParams
 		&i.Credits,
 		&i.ResourceType,
 		&i.OriginalFilename,
+		&i.CoverUrl,
+		&i.Title,
+		&i.Description,
 	)
 	return i, err
 }
@@ -121,7 +131,7 @@ func (q *Queries) DeletePaidRoute(ctx context.Context, arg DeletePaidRouteParams
 }
 
 const getEnabledPaidRouteByShortCode = `-- name: GetEnabledPaidRouteByShortCode :one
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename, cover_url, title, description FROM paid_routes
 WHERE short_code = $1 AND is_enabled = true AND deleted_at IS NULL
 `
 
@@ -148,12 +158,15 @@ func (q *Queries) GetEnabledPaidRouteByShortCode(ctx context.Context, shortCode 
 		&i.Credits,
 		&i.ResourceType,
 		&i.OriginalFilename,
+		&i.CoverUrl,
+		&i.Title,
+		&i.Description,
 	)
 	return i, err
 }
 
 const getPaidRouteByID = `-- name: GetPaidRouteByID :one
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename, cover_url, title, description FROM paid_routes
 WHERE id = $1 AND deleted_at IS NULL
 `
 
@@ -180,12 +193,15 @@ func (q *Queries) GetPaidRouteByID(ctx context.Context, id int64) (PaidRoute, er
 		&i.Credits,
 		&i.ResourceType,
 		&i.OriginalFilename,
+		&i.CoverUrl,
+		&i.Title,
+		&i.Description,
 	)
 	return i, err
 }
 
 const getPaidRouteByShortCode = `-- name: GetPaidRouteByShortCode :one
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename, cover_url, title, description FROM paid_routes
 WHERE short_code = $1 AND deleted_at IS NULL
 `
 
@@ -212,6 +228,9 @@ func (q *Queries) GetPaidRouteByShortCode(ctx context.Context, shortCode string)
 		&i.Credits,
 		&i.ResourceType,
 		&i.OriginalFilename,
+		&i.CoverUrl,
+		&i.Title,
+		&i.Description,
 	)
 	return i, err
 }
@@ -271,7 +290,7 @@ func (q *Queries) IncrementPaymentCount(ctx context.Context, arg IncrementPaymen
 }
 
 const listUserPaidRoutes = `-- name: ListUserPaidRoutes :many
-SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename FROM paid_routes
+SELECT id, short_code, target_url, method, price, is_test, user_id, is_enabled, attempt_count, payment_count, access_count, created_at, updated_at, deleted_at, type, credits, resource_type, original_filename, cover_url, title, description FROM paid_routes
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC
 `
@@ -305,6 +324,9 @@ func (q *Queries) ListUserPaidRoutes(ctx context.Context, userID int64) ([]PaidR
 			&i.Credits,
 			&i.ResourceType,
 			&i.OriginalFilename,
+			&i.CoverUrl,
+			&i.Title,
+			&i.Description,
 		); err != nil {
 			return nil, err
 		}
@@ -314,39 +336,4 @@ func (q *Queries) ListUserPaidRoutes(ctx context.Context, userID int64) ([]PaidR
 		return nil, err
 	}
 	return items, nil
-}
-
-const updatePaidRoute = `-- name: UpdatePaidRoute :exec
-UPDATE paid_routes SET
-    target_url = $2,
-    method = $3,
-    price = $4,
-    is_test = $5,
-    is_enabled = $6,
-    updated_at = $7
-WHERE id = $1 AND deleted_at IS NULL
-`
-
-type UpdatePaidRouteParams struct {
-	ID        int64
-	TargetUrl string
-	Method    string
-	Price     int32
-	IsTest    bool
-	IsEnabled bool
-	UpdatedAt time.Time
-}
-
-// UpdatePaidRoute updates a paid route.
-func (q *Queries) UpdatePaidRoute(ctx context.Context, arg UpdatePaidRouteParams) error {
-	_, err := q.db.Exec(ctx, updatePaidRoute,
-		arg.ID,
-		arg.TargetUrl,
-		arg.Method,
-		arg.Price,
-		arg.IsTest,
-		arg.IsEnabled,
-		arg.UpdatedAt,
-	)
-	return err
 }

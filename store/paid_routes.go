@@ -38,16 +38,41 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 		originalFilename.Valid = true
 	}
 
+	var coverUrl pgtype.Text
+	if route.CoverImageURL != nil {
+		coverUrl.String = *route.CoverImageURL
+		coverUrl.Valid = true
+	}
+
+	var title pgtype.Text
+	if route.Title != nil {
+		title.String = *route.Title
+		title.Valid = true
+	}
+
+	var description pgtype.Text
+	if route.Description != nil {
+		description.String = *route.Description
+		description.Valid = true
+	}
+
 	params := sqlc.CreatePaidRouteParams{
 		ShortCode: shortCode,
 		TargetUrl: route.TargetURL,
 		Method:    route.Method,
 
-		Price:     int32(route.Price),
-		Type:      route.Type,
-		Credits:   int32(route.Credits),
+		ResourceType:     route.ResourceType,
+		OriginalFilename: originalFilename,
+
+		UserID:      int64(route.UserID),
+		Title:       title,
+		Description: description,
+		Price:       int32(route.Price),
+		Type:        route.Type,
+		Credits:     int32(route.Credits),
+		CoverUrl:    coverUrl,
+
 		IsTest:    route.IsTest,
-		UserID:    int64(route.UserID),
 		IsEnabled: route.IsEnabled,
 
 		AttemptCount: 0,
@@ -56,10 +81,6 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 
 		CreatedAt: now,
 		UpdatedAt: now,
-
-		// Add these fields
-		ResourceType:     route.ResourceType,
-		OriginalFilename: originalFilename,
 	}
 
 	dbRoute, err := s.queries.CreatePaidRoute(ctx, params)
@@ -143,8 +164,10 @@ func (s *Store) DeleteRoute(ctx context.Context, routeID uint64, userID uint64) 
 
 // IncrementRouteAttemptCount increments the attempt_count for a route.
 func (s *Store) IncrementRouteAttemptCount(ctx context.Context, shortCode string) error {
+	now := s.clock.Now()
 	err := s.queries.IncrementAttemptCount(ctx, sqlc.IncrementAttemptCountParams{
 		ShortCode: shortCode,
+		UpdatedAt: now,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to increment attempt count: %w", err)
@@ -154,8 +177,10 @@ func (s *Store) IncrementRouteAttemptCount(ctx context.Context, shortCode string
 
 // IncrementRoutePaymentCount increments the payment_count for a route.
 func (s *Store) IncrementRoutePaymentCount(ctx context.Context, shortCode string) error {
+	now := s.clock.Now()
 	err := s.queries.IncrementPaymentCount(ctx, sqlc.IncrementPaymentCountParams{
 		ShortCode: shortCode,
+		UpdatedAt: now,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to increment payment count: %w", err)
@@ -165,8 +190,10 @@ func (s *Store) IncrementRoutePaymentCount(ctx context.Context, shortCode string
 
 // IncrementRouteAccessCount increments the access_count for a route.
 func (s *Store) IncrementRouteAccessCount(ctx context.Context, shortCode string) error {
+	now := s.clock.Now()
 	err := s.queries.IncrementAccessCount(ctx, sqlc.IncrementAccessCountParams{
 		ShortCode: shortCode,
+		UpdatedAt: now,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to increment access count: %w", err)
@@ -223,11 +250,13 @@ func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *routes.PaidRoute {
 		TargetURL: dbRoute.TargetUrl,
 		Method:    dbRoute.Method,
 
-		Price:     uint64(dbRoute.Price),
-		Type:      dbRoute.Type,
-		Credits:   uint64(dbRoute.Credits),
+		Price:        uint64(dbRoute.Price),
+		Type:         dbRoute.Type,
+		Credits:      uint64(dbRoute.Credits),
+		UserID:       uint64(dbRoute.UserID),
+		ResourceType: dbRoute.ResourceType,
+
 		IsTest:    dbRoute.IsTest,
-		UserID:    uint64(dbRoute.UserID),
 		IsEnabled: dbRoute.IsEnabled,
 
 		AttemptCount: uint64(dbRoute.AttemptCount),
@@ -236,21 +265,31 @@ func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *routes.PaidRoute {
 
 		CreatedAt: dbRoute.CreatedAt,
 		UpdatedAt: dbRoute.UpdatedAt,
-
-		// Add these fields from the database model
-		ResourceType: dbRoute.ResourceType,
 	}
 
-	// Convert DeletedAt if it exists
 	if dbRoute.DeletedAt.Valid {
 		deletedAt := dbRoute.DeletedAt.Time
 		route.DeletedAt = &deletedAt
 	}
 
-	// Convert OriginalFilename if it exists
 	if dbRoute.OriginalFilename.Valid {
 		filename := dbRoute.OriginalFilename.String
 		route.OriginalFilename = &filename
+	}
+
+	if dbRoute.CoverUrl.Valid {
+		coverUrl := dbRoute.CoverUrl.String
+		route.CoverImageURL = &coverUrl
+	}
+
+	if dbRoute.Title.Valid {
+		title := dbRoute.Title.String
+		route.Title = &title
+	}
+
+	if dbRoute.Description.Valid {
+		description := dbRoute.Description.String
+		route.Description = &description
 	}
 
 	return route

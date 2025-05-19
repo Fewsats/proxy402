@@ -29,6 +29,9 @@ type PaidRoute struct {
 	Credits          int32
 	ResourceType     string
 	OriginalFilename pgtype.Text
+	CoverUrl         pgtype.Text
+	Title            pgtype.Text
+	Description      pgtype.Text
 }
 
 type Purchase struct {
