@@ -165,8 +165,8 @@
             </div>
         </div>
 
-        <!-- Link creation form -->
-        <div class="create-link-form">
+        <!-- Link creation form - hidden by default -->
+        <div class="create-link-form" id="create-link-form" style="display: none;">
             <!-- Error message container -->
             <div id="form-error" class="error" style="display: none;"></div>
             
@@ -308,8 +308,13 @@
                 <select id="type-filter" class="filter-select">
                     <option value="All">All</option>
                     <option value="credit">Credit</option>
-                    <!-- Add other types here if they become available -->
                 </select>
+                
+                <div class="table-action-buttons">
+                    <button id="toggle-form-btn" class="btn toggle-form-btn">
+                        <i data-lucide="plus"></i> Create New Link
+                    </button>
+                </div>
             </div>
 
             <table id="links-table" class="data-table">

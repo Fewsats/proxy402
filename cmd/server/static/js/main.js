@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Cover image preview functionality
     initCoverImagePreview();
+    
+    // Form toggle functionality
+    initFormToggle();
 });
 
 // Initialize tab switching
@@ -553,4 +556,34 @@ function initCoverImagePreview() {
             coverImageDropzone.style.display = 'block';
         });
     }
+}
+
+// Initialize form toggle functionality
+function initFormToggle() {
+    const toggleBtn = document.getElementById('toggle-form-btn');
+    const form = document.getElementById('create-link-form');
+    
+    if (!toggleBtn || !form) return;
+    
+    toggleBtn.addEventListener('click', function() {
+        const isVisible = form.style.display !== 'none';
+        
+        if (isVisible) {
+            form.style.display = 'none';
+            toggleBtn.innerHTML = '<i data-lucide="plus"></i> Create New Link';
+        } else {
+            form.style.display = 'block';
+            toggleBtn.innerHTML = '<i data-lucide="minus"></i> Hide Form';
+        }
+        
+        // Reinitialize icons
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+        
+        // Scroll to form if opening
+        if (!isVisible) {
+            form.scrollIntoView({behavior: 'smooth'});
+        }
+    });
 } 

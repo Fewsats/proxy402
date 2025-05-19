@@ -1158,6 +1158,7 @@ th.sortable.desc::after {
     display: flex;
     gap: 1rem;
     align-items: center;
+    flex-wrap: wrap;
 }
 
 .table-filters label {
@@ -1244,7 +1245,7 @@ th.sortable.desc::after {
 }
 
 .payment-input-group {
-    /* Specific styles for payment input group if different from settings-value */
+    /* Specific styles for payment input group if different from settings-value above */
     /* For now, inherits most from .settings-value above */
     /* Ensure input and button are spaced correctly if needed */
     gap: 10px; /* Space between input and button */
@@ -1589,4 +1590,33 @@ th.sortable.desc::after {
     font-size: 12px;
     vertical-align: middle;
     opacity: 0.8;
+}
+
+/* Form toggle button */
+.table-action-buttons {
+    margin-left: auto;
+}
+
+.toggle-form-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--primary-color);
+    color: #17294d;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.toggle-form-btn:hover {
+    background-color: #a8d1ff;
+    transform: translateY(-2px);
+}
+
+.toggle-form-btn i {
+    color: #17294d;
 }
