@@ -355,11 +355,20 @@ h2 {
 /* Form elements */
 .create-link-form {
     background-color: var(--card-bg);
-    border-radius: 8px;
     padding: 1.5rem;
-    margin-bottom: 2rem;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 0;
+    border-top: none;
+    box-shadow: none;
+    transition: all 0.3s ease-in-out;
+    max-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.create-link-form.open {
+    max-height: 2000px; /* Large enough to contain the form */
+    padding: 1.5rem;
 }
 
 .form-group {
@@ -369,6 +378,10 @@ h2 {
     flex-wrap: wrap;
 }
 
+/* Submit button alignment */
+#submit-btn {
+    margin-left: auto;
+}
 
 input, select {
     padding: 0.75rem 1rem;
@@ -1014,14 +1027,13 @@ input:focus, select:focus {
 
 /* Dashboard Stats Section */
 .dashboard-stats {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
 }
 
 .stats-container {
     display: grid;
     grid-template-columns: 1fr 2fr;
     gap: 1.5rem;
-    margin-bottom: 1.5rem;
 }
 
 .stats-cards {
@@ -1556,27 +1568,21 @@ th.sortable.desc::after {
 }
 
 /* Title and description inputs */
-#description-input {
+#title-input, #description-input {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #2d3748;
+    padding: 0.75rem 1rem;
     border-radius: 6px;
-    background-color: #1a202c;
-    color: #e2e8f0;
-    resize: vertical;
-    min-height: 60px;
+    border: 1px solid var(--border-color);
+    background-color: #325082;
+    color: var(--text-color);
     margin-bottom: 15px;
     font-family: inherit;
+    font-size: 0.95rem;
 }
 
-#title-input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #2d3748;
-    border-radius: 6px;
-    background-color: #1a202c;
-    color: #e2e8f0;
+#description-input {
+    resize: vertical;
+    min-height: 60px;
 }
 
 /* Link title and cover image indicator in table */
@@ -1619,4 +1625,52 @@ th.sortable.desc::after {
 
 .toggle-form-btn i {
     color: #17294d;
+}
+
+/* Accordion Form Container */
+.accordion-form-container {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+}
+
+.accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.accordion-header:hover {
+    background-color: #2a4d82;
+}
+
+.accordion-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.accordion-toggle-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+}
+
+.accordion-toggle-btn i {
+    transition: transform 0.3s ease;
 }

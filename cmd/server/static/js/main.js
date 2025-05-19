@@ -560,30 +560,48 @@ function initCoverImagePreview() {
 
 // Initialize form toggle functionality
 function initFormToggle() {
-    const toggleBtn = document.getElementById('toggle-form-btn');
+    const accordionHeader = document.getElementById('form-accordion-header');
     const form = document.getElementById('create-link-form');
+    const iconPlus = document.querySelector('.icon-plus');
+    const iconMinus = document.querySelector('.icon-minus');
     
-    if (!toggleBtn || !form) return;
+    if (!accordionHeader || !form || !iconPlus || !iconMinus) return;
     
-    toggleBtn.addEventListener('click', function() {
-        const isVisible = form.style.display !== 'none';
-        
-        if (isVisible) {
-            form.style.display = 'none';
-            toggleBtn.innerHTML = '<i data-lucide="plus"></i> Create New Link';
-        } else {
+    // Function to check if there are any links in the table
+    function hasLinks() {
+        const linksTable = document.getElementById('links-table');
+        return linksTable && linksTable.querySelector('tbody tr');
+    }
+    
+    // Function to toggle form visibility
+    function toggleForm(show) {
+        if (show) {
             form.style.display = 'block';
-            toggleBtn.innerHTML = '<i data-lucide="minus"></i> Hide Form';
+            form.classList.add('open');
+            iconPlus.style.display = 'none';
+            iconMinus.style.display = 'block';
+        } else {
+            form.classList.remove('open');
+            iconPlus.style.display = 'block';
+            iconMinus.style.display = 'none';
+            
+            // We need to wait for the animation to complete before hiding the form
+            setTimeout(() => {
+                if (!form.classList.contains('open')) {
+                    form.style.display = 'none';
+                }
+            }, 300); // Match this to the CSS transition duration
         }
-        
-        // Reinitialize icons
-        if (window.lucide) {
-            lucide.createIcons();
-        }
-        
-        // Scroll to form if opening
-        if (!isVisible) {
-            form.scrollIntoView({behavior: 'smooth'});
-        }
+    }
+    
+    // If no links exist, show the form by default
+    if (!hasLinks()) {
+        toggleForm(true);
+    }
+    
+    // Toggle on header click
+    accordionHeader.addEventListener('click', function() {
+        const isVisible = form.classList.contains('open');
+        toggleForm(!isVisible);
     });
 } 
