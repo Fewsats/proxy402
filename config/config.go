@@ -153,6 +153,7 @@ func LoadConfig(logger *slog.Logger) *Config {
 	AppConfig.Cloudflare.AccessKey = getEnv("CLOUDFLARE_R2_ACCESS_KEY", "")
 	AppConfig.Cloudflare.SecretAccessKey = getEnv("CLOUDFLARE_R2_SECRET_ACCESS_KEY", "")
 	AppConfig.Cloudflare.BucketName = getEnv("CLOUDFLARE_R2_BUCKET_NAME", "")
+	AppConfig.Cloudflare.PublicBucketName = getEnv("CLOUDFLARE_R2_PUBLIC_BUCKET_NAME", "")
 
 	logger.Info("Configuration loaded.")
 

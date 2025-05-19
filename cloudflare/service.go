@@ -2,6 +2,8 @@ package cloudflare
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"time"
 )
 
@@ -25,4 +27,24 @@ func (s *Service) GetUploadURL(ctx context.Context, key string) (string, error) 
 func (s *Service) GetDownloadURL(ctx context.Context, key string, originalFilename string) (string, error) {
 	// e.g. 24 hours
 	return s.r2.PresignDownloadURL(ctx, key, 24*time.Hour, originalFilename)
+}
+
+// PublicFileURL returns the URL of a file in the storage provider.
+func (s *Service) PublicFileURL(key string) string {
+	return s.r2.publicFileURL(key)
+}
+
+func (s *Service) UploadPublicFile(ctx context.Context, fileID string,
+	prefix string, reader io.ReadSeeker) (string, error) {
+
+	key := fmt.Sprintf("%s/%s", prefix, fileID)
+	return s.r2.uploadPublicFile(ctx, key, reader)
+}
+
+func (s *Service) DeletePublicFile(ctx context.Context, key string) error {
+	err := s.r2.deletePublicFile(ctx, key)
+	if err != nil {
+		return fmt.Errorf("failed to delete file from storage: %w", err)
+	}
+	return nil
 }

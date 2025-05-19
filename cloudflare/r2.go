@@ -3,6 +3,7 @@ package cloudflare
 import (
 	"context" // Keep context for method signature consistency if desired
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,8 +13,9 @@ import (
 )
 
 type R2Service struct {
-	r2     *s3.S3
-	bucket string
+	r2           *s3.S3
+	bucket       string
+	publicBucket string
 }
 
 func NewR2Service(cfg *Config) (*R2Service, error) {
@@ -34,8 +36,9 @@ func NewR2Service(cfg *Config) (*R2Service, error) {
 	r2 := s3.New(sess)
 
 	return &R2Service{
-		r2:     r2,
-		bucket: cfg.BucketName,
+		r2:           r2,
+		bucket:       cfg.BucketName,
+		publicBucket: cfg.PublicBucketName,
 	}, nil
 }
 
@@ -63,4 +66,29 @@ func (r *R2Service) PresignDownloadURL(ctx context.Context, key string, expires 
 
 	req, _ := r.r2.GetObjectRequest(input)
 	return req.Presign(expires)
+}
+
+func (r *R2Service) uploadPublicFile(ctx context.Context, key string, reader io.ReadSeeker) (string, error) {
+	_, err := r.r2.PutObjectWithContext(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(r.publicBucket),
+		Key:    aws.String(key),
+		Body:   reader,
+	})
+	if err != nil {
+		return "", err
+	}
+	return r.publicFileURL(key), nil
+}
+
+func (r *R2Service) deletePublicFile(ctx context.Context, key string) error {
+	_, err := r.r2.DeleteObjectWithContext(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(r.publicBucket),
+		Key:    aws.String(key),
+	})
+	return err
+}
+
+func (r *R2Service) publicFileURL(key string) string {
+	// TODO(pol) this is a dev access to staging bucket hardcoded
+	return fmt.Sprintf("https://pub-28923997f1a14d3a836f2f0cdfc5a4a3.r2.dev/%s", key)
 }
