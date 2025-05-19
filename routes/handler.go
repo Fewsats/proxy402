@@ -374,6 +374,17 @@ func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidR
 		gCtx.Set("OriginalFilename", *route.OriginalFilename)
 	}
 
+	// Set metadata fields for social sharing in payment template
+	if route.Title != nil {
+		gCtx.Set("Title", *route.Title)
+	}
+	if route.Description != nil {
+		gCtx.Set("Description", *route.Description)
+	}
+	if route.CoverImageURL != nil {
+		gCtx.Set("CoverURL", *route.CoverImageURL)
+	}
+
 	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress,
 		x402.WithFacilitatorConfig(facilitatorConfig),
 		x402.WithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),

@@ -157,17 +157,28 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			// Format the amount for display (convert from big.Float to string)
 			amountString := amount.Text('f', 6)
 
+			// Use contextDescription if available, otherwise fall back to options.Description
+			var description string
+			if contextDescription := c.GetString("Description"); contextDescription != "" {
+				description = contextDescription
+			} else {
+				description = options.Description
+			}
+
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
 				"Resource":         resource,
-				"Description":      options.Description,
+				"Description":      description,
 				"AmountFormatted":  amountString,
 				"ResourceType":     c.GetString("ResourceType"),
 				"OriginalFilename": c.GetString("OriginalFilename"),
+				"Title":            c.GetString("Title"),
+				"CoverURL":         c.GetString("CoverURL"),
 			})
 			c.Abort()
 			return
 		}
 
+		fmt.Println("Failed to decode X-PAYMENT header:", err)
 		// For API clients, return JSON
 		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
 			"error":       "X-PAYMENT header is required",
@@ -197,13 +208,23 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			// Format the amount for display with 6 decimal places
 			amountString := amount.Text('f', 6)
 
+			// Use contextDescription if available, otherwise fall back to options.Description
+			var description string
+			if contextDescription := c.GetString("Description"); contextDescription != "" {
+				description = contextDescription
+			} else {
+				description = options.Description
+			}
+
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
 				"Resource":         resource,
-				"Description":      options.Description,
+				"Description":      description,
 				"AmountFormatted":  amountString,
 				"ErrorMessage":     response.InvalidReason,
 				"ResourceType":     c.GetString("ResourceType"),
 				"OriginalFilename": c.GetString("OriginalFilename"),
+				"Title":            c.GetString("Title"),
+				"CoverURL":         c.GetString("CoverURL"),
 			})
 			c.Abort()
 			return
@@ -230,13 +251,23 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			// Format the amount for display with 6 decimal places
 			amountString := amount.Text('f', 6)
 
+			// Use contextDescription if available, otherwise fall back to options.Description
+			var description string
+			if contextDescription := c.GetString("Description"); contextDescription != "" {
+				description = contextDescription
+			} else {
+				description = options.Description
+			}
+
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
 				"Resource":         resource,
-				"Description":      options.Description,
+				"Description":      description,
 				"AmountFormatted":  amountString,
 				"ErrorMessage":     err.Error(),
 				"ResourceType":     c.GetString("ResourceType"),
 				"OriginalFilename": c.GetString("OriginalFilename"),
+				"Title":            c.GetString("Title"),
+				"CoverURL":         c.GetString("CoverURL"),
 			})
 			c.Abort()
 			return

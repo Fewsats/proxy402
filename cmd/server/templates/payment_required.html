@@ -13,43 +13,37 @@
     </script>
     {{end}}
     
-    {{if eq .ResourceType "file"}}
-    <title>{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required</title>
-    <meta name="description" content="Payment required to access this file. Secured by Proxy402.">
-    {{else}}
-    <title>Payment Required - Proxy402</title>
-    <meta name="description" content="Payment required to access this content. Secured by Proxy402.">
-    {{end}}
+    <!-- Dynamic Title based on provided content -->
+    <title>{{if .Title}}{{.Title}}{{else if eq .ResourceType "file"}}{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required{{else}}Payment Required - Proxy402{{end}}</title>
+    
+    <!-- Dynamic Description -->
+    <meta name="description" content="{{if .Description}}{{.Description}}{{else if eq .ResourceType "file"}}Payment required to access {{if .OriginalFilename}}{{.OriginalFilename}}{{else}}this file{{end}}. Secured by Proxy402.{{else}}Payment required to access this content. Secured by Proxy402.{{end}}">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#1e2b4a">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    {{if eq .ResourceType "file"}}
-    <meta property="og:title" content="{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required">
-    <meta property="og:description" content="Payment required to access this file. Secured by Proxy402.">
-    {{else}}
-    <meta property="og:title" content="Payment Required - Proxy402">
-    <meta property="og:description" content="Payment required to access this content. Secured by Proxy402.">
-    {{end}}
-    <meta property="og:image" content="/static/img/og-payment.png">
+    <meta property="og:title" content="{{if .Title}}{{.Title}}{{else if eq .ResourceType "file"}}{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required{{else}}Payment Required - Proxy402{{end}}">
+    <meta property="og:description" content="{{if .Description}}{{.Description}}{{else if eq .ResourceType "file"}}Payment required to access {{if .OriginalFilename}}{{.OriginalFilename}}{{else}}this file{{end}}. Secured by Proxy402.{{else}}Payment required to access this content. Secured by Proxy402.{{end}}">
+    <meta property="og:image" content="{{if .CoverURL}}{{.CoverURL}}{{else}}/static/img/og-payment.png{{end}}">
     <meta property="og:url" content="{{.Resource}}">
     <meta property="og:site_name" content="Proxy402">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    {{if eq .ResourceType "file"}}
-    <meta name="twitter:title" content="{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required">
-    <meta name="twitter:description" content="Payment required to access {{if .OriginalFilename}}{{.OriginalFilename}}{{else}}this file{{end}}. Secured by Proxy402.">
-    {{else}}
-    <meta name="twitter:title" content="Payment Required - Proxy402">
-    <meta name="twitter:description" content="Payment required to access this content. Secured by Proxy402.">
-    {{end}}
-    <meta name="twitter:image" content="/static/img/og-payment.png">
+    <meta name="twitter:title" content="{{if .Title}}{{.Title}}{{else if eq .ResourceType "file"}}{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required{{else}}Payment Required - Proxy402{{end}}">
+    <meta name="twitter:description" content="{{if .Description}}{{.Description}}{{else if eq .ResourceType "file"}}Payment required to access {{if .OriginalFilename}}{{.OriginalFilename}}{{else}}this file{{end}}. Secured by Proxy402.{{else}}Payment required to access this content. Secured by Proxy402.{{end}}">
+    <meta name="twitter:image" content="{{if .CoverURL}}{{.CoverURL}}{{else}}/static/img/og-payment.png{{end}}">
     <meta name="twitter:site" content="@fewsats">
     
+    <!-- Additional Tags for Improved Shareability -->
+    <meta property="og:price:amount" content="{{.AmountFormatted}}">
+    <meta property="og:price:currency" content="USD">
+    <meta property="product:price:amount" content="{{.AmountFormatted}}">
+    <meta property="product:price:currency" content="USD">
+    
     <!-- Additional Tags -->
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="robots" content="index, follow"> <!-- Changed to allow indexing for better discoverability -->
     <meta name="monetization" content="$ilp.uphold.com/PAYMENT_POINTER">
     <link rel="canonical" href="{{.Resource}}">
 
@@ -164,6 +158,40 @@
             color: #fff;
             word-break: break-word;
         }
+
+        /* Cover image styling */
+        .cover-image {
+            width: 100%;
+            max-height: 300px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .resource-description {
+            color: #bbd0ff;
+            margin-bottom: 25px;
+            text-align: left;
+            line-height: 1.6;
+        }
+
+        /* Social proof styling */
+        .social-proof {
+            background-color: rgba(99, 179, 237, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #bbd0ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .social-proof i {
+            margin-right: 8px;
+            color: #63b3ed;
+        }
     </style>
 </head>
 <body>
@@ -180,10 +208,27 @@
     <div class="main-container">
         <div class="payment-container">
             <div class="payment-header">
-                <img src="/static/img/logo.svg" alt="Fewsats Logo" class="logo">
-                <h1 class="payment-title">Payment Required</h1>
+                <!-- Replace single logo with Proxy402 by Fewsats branding -->
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                    <span style="font-size: 24px; font-weight: 600; color: #fff;">Proxy402</span>
+                    <span style="margin: 0 5px; font-size: 16px; color: #bbd0ff;">by</span>
+                    <a href="https://fewsats.com" target="_blank" rel="noopener noreferrer">
+                        <img src="/static/img/logo.svg" alt="Fewsats Logo" style="height: 24px; vertical-align: middle;">
+                    </a>
+                </div>
                 
-                {{if eq .ResourceType "file"}}
+                <!-- Display cover image if available -->
+                {{if .CoverURL}}
+                <img src="{{.CoverURL}}" alt="Content preview" class="cover-image">
+                {{end}}
+                
+                <!-- Display title -->
+                <h1 class="payment-title">{{if .Title}}{{.Title}}{{else if eq .ResourceType "file"}}{{if .OriginalFilename}}Access: {{.OriginalFilename}}{{else}}File Access{{end}}{{else}}Access Protected Content{{end}}</h1>
+                
+                <!-- Display description -->
+                {{if .Description}}
+                <div class="resource-description">{{.Description}}</div>
+                {{else if eq .ResourceType "file"}}
                 <p class="payment-subtitle">
                     Pay to download {{if .OriginalFilename}}<span class="resource-name">{{.OriginalFilename}}</span>{{else}}this file{{end}}
                 </p>
@@ -220,8 +265,14 @@
                 </div>
             </div>
             
+            <!-- Social proof element -->
+            <div class="social-proof">
+                <i data-lucide="users" width="16" height="16"></i>
+                <span>People are accessing content right now</span>
+            </div>
+            
             <div class="payment-footer">
-                <p>Powered by <a href="https://proxy402.com" target="_blank">Proxy402</a> and the <a href="https://www.x402.org" target="_blank">x402 protocol</a></p>
+                <p>Secured by <a href="https://proxy402.com" target="_blank">Proxy402</a> | <a href="https://www.x402.org" target="_blank">Learn about x402</a></p>
             </div>
         </div>
     </div>
