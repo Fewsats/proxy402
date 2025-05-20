@@ -52,7 +52,7 @@ docker compose up
 ```
 
 Important .env variables:
-- `X402_TESTNET_PAYMENT_ADDRESS` & `X402_MAINNET_PAYMENT_ADDRESS`: Your Base addresses for receiving payments
+- `X402_PAYMENT_ADDRESS`: Your Base wallet address for receiving payments (works for Base Sepolia & Base Mainnet)
 - `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`: For auth (obtain from [Google Cloud Console](https://console.cloud.google.com/apis/credentials))
 
 ### Creating Monetized Routes
