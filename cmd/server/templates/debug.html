@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Proxy402 Debugger</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/static/js/debug.js" defer></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="/" class="logo">Proxy402</a>
+            <span class="navbar-tagline">
+                by
+                <a href="https://fewsats.com" target="_blank" rel="noopener noreferrer">
+                    <img src="/static/img/logo.svg" alt="Logo" class="navbar-logo-inline">
+                </a>
+            </span>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <h1 class="page-header">Debug x402 Endpoint</h1>
+        <form id="debug-form" class="create-link-form open">
+            <div class="form-group">
+                <input type="url" id="target-url" placeholder="https://example.com/resource" required style="flex:1">
+                <select id="method-select">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                </select>
+                <input type="text" id="payment-header" placeholder="X-Payment header (optional)" style="flex:1">
+                <button type="submit" class="btn" id="send-btn">Send</button>
+            </div>
+        </form>
+        <pre id="response-output" style="margin-top:1rem; white-space:pre-wrap;"></pre>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() { lucide.createIcons(); });
+    </script>
+</body>
+</html>
