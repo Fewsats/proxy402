@@ -241,6 +241,30 @@ h2 {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.btn-green {
+    background-color: var(--success-color); /* #10b981 */
+    color: var(--text-color); /* white */
+    border: none;
+    border-radius: 6px;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-green:hover {
+    background-color: #12cf93; /* Lighter green for hover */
+    color: var(--text-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
 .login-btn:hover {
     background-color: rgba(45, 65, 105, 1);
     border-color: #a8d1ff;

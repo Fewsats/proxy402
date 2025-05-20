@@ -173,13 +173,15 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			}
 
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":         resource,
-				"Description":      description,
-				"AmountFormatted":  amountString,
-				"ResourceType":     c.GetString("ResourceType"),
-				"OriginalFilename": c.GetString("OriginalFilename"),
-				"Title":            c.GetString("Title"),
-				"CoverURL":         c.GetString("CoverURL"),
+				"Resource":            resource,
+				"Description":         description,
+				"AmountFormatted":     amountString,
+				"ResourceType":        c.GetString("ResourceType"),
+				"OriginalFilename":    c.GetString("OriginalFilename"),
+				"Title":               c.GetString("Title"),
+				"CoverURL":            c.GetString("CoverURL"),
+				"IsTestnet":           options.Testnet,
+				"PaymentRequirements": paymentRequirements,
 			})
 			c.Abort()
 			return
@@ -224,14 +226,16 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			}
 
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":         resource,
-				"Description":      description,
-				"AmountFormatted":  amountString,
-				"ErrorMessage":     response.InvalidReason,
-				"ResourceType":     c.GetString("ResourceType"),
-				"OriginalFilename": c.GetString("OriginalFilename"),
-				"Title":            c.GetString("Title"),
-				"CoverURL":         c.GetString("CoverURL"),
+				"Resource":            resource,
+				"Description":         description,
+				"AmountFormatted":     amountString,
+				"ErrorMessage":        response.InvalidReason,
+				"ResourceType":        c.GetString("ResourceType"),
+				"OriginalFilename":    c.GetString("OriginalFilename"),
+				"Title":               c.GetString("Title"),
+				"CoverURL":            c.GetString("CoverURL"),
+				"IsTestnet":           options.Testnet,
+				"PaymentRequirements": paymentRequirements,
 			})
 			c.Abort()
 			return
@@ -267,14 +271,16 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			}
 
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":         resource,
-				"Description":      description,
-				"AmountFormatted":  amountString,
-				"ErrorMessage":     err.Error(),
-				"ResourceType":     c.GetString("ResourceType"),
-				"OriginalFilename": c.GetString("OriginalFilename"),
-				"Title":            c.GetString("Title"),
-				"CoverURL":         c.GetString("CoverURL"),
+				"Resource":            resource,
+				"Description":         description,
+				"AmountFormatted":     amountString,
+				"ErrorMessage":        err.Error(),
+				"ResourceType":        c.GetString("ResourceType"),
+				"OriginalFilename":    c.GetString("OriginalFilename"),
+				"Title":               c.GetString("Title"),
+				"CoverURL":            c.GetString("CoverURL"),
+				"IsTestnet":           options.Testnet,
+				"PaymentRequirements": paymentRequirements,
 			})
 			c.Abort()
 			return
