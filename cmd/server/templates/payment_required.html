@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     {{if .GoogleAnalyticsID}}
     <!-- Google tag (gtag.js) -->
@@ -12,7 +12,7 @@
       gtag('config', '{{.GoogleAnalyticsID}}');
     </script>
     {{end}}
-    
+
     <!-- Dynamic Title based on provided content -->
     <title>{{if .Title}}{{.Title}}{{else if eq .ResourceType "file"}}{{if .OriginalFilename}}{{.OriginalFilename}}{{else}}File{{end}} - Payment Required{{else}}Payment Required - Proxy402{{end}}</title>
     
@@ -55,147 +55,45 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- External CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/payment.css">
 
-    <style>
-        body {
-            background-color: #1e2b4a;
-            color: #fff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-        }
-        
-        .payment-container {
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 30px;
-            background-color: #23395d;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            text-align: center;
-        }
-        
-        .payment-header {
-            margin-bottom: 30px;
-        }
-        
-        .payment-title {
-            color: #fff;
-            font-size: 24px;
-            margin-bottom: 10px;
-            font-weight: 600;
-        }
-        
-        .payment-subtitle {
-            color: #bbd0ff;
-            font-size: 16px;
-        }
-        
-        .payment-details {
-            background-color: rgba(255, 255, 255, 0.08);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            text-align: left;
-        }
-        
-        .payment-detail-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 16px;
-        }
-        
-        .detail-label {
-            font-weight: 500;
-            color: #bbd0ff;
-        }
-        
-        .detail-value {
-            color: #fff;
-            word-break: break-all;
-        }
-        
-        .instruction-step {
-            margin-bottom: 15px;
-            color: #bbd0ff;
-        }
-        
-        .instruction-step strong {
-            color: #fff;
-        }
-        
-        .payment-footer {
-            margin-top: 30px;
-            font-size: 14px;
-            color: #8ba3d4;
-        }
-        
-        .payment-footer a {
-            color: #79a9ff;
-            text-decoration: none;
-        }
-        
-        .payment-footer a:hover {
-            text-decoration: underline;
-        }
-        
-        .logo {
-            margin-bottom: 20px;
-            max-width: 150px;
-        }
-        
-        .error-message {
-            background-color: rgba(220, 50, 50, 0.2);
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            text-align: left;
-            color: #ff9d9d;
-            border-left: 4px solid #c62828;
-        }
-        
-        .resource-name {
-            font-weight: bold;
-            color: #fff;
-            word-break: break-word;
-        }
-
-        /* Cover image styling */
-        .cover-image {
-            width: 100%;
-            max-height: 300px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .resource-description {
-            color: #bbd0ff;
-            margin-bottom: 25px;
-            text-align: left;
-            line-height: 1.6;
-        }
-
-        /* Social proof styling */
-        .social-proof {
-            background-color: rgba(99, 179, 237, 0.1);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-            font-size: 14px;
-            color: #bbd0ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .social-proof i {
-            margin-right: 8px;
-            color: #63b3ed;
-        }
-    </style>
+    <script>
+        try {
+            // Initialize x402 namespace
+            window.x402 = {
+                paymentRequirements: {{.PaymentRequirements}},
+                isTestnet: {{.IsTestnet}},
+                currentUrl: "{{.Resource}}",
+                state: {
+                    publicClient: null,
+                    chain: null,
+                    walletClient: null
+                },
+                config: {
+                    chainConfig: {
+                        "84532": {
+                            usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+                            usdcName: "USDC",
+                        },
+                        "8453": {
+                            usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                            usdcName: "USDC",
+                        }
+                    },
+                    networkToChainId: {
+                        "base-sepolia": 84532,
+                        "base": 8453
+                    }
+                }
+            };
+            console.log('Payment requirements initialized:', window.x402.paymentRequirements);
+        } catch (error) {
+            console.error('Error initializing x402:', error.message);
+        };
+    </script>
+    <script type="module" src="/static/js/x402.js"></script>
 </head>
+
 <body>
     <!-- Animated Background -->
     <div class="flow-container">
@@ -205,8 +103,6 @@
             <path class="flow-path" d="M0,200 C120,100 220,180 350,120 S550,200 800,120" style="animation-delay: -10s;" />
         </svg>
     </div>
-
-    <!-- Main content -->
     <div class="main-container">
         <div class="payment-container">
             <div class="payment-header">
@@ -240,13 +136,21 @@
                 </p>
                 {{end}}
             </div>
-            
             {{if .ErrorMessage}}
             <div class="error-message">
                 <strong>Error:</strong> {{.ErrorMessage}}
             </div>
             {{end}}
-            
+            <div id="connect-section">
+                <div class="button-tooltip-container">
+                    <button id="connect-wallet" class="btn" {{if ne .ResourceType "file"}}disabled{{end}}>
+                        Connect Wallet
+                    </button>
+                    {{if ne .ResourceType "file"}}
+                    <div class="tooltip">Only files can be purchased and downloaded through this interface</div>
+                    {{end}}
+                </div>
+            </div>
             <div class="payment-details">
                 {{if eq .ResourceType "file"}}
                 {{if .OriginalFilename}}
@@ -266,6 +170,12 @@
                     <span class="detail-value">${{.AmountFormatted}} USD</span>
                 </div>
             </div>
+            <div id="payment-section" class="hidden">
+                <button id="pay-button" class="btn btn-green">
+                    Pay Now
+                </button>
+            </div>
+            <div id="status" class="status"></div>
             
             <!-- Social proof element -->
             <div class="social-proof">
@@ -278,7 +188,6 @@
             </div>
         </div>
     </div>
-
     <script>
         // Initialize Lucide icons
         document.addEventListener("DOMContentLoaded", function() {
@@ -286,4 +195,4 @@
         });
     </script>
 </body>
-</html> 
+</html>
