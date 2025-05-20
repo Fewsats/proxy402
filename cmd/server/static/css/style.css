@@ -1698,3 +1698,199 @@ th.sortable.desc::after {
 .accordion-toggle-btn i {
     transition: transform 0.3s ease;
 }
+
+/* Route Details Styles - Simplified Version */
+.route-details-container {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-top: 1rem;
+    padding: 1.5rem;
+}
+
+.route-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.route-details-header h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    color: var(--primary-color);
+}
+
+.close-details-btn {
+    background: none; border: none; color: var(--text-muted);
+    cursor: pointer; padding: 0.4rem; transition: all 0.2s ease;
+    border-radius: 4px;
+}
+.close-details-btn:hover { background-color: rgba(255,255,255,0.1); color: var(--text-color); }
+
+.route-detail-item-prominent {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 6px;
+}
+
+.prominent-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+}
+
+.prominent-value {
+    font-size: 1.1rem;
+    color: var(--text-color);
+    line-height: 1.5;
+}
+
+.description-value {
+    white-space: pre-wrap; /* Preserve line breaks */
+    word-break: break-word;
+}
+
+.placeholder-text {
+    font-style: italic;
+    color: rgba(255,255,255,0.5);
+}
+
+.route-cover-image-simple {
+    margin-top: 0.5rem;
+    border-radius: 6px;
+    overflow: hidden;
+    max-height: 250px;
+    display: flex;
+    justify-content: flex-start;
+    border: 1px solid var(--border-color);
+    background-color: rgba(0,0,0,0.1);
+}
+
+.route-cover-image-simple img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+}
+
+.route-info-grid.simple-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.route-info-item {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 4px;
+}
+
+.info-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.info-value {
+    font-size: 0.95rem;
+    word-break: break-word;
+}
+
+.short-url-container.info-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.short-url-container a {
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.short-url-container .copy-btn i {
+    width: 14px; height: 14px;
+}
+
+.resource-icon, .mode-icon, .status-icon {
+    vertical-align: middle;
+    margin-right: 0.3rem;
+    width: 1em; height: 1em;
+}
+
+.http-method { font-family: monospace; font-weight: bold; }
+.price-value { color: var(--earnings-color); font-weight: bold; }
+.payment-model { font-weight: 500; }
+
+.route-stats.simple-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.stat-item {
+    background-color: rgba(0,0,0,0.05);
+    padding: 0.75rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* View Details Button */
+.view-details-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: all 0.2s ease;
+    opacity: 0.8;
+    position: relative;
+}
+
+.view-details-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.view-details-btn i {
+    color: var(--primary-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .route-info-grid.simple-grid {
+        grid-template-columns: 1fr;
+    }
+    .route-stats.simple-stats {
+        grid-template-columns: 1fr;
+    }
+    .route-details-header h2 {
+        font-size: 1.2rem;
+    }
+}

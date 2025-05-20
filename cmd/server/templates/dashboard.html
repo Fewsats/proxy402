@@ -409,11 +409,21 @@
                                     hx-swap="outerHTML">
                                     <i data-lucide="trash-2" width="16" height="16" class="action-icon"></i>
                                 </button>
+                                <button 
+                                    class="view-details-btn" 
+                                    hx-get="/routes/{{.ID}}/details"
+                                    hx-target="#route-details"
+                                    hx-swap="innerHTML show:top"
+                                    hx-indicator="#route-details-loading">
+                                    <i data-lucide="info" width="16" height="16" class="action-icon"></i>
+                                </button>
                             </td>
                         </tr>
                         {{end}}
                     </tbody>
                 </table>
+                
+
             {{else}}
                 <div class="empty-state">
                     <div class="empty-icon">
@@ -424,6 +434,15 @@
                 </div>
             {{end}}
         </div>
+
+        <!-- Route details container - target for HTMX -->
+        <div id="route-details" class="route-details-wrapper"></div>
+        <div id="route-details-loading" class="htmx-indicator">
+            <div class="loading-spinner">
+                <i data-lucide="loader" width="24" height="24"></i>
+                <span>Loading details...</span>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -433,7 +452,29 @@
             
             // Fetch dashboard stats
             fetchDashboardStats();
+            
+            // Setup route details functionality
+            setupRouteDetailsHandlers();
         });
+        
+        // Function to setup event handlers for route details
+        function setupRouteDetailsHandlers() {
+            // Use event delegation for handling clicks on the route details container
+            document.addEventListener('click', function(event) {
+                // Check if the click is on a close button
+                if (event.target.closest('.close-details-btn')) {
+                    closeRouteDetails();
+                }
+            });
+        }
+        
+        // Function to close route details
+        function closeRouteDetails() {
+            const detailsContainer = document.getElementById('route-details');
+            if (detailsContainer) {
+                detailsContainer.innerHTML = '';
+            }
+        }
         
         // Function to fetch dashboard stats from API
         function fetchDashboardStats() {

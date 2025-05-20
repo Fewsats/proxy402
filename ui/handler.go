@@ -2,6 +2,7 @@ package ui
 
 import (
 	"embed"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -117,6 +118,9 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 	// Update payment address
 	router.POST("/settings/update-payment-address",
 		auth.AuthMiddleware(h.authService), h.handleUpdatePaymentAddress)
+
+	// Route details for htmx
+	router.GET("/routes/:id/details", auth.AuthMiddleware(h.authService), h.handleRouteDetails)
 }
 
 // handleLandingPage renders the landing page for non-authenticated users
@@ -319,5 +323,94 @@ func (h *UIHandler) handleUpdatePaymentAddress(gCtx *gin.Context) {
 		"user":              user,
 		"message":           "Payment address updated successfully",
 		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+	})
+}
+
+// handleRouteDetails handles the request to get details for a specific route
+func (h *UIHandler) handleRouteDetails(gCtx *gin.Context) {
+	// Get user ID from context (middleware ensures it exists)
+	userID, err := auth.GetUserID(gCtx)
+	if err != nil {
+		gCtx.HTML(http.StatusUnauthorized, "error.html", gin.H{
+			"error": "Authentication required",
+		})
+		return
+	}
+
+	// Get route ID from URL parameter
+	routeIDStr := gCtx.Param("id")
+	routeID, err := strconv.ParseUint(routeIDStr, 10, 64)
+	if err != nil {
+		gCtx.HTML(http.StatusBadRequest, "error.html", gin.H{
+			"error": "Invalid route ID",
+		})
+		return
+	}
+
+	// Get all user routes
+	dbLinks, err := h.paidRouteService.ListUserRoutes(gCtx.Request.Context(), userID)
+	if err != nil {
+		gCtx.HTML(http.StatusInternalServerError, "error.html", gin.H{
+			"error": "Failed to fetch route details",
+		})
+		return
+	}
+
+	// Find the specific route
+	var targetRoute routes.PaidRoute
+	found := false
+	for _, link := range dbLinks {
+		if link.ID == routeID {
+			targetRoute = link
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		gCtx.HTML(http.StatusNotFound, "error.html", gin.H{
+			"error": "Route not found",
+		})
+		return
+	}
+
+	// Determine what to show as "target" based on resource type
+	var target string
+	if targetRoute.ResourceType == "file" && targetRoute.OriginalFilename != nil {
+		target = *targetRoute.OriginalFilename
+	} else { // URL
+		target = targetRoute.TargetURL
+	}
+
+	// Get display info for this route
+	title, description, coverImageURL := h.getRouteDisplayInfo(targetRoute)
+
+	// Format the price
+	price := strconv.FormatFloat(float64(targetRoute.Price)/1000000, 'f', -1, 64)
+
+	// Generate full access URL
+	baseURL := h.getBaseURL(gCtx)
+	accessURL := fmt.Sprintf("%s/%s", baseURL, targetRoute.ShortCode)
+
+	// Render the HTML fragment with route details
+	gCtx.HTML(http.StatusOK, "route_details.html", gin.H{
+		"ID":            targetRoute.ID,
+		"ShortCode":     targetRoute.ShortCode,
+		"Target":        target,
+		"Method":        targetRoute.Method,
+		"ResourceType":  targetRoute.ResourceType,
+		"AccessURL":     accessURL,
+		"Title":         title,
+		"Description":   description,
+		"CoverImageURL": coverImageURL,
+		"Price":         price,
+		"Type":          targetRoute.Type,
+		"Credits":       targetRoute.Credits,
+		"IsTest":        targetRoute.IsTest,
+		"IsEnabled":     targetRoute.IsEnabled,
+		"AttemptCount":  targetRoute.AttemptCount,
+		"PaymentCount":  targetRoute.PaymentCount,
+		"AccessCount":   targetRoute.AccessCount,
+		"CreatedAt":     targetRoute.CreatedAt.Format("2006-01-02"),
 	})
 }

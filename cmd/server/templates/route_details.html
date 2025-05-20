@@ -1,0 +1,139 @@
+<div class="route-details-container">
+    {{if .error}}
+    <div class="error-message">
+        {{.error}}
+    </div>
+    {{else}}
+    <div class="route-details">
+        <div class="route-details-header">
+            <h2>Route #{{.ID}} Details</h2>
+            <button class="close-details-btn" aria-label="Close details">
+                <i data-lucide="x" width="20" height="20"></i>
+            </button>
+        </div>
+
+        <!-- Title -->
+        <div class="route-detail-item-prominent">
+            <span class="info-label prominent-label">Title:</span>
+            <span class="info-value prominent-value">{{if .Title}}{{.Title}}{{else}}<span class="placeholder-text">(No title provided)</span>{{end}}</span>
+        </div>
+
+        <!-- Description -->
+        <div class="route-detail-item-prominent">
+            <span class="info-label prominent-label">Description:</span>
+            <div class="info-value description-value">{{if .Description}}{{.Description}}{{else}}<span class="placeholder-text">(No description provided)</span>{{end}}</div>
+        </div>
+
+        <!-- Cover Image -->
+        {{if .CoverImageURL}}
+        <div class="route-detail-item-prominent">
+            <span class="info-label prominent-label">Cover Image:</span>
+            <div class="route-cover-image-simple">
+                <img src="{{.CoverImageURL}}" alt="Cover image for route #{{.ID}}">
+            </div>
+        </div>
+        {{end}}
+
+        <!-- Other Details in a Grid -->
+        <div class="route-info-grid simple-grid">
+            <div class="route-info-item">
+                <span class="info-label">Short Code:</span>
+                <span class="info-value">{{.ShortCode}}</span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">{{if eq .ResourceType "file"}}Filename:{{else}}Target URL:{{end}}</span>
+                <span class="info-value">{{.Target}}</span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">Resource Type:</span>
+                <span class="info-value">
+                    {{if eq .ResourceType "file"}}
+                    <i data-lucide="file" class="resource-icon"></i> File
+                    {{else}}
+                    <i data-lucide="link-2" class="resource-icon"></i> URL
+                    {{end}}
+                </span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">HTTP Method:</span>
+                <span class="info-value http-method">{{.Method}}</span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">Price:</span>
+                <span class="info-value price-value">${{.Price}} USDC</span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">Payment Model:</span>
+                <span class="info-value payment-model">
+                    {{if and (eq .Type "credit") (eq .Credits 1)}}One-time payment{{else}}{{if eq .Type "credit"}}Credit{{else}}{{.Type}}{{end}}: {{.Credits}} / User{{end}}
+                </span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">Mode:</span>
+                <span class="info-value">
+                    {{if .IsTest}}<span class="mode-test"><i data-lucide="beaker" class="mode-icon"></i> Test</span>{{else}}<span class="mode-live"><i data-lucide="zap" class="mode-icon"></i> Live</span>{{end}}
+                </span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">Status:</span>
+                <span class="info-value">
+                    {{if .IsEnabled}}<span class="status-enabled"><i data-lucide="check-circle" class="status-icon"></i> Enabled</span>{{else}}<span class="status-disabled"><i data-lucide="x-circle" class="status-icon"></i> Disabled</span>{{end}}
+                </span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">Created At:</span>
+                <span class="info-value">{{.CreatedAt}}</span>
+            </div>
+            <div class="route-info-item">
+                <span class="info-label">Access URL:</span>
+                <div class="short-url-container info-value">
+                    <a href="{{.AccessURL}}" target="_blank">{{.AccessURL}}</a>
+                    <button class="copy-btn" data-url="{{.AccessURL}}">
+                        <i data-lucide="copy" width="14" height="14" class="action-icon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Section -->
+        <div class="route-stats simple-stats">
+            <div class="stat-item">
+                <span class="stat-label">Attempts</span>
+                <span class="stat-value">{{.AttemptCount}}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Payments</span>
+                <span class="stat-value">{{.PaymentCount}}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Accesses</span>
+                <span class="stat-value">{{.AccessCount}}</span>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+
+<script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+    
+    // Add click event to copy buttons
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            navigator.clipboard.writeText(url).then(() => {
+                // Visual feedback for copy success
+                const icon = this.querySelector('.action-icon');
+                icon.setAttribute('data-lucide', 'check');
+                lucide.createIcons();
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    icon.setAttribute('data-lucide', 'copy');
+                    lucide.createIcons();
+                }, 2000);
+            });
+        });
+    });
+</script> 

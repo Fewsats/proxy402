@@ -57,6 +57,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Form toggle functionality
     initFormToggle();
+    
+    // Route details functionality
+    initRouteDetails();
 });
 
 // Initialize tab switching
@@ -603,5 +606,53 @@ function initFormToggle() {
     accordionHeader.addEventListener('click', function() {
         const isVisible = form.classList.contains('open');
         toggleForm(!isVisible);
+    });
+}
+
+// Initialize route details functionality
+function initRouteDetails() {
+    // Use event delegation for handling clicks on route details components
+    document.addEventListener('click', function(event) {
+        // Handle close button clicks within route details
+        if (event.target.closest('.close-details-btn')) {
+            const detailsContainer = document.getElementById('route-details');
+            if (detailsContainer) {
+                detailsContainer.innerHTML = '';
+            }
+        }
+    });
+    
+    // Handle click on view details buttons - this doesn't replace HTMX functionality
+    // but enhances it with additional JavaScript behaviors if needed
+    document.addEventListener('htmx:afterSwap', function(event) {
+        if (event.detail.target.id === 'route-details' && event.detail.target.innerHTML.trim() !== '') {
+            // After loading route details, initialize any JS-dependent features
+            // This runs after HTMX populates the details container
+            lucide.createIcons();
+            
+            // Initialize copy buttons within the newly loaded content
+            const copyButtons = event.detail.target.querySelectorAll('.copy-btn');
+            copyButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const url = this.getAttribute('data-url');
+                    if (url) {
+                        navigator.clipboard.writeText(url).then(() => {
+                            // Visual feedback for copy success
+                            const icon = this.querySelector('.action-icon');
+                            if (icon) {
+                                icon.setAttribute('data-lucide', 'check');
+                                lucide.createIcons();
+                                
+                                // Reset after 2 seconds
+                                setTimeout(() => {
+                                    icon.setAttribute('data-lucide', 'copy');
+                                    lucide.createIcons();
+                                }, 2000);
+                            }
+                        });
+                    }
+                });
+            });
+        }
     });
 } 
