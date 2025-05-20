@@ -142,11 +142,15 @@
             </div>
             {{end}}
             <div id="connect-section">
-                <button id="connect-wallet" class="btn">
-                    Connect Wallet
-                </button>
+                <div class="button-tooltip-container">
+                    <button id="connect-wallet" class="btn" {{if ne .ResourceType "file"}}disabled{{end}}>
+                        Connect Wallet
+                    </button>
+                    {{if ne .ResourceType "file"}}
+                    <div class="tooltip">Only files can be purchased and downloaded through this interface</div>
+                    {{end}}
+                </div>
             </div>
-            
             <div class="payment-details">
                 {{if eq .ResourceType "file"}}
                 {{if .OriginalFilename}}

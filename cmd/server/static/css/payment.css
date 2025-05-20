@@ -152,3 +152,49 @@ body {
 #payment-section {
     margin-bottom: 20px;
 }
+
+/* Add styles for tooltip */
+.button-tooltip-container {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip {
+    visibility: hidden;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #1e2b4a;
+    color: #fff;
+    text-align: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    width: 220px;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    font-size: 14px;
+}
+
+.tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #1e2b4a transparent transparent transparent;
+}
+
+.button-tooltip-container:hover .tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

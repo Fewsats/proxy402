@@ -283,7 +283,7 @@ async function initializeApp() {
                 });
 
                 if (balance === 0n) {
-                    statusDiv.textContent = `Your USDC balance is 0. Please make sure you have USDC tokens on {{if .IsTestnet}}Base Sepolia{{else}}Base{{end}}.`;
+                    statusDiv.textContent = `Your USDC balance is 0. Please make sure you have USDC tokens on ` + (x402.isTestnet ? 'Base Sepolia' : 'Base') + '.';
                     return;
                 }
 
@@ -301,16 +301,13 @@ async function initializeApp() {
                 });
 
                 if (response.ok) {
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('text/html')) {
-                        document.documentElement.innerHTML = await response.text();
+                    const jsonResponse = await response.json();
+                    if (jsonResponse.download_url) {
+                        window.location.href = jsonResponse.download_url;
                     } else {
-                        const blob = await response.blob();
-                        const url = window.URL.createObjectURL(blob);
-                        window.location.href = url;
+                        statusDiv.textContent = 'Download failed: ' + response.statusText;
+                        throw new Error('Download failed: ' + response.statusText);
                     }
-                } else {
-                    throw new Error('Payment failed: ' + response.statusText);
                 }
             } catch (error) {
                 statusDiv.textContent = error instanceof Error ? error.message : 'Failed to check USDC balance';
