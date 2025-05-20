@@ -175,7 +175,6 @@ window.x402.utils.createPayment = async (client, publicClient) => {
     };
 }
 
-
 async function initializeApp() {
     const x402 = window.x402;
     const wagmiConfig = createConfig({
@@ -209,12 +208,65 @@ async function initializeApp() {
         transport: custom(window.ethereum),
     });
 
+    // Check for existing connection
+    async function checkExistingConnection() {
+        try {
+            if (window.ethereum && window.ethereum.selectedAddress) {
+                const account = window.ethereum.selectedAddress;
+                walletClient = createWalletClient({
+                    account,
+                    chain,
+                    transport: custom(window.ethereum)
+                });
+                connectWalletBtn.textContent = `${account.slice(0, 6)}...${account.slice(-4)}`;
+                paymentSection.classList.remove('hidden');
+                statusDiv.textContent = 'Wallet connected! You can now proceed with payment.';
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking existing connection:', error);
+            return false;
+        }
+    }
+
+    // Try to restore connection on page load
+    await checkExistingConnection();
+
+    // Listen for account changes and disconnects
+    if (window.ethereum) {
+        window.ethereum.on('accountsChanged', async (accounts) => {
+            if (accounts.length === 0) {
+                // User disconnected their wallet
+                walletClient = null;
+                connectWalletBtn.textContent = 'Connect Wallet';
+                paymentSection.classList.add('hidden');
+                statusDiv.textContent = 'Wallet disconnected';
+            } else {
+                // User switched accounts
+                const account = accounts[0];
+                walletClient = createWalletClient({
+                    account,
+                    chain,
+                    transport: custom(window.ethereum)
+                });
+                connectWalletBtn.textContent = `${account.slice(0, 6)}...${account.slice(-4)}`;
+                paymentSection.classList.remove('hidden');
+                statusDiv.textContent = 'Account changed. You can now proceed with payment.';
+            }
+        });
+
+        window.ethereum.on('chainChanged', () => {
+            // Reload the page when they change networks
+            window.location.reload();
+        });
+    }
+
     // Connect wallet handler
     connectWalletBtn.addEventListener('click', async () => {
         // If wallet is already connected, disconnect it
         if (walletClient) {
             try {
-                await disconnect(wagmiConfig);
                 walletClient = null;
                 connectWalletBtn.textContent = 'Connect Wallet';
                 paymentSection.classList.add('hidden');
@@ -244,7 +296,7 @@ async function initializeApp() {
 
             const address = result.accounts[0]
 
-            connectWalletBtn.textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+            connectWalletBtn.textContent = `Disconnect Wallet ${address.slice(0, 6)}...${address.slice(-4)}`;
             paymentSection.classList.remove('hidden');
             statusDiv.textContent =
                 'Wallet connected! You can now proceed with payment.';
