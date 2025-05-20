@@ -117,7 +117,14 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 
 	userAgent := c.GetHeader("User-Agent")
 	acceptHeader := c.GetHeader("Accept")
-	isWebBrowser := strings.Contains(acceptHeader, "text/html") && strings.Contains(userAgent, "Mozilla")
+	isWebBrowser := strings.Contains(acceptHeader, "text/html") &&
+		(strings.Contains(userAgent, "Mozilla") ||
+			strings.Contains(userAgent, "TelegramBot") ||
+			strings.Contains(userAgent, "Slackbot") ||
+			strings.Contains(userAgent, "Discordbot") ||
+			strings.Contains(userAgent, "Twitterbot") ||
+			strings.Contains(userAgent, "LinkedInBot") ||
+			strings.Contains(userAgent, "facebookexternalhit"))
 
 	var resource string
 	if options.Resource == "" {
