@@ -1894,3 +1894,159 @@ th.sortable.desc::after {
         font-size: 1.2rem;
     }
 }
+
+/* X402 Debug Tool Styles */
+.debug-page-container {
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    padding: 1.2rem;
+    max-width: 800px;
+    margin: 1rem auto;
+}
+
+
+.debug-form .form-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 0.75rem;
+}
+
+/* URL-method group for inline display */
+.url-method-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.url-method-group select {
+    width: 100px;
+    flex-shrink: 0;
+    background-color: #325082;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.6rem;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386b8ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 0.8em;
+    padding-right: 1.8rem;
+}
+
+.url-method-group input[type="url"] {
+    flex-grow: 1;
+    background-color: #325082;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.6rem;
+}
+
+.debug-form textarea {
+    width: 100%;
+    background-color: #325082;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.6rem;
+    min-height: 80px;
+    resize: vertical;
+}
+
+.submit-button-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.75rem;
+}
+
+.debug-response-area {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    position: relative;
+}
+
+
+
+.debug-response-area pre,
+.debug-response-area code {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.4;
+    background-color: rgba(0, 0, 0, 0.15);
+    padding: 0.5rem;
+    border-radius: 4px;
+    color: #e2e8f0;
+    margin: 0;
+}
+
+/* JSON formatting in debug tool */
+.debug-response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.response-title {
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.response-status {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.debug-section {
+    margin-bottom: 1rem;
+}
+
+.section-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.section-content {
+    background-color: rgba(0, 0, 0, 0.15);
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    color: #e2e8f0;
+    line-height: 1.5;
+}
+
+/* JSON specific formatting */
+.json-formatted {
+    color: #e2e8f0;
+}
+
+.json-formatted .json-key {
+    color: #63b3ed; /* Light blue for keys */
+}
+
+.json-formatted .json-string {
+    color: #9ae6b4; /* Light green for strings */
+}
+
+.json-formatted .json-number {
+    color: #fbd38d; /* Light orange for numbers */
+}
+
+.json-formatted .json-boolean {
+    color: #fc8181; /* Light red for booleans */
+}
+
+.json-formatted .json-null {
+    color: #a0aec0; /* Gray for null values */
+}
