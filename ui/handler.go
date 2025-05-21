@@ -123,8 +123,8 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 	router.GET("/routes/:id/details", auth.AuthMiddleware(h.authService), h.handleRouteDetails)
 
 	// Debug endpoints
-	router.GET("/debug", h.handleDebugPage)
-	router.POST("/debug/test", h.handleDebugTest)
+	router.GET("/fetch", h.handleDebugPage)
+	router.POST("/fetch/test", h.handleDebugTest)
 }
 
 // handleLandingPage renders the landing page for non-authenticated users
