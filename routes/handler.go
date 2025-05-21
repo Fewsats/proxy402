@@ -390,6 +390,7 @@ func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidR
 		x402.WithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
 		x402.WithResource(accessURL),
 		x402.WithTestnet(route.IsTest),
+		x402.WithMaxTimeoutSeconds(h.config.X402MaxTimeoutSeconds),
 	)
 
 	if gCtx.IsAborted() {

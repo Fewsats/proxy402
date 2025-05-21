@@ -87,7 +87,8 @@ func DefaultConfig() *Config {
 			DBName:   "linkshrink",
 		},
 		Routes: routes.Config{
-			X402FacilitatorURL: "https://x402.org/facilitator",
+			X402FacilitatorURL:    "https://x402.org/facilitator",
+			X402MaxTimeoutSeconds: 300,
 		},
 		Auth: auth.Config{
 			JWTExpirationHours: 72 * time.Hour,
@@ -129,6 +130,7 @@ func LoadConfig(logger *slog.Logger) *Config {
 	// Routes configuration
 	AppConfig.Routes.X402PaymentAddress = getEnvOrFatal("X402_PAYMENT_ADDRESS")
 	AppConfig.Routes.X402FacilitatorURL = getEnv("X402_FACILITATOR_URL", AppConfig.Routes.X402FacilitatorURL)
+	AppConfig.Routes.X402MaxTimeoutSeconds = getEnvInt("X402_MAX_TIMEOUT_SECONDS", AppConfig.Routes.X402MaxTimeoutSeconds)
 	AppConfig.Routes.CDPAPIKeyID = getEnv("CDP_API_KEY_ID", "")
 	AppConfig.Routes.CDPAPIKeySecret = getEnv("CDP_API_KEY_SECRET", "")
 
@@ -184,6 +186,17 @@ func getEnvDuration(key string, fallback time.Duration) time.Duration {
 			return time.Duration(valueInt) * time.Hour
 		}
 		log.Printf("Warning: Invalid format for %s environment variable. Using default: %v", key, fallback)
+	}
+	return fallback
+}
+
+// getEnvInt retrieves an environment variable as an int or returns a default.
+func getEnvInt(key string, fallback int) int {
+	if valueStr, exists := os.LookupEnv(key); exists {
+		if valueInt, err := strconv.Atoi(valueStr); err == nil {
+			return valueInt
+		}
+		log.Printf("Warning: Invalid format for %s environment variable. Using default: %d", key, fallback)
 	}
 	return fallback
 }
