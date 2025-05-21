@@ -105,6 +105,9 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 	// Public landing page for non-authenticated users
 	router.GET("/", h.handleLandingPage)
 
+	// Debugger page for testing endpoints
+	router.GET("/debug", h.handleDebug)
+
 	// Dashboard for authenticated users
 	router.GET("/dashboard", auth.AuthMiddleware(h.authService), h.handleDashboard)
 
@@ -138,6 +141,11 @@ func (h *UIHandler) handleLandingPage(gCtx *gin.Context) {
 		"baseURL":           h.getBaseURL(gCtx),
 		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
 	})
+}
+
+// handleDebug renders the debug page used to test x402 endpoints
+func (h *UIHandler) handleDebug(gCtx *gin.Context) {
+	gCtx.HTML(http.StatusOK, "debug.html", gin.H{})
 }
 
 // handleDashboard handles the main dashboard page for authenticated users
