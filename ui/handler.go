@@ -121,6 +121,10 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 
 	// Route details for htmx
 	router.GET("/routes/:id/details", auth.AuthMiddleware(h.authService), h.handleRouteDetails)
+
+	// Debug endpoints
+	router.GET("/fetch", h.handleDebugPage)
+	router.POST("/fetch/test", h.handleDebugTest)
 }
 
 // handleLandingPage renders the landing page for non-authenticated users

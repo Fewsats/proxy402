@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>X402 Debug Tool - Proxy402</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        /* Add minimal styling for JSON formatting */
+        .json-formatted {
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <a href="/" class="logo">Proxy402</a>
+            <span class="navbar-tagline">
+                by
+                <a href="https://fewsats.com" target="_blank" rel="noopener noreferrer">
+                    <img src="/static/img/logo.svg" alt="Logo" class="navbar-logo-inline">
+                </a>
+            </span>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="debug-page-container">
+            
+            <p class="intro-text">Test X402 payment requests and responses.</p>
+            
+            <form class="debug-form" hx-post="/fetch/test" hx-target="#result" hx-indicator="#spinner">
+                <div class="url-method-group">
+                    <select id="http-method" name="method">
+                        <option value="GET">GET</option>
+                        <option value="POST">POST</option>
+                        <option value="PUT">PUT</option>
+                        <option value="DELETE">DELETE</option>
+                        <option value="PATCH">PATCH</option>
+                        <option value="HEAD">HEAD</option>
+                    </select>
+                    <input type="url" id="x402-url" name="url" placeholder="https://example.com/protected-resource" required>
+                </div>
+                
+                <div class="form-group">
+                    <textarea id="payment-header" name="payment_header" placeholder="Paste your X-Payment header here (optional)"></textarea>
+                </div>
+                
+                <div class="submit-button-container">
+                    <button type="submit" class="btn">
+                        Test Request
+                        <span id="spinner"></span>
+                    </button>
+                </div>
+            </form>
+            
+            <div id="result" class="debug-response-area route-details-container"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simple, bulletproof JSON formatting
+        document.addEventListener('htmx:afterSwap', function() {
+            // Look specifically for the json-body element
+            const jsonBody = document.getElementById('json-body');
+            
+            if (jsonBody) {
+                try {
+                    const content = jsonBody.textContent.trim();
+                    if (content) {
+                        const jsonObj = JSON.parse(content);
+                        jsonBody.textContent = JSON.stringify(jsonObj, null, 2);
+                        jsonBody.classList.add('json-formatted');
+                        console.log('JSON formatting successful');
+                    }
+                } catch (e) {
+                    console.log('JSON parsing failed:', e);
+                }
+            } else {
+                console.log('json-body element not found');
+            }
+        });
+    </script>
+</body>
+</html>
