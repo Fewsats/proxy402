@@ -7,11 +7,125 @@
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/wallet.css">
     <style>
         /* Add minimal styling for JSON formatting */
         .json-formatted {
             white-space: pre-wrap;
             font-family: monospace;
+        }
+        
+        /* Wallet & Payment Container */
+        .wallet-payment-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        
+        .wallet-payment-container h3 {
+            margin-top: 0;
+            color: var(--text-primary);
+        }
+
+        .wallet-connection {
+            margin-bottom: 20px;
+        }
+
+        .wallet-status {
+            padding: 15px;
+            border-radius: 6px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .wallet-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .wallet-details p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 8px 16px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        /* Button layout - side by side */
+        .wallet-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .wallet-buttons .btn {
+            flex: 1;
+            font-size: 14px;
+            padding: 12px 16px;
+        }
+
+
+        .payment-details {
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .payment-details h4 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .payment-status .success {
+            padding: 10px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            color: #155724;
+        }
+
+        .payment-status .error {
+            padding: 10px;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            color: #721c24;
+        }
+
+        .payment-status .info {
+            padding: 10px;
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 4px;
+            color: #0c5460;
+        }
+        #payment-curl {
+            font-size: 12px;
+            padding: 10px;
+        }
+        .btn-copy {
+            margin: 0 10px;
+            font-size: 12px;
+            padding: 0.25rem 0.5rem;
         }
     </style>
 </head>
@@ -34,7 +148,6 @@
             
             <p class="intro-text">Test X402 payment requests and responses.</p>
             
-
             <form class="debug-form" hx-post="/fetch/test" hx-target="#result" hx-indicator="#spinner">
                 <div class="url-method-group">
                     <select id="http-method" name="method">
@@ -60,32 +173,163 @@
                 </div>
             </form>
             
-            <div id="result" class="debug-response-area route-details-container"></div>
+            <div id="result"></div>
+            
+            <!-- Complete Wallet & Payment Section -->
+            <div class="wallet-payment-container">
+                <h3>💳 Wallet & Payments</h3>
+                
+                <!-- Simple Wallet Connection -->
+                <div class="wallet-connection">
+                    <p>Connect your wallet to pay for X402 content</p>
+                    <div class="wallet-buttons">
+                        <button class="wallet-connect btn btn-primary">Connect Wallet</button>
+                        <button class="wallet-pay btn btn-success" data-payment="">Pay</button>
+                    </div>
+                </div>
+                
+            </div>
+            
+            <!-- Payment Response (same structure as debug_result.html) -->
+            <div id="payment-result" class="debug-response-area route-details-container" style="display: none;">
+                <div class="debug-section">
+                    <div class="section-label">
+                        Curl Command:
+                        <button onclick="copyToClipboard('payment-curl', this)" class="btn btn-copy">Copy</button>
+                    </div>
+                    <pre id="payment-curl" class="section-content"></pre>
+                </div>
+                <div id="payment-error" class="error" style="display: none;"></div>
+                <div id="payment-success" style="display: none;">
+                    <div class="debug-response-header">
+                        <span class="response-title">Payment Response</span>
+                        <span id="payment-status" class="response-status"></span>
+                    </div>
+                    <div class="debug-section">
+                        <div class="section-label">Headers:</div>
+                        <pre id="payment-headers" class="section-content"></pre>
+                    </div>
+                    <div class="debug-section">
+                        <div class="section-label">Body:</div>
+                        <pre id="payment-body" class="section-content"></pre>
+                    </div>
+
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Reown AppKit Wallet Bundle -->
+    <script src="/static/js/wallet-reown-bundle.umd.js"></script>
+    
     <script>
-        // Simple, bulletproof JSON formatting
-        document.addEventListener('htmx:afterSwap', function() {
-            // Look specifically for the json-body element
-            const jsonBody = document.getElementById('json-body');
+        // Listen for payment responses from wallet
+        document.addEventListener('wallet-payment-response', function(evt) {
+            console.log('Payment response received:', evt.detail);
             
-            if (jsonBody) {
-                try {
-                    const content = jsonBody.textContent.trim();
-                    if (content) {
-                        const jsonObj = JSON.parse(content);
-                        jsonBody.textContent = JSON.stringify(jsonObj, null, 2);
-                        jsonBody.classList.add('json-formatted');
-                        console.log('JSON formatting successful');
-                    }
-                } catch (e) {
-                    console.log('JSON parsing failed:', e);
-                }
+            // Always show curl command if available
+            if (evt.detail.curlCommand) {
+                document.getElementById('payment-curl').textContent = evt.detail.curlCommand;
+            }
+            
+            if (evt.detail.response) {
+                // HTTP response received (success or error status)
+                showPaymentResponse(evt.detail.response, evt.detail.success);
             } else {
-                console.log('json-body element not found');
+                // Non-HTTP error (wallet/parsing issues)
+                showPaymentError(evt.detail.error);
             }
         });
+
+        function showPaymentResponse(response, isSuccess) {
+            // Show the payment result container
+            document.getElementById('payment-result').style.display = 'block';
+            document.getElementById('payment-error').style.display = 'none';
+            document.getElementById('payment-success').style.display = 'block';
+            
+            // Update status (color it red for error status codes)
+            const statusElement = document.getElementById('payment-status');
+            statusElement.textContent = `${response.status} ${response.statusText}`;
+            statusElement.style.color = isSuccess ? 'inherit' : '#dc3545';
+            
+            // Update headers (simplified for now)
+            document.getElementById('payment-headers').textContent = `Status: ${response.status}\nContent-Type: ${response.headers.get('content-type') || 'unknown'}`;
+            
+            // Update body and check for error field
+            response.text().then(body => {
+                // Try to parse as JSON first
+                try {
+                    const jsonResponse = JSON.parse(body);
+                    // Display formatted JSON (automatically decodes Unicode)
+                    document.getElementById('payment-body').textContent = JSON.stringify(jsonResponse, null, 2);
+                    
+                    if (jsonResponse.error) {
+                        document.getElementById('payment-error').textContent = jsonResponse.error;
+                        document.getElementById('payment-error').style.display = 'block';
+                    }
+                } catch (e) {
+                    // Not JSON, display as-is
+                    document.getElementById('payment-body').textContent = body;
+                }
+            });
+        }
+
+        function showPaymentError(errorMessage) {
+            // Show the payment result container (for non-HTTP errors only)
+            document.getElementById('payment-result').style.display = 'block';
+            document.getElementById('payment-success').style.display = 'none';
+            document.getElementById('payment-error').style.display = 'block';
+            
+            // Show error message
+            document.getElementById('payment-error').textContent = errorMessage + " (check devTools, might be a CORS error)";
+        }
+
+        // When a htmx request completes (e.g. after retrieving the x402 payment data)
+        // - format the JSON x402 response
+        // - add the payment data to the payment button
+        document.addEventListener('htmx:afterSwap', function(evt) {
+            console.log('htmx:afterSwap', evt);
+            const jsonBody = document.getElementById('json-body');
+            console.log('jsonBody', jsonBody);
+            if (!jsonBody) return;
+            
+            const content = jsonBody.textContent.trim();
+            if (!content) return;
+            
+            try {
+                const jsonObj = JSON.parse(content);
+                
+                // Format JSON for display
+                jsonBody.textContent = JSON.stringify(jsonObj, null, 2);
+                jsonBody.classList.add('json-formatted');
+                
+                // Update payment button data
+                const payButton = document.querySelector('.wallet-pay');
+                if (!payButton) return;
+                
+                if (jsonObj.accepts && jsonObj.accepts.length > 0) {
+                    payButton.setAttribute('data-payment', JSON.stringify(jsonObj.accepts[0]));
+                } else {
+                    payButton.setAttribute('data-payment', '');
+                }
+            } catch (e) {
+                console.log('JSON parsing failed:', e);
+            }
+        });
+
+        function copyToClipboard(elementId, button) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 1000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
     </script>
 </body>
 </html>

@@ -194,7 +194,13 @@ body {
     opacity: 1;
 }
 
-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+.wallet-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
 }
+
+.wallet-buttons .btn {
+    flex: 1;
+}
+
