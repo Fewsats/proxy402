@@ -118,13 +118,7 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 	userAgent := c.GetHeader("User-Agent")
 	acceptHeader := c.GetHeader("Accept")
 	isWebBrowser := strings.Contains(acceptHeader, "text/html") &&
-		(strings.Contains(userAgent, "Mozilla") ||
-			strings.Contains(userAgent, "TelegramBot") ||
-			strings.Contains(userAgent, "Slackbot") ||
-			strings.Contains(userAgent, "Discordbot") ||
-			strings.Contains(userAgent, "Twitterbot") ||
-			strings.Contains(userAgent, "LinkedInBot") ||
-			strings.Contains(userAgent, "facebookexternalhit"))
+		(strings.Contains(userAgent, "Mozilla"))
 
 	var resource string
 	if options.Resource == "" {
@@ -156,8 +150,15 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 		return
 	}
 
+	// Marshal payment requirements to JSON for the frontend
+	paymentRequirementsJSON, err := json.Marshal(paymentRequirements)
+	if err != nil {
+		fmt.Println("Failed to marshal payment requirements:", err)
+		paymentRequirementsJSON = []byte("{}")
+	}
+
 	payment := c.GetHeader("X-PAYMENT")
-	paymentPayload, err := types.DecodePaymentPayloadFromBase64(payment)
+	paymentPayload, err = types.DecodePaymentPayloadFromBase64(payment)
 	if err != nil {
 		// For browser requests, always serve HTML template
 		if isWebBrowser {
@@ -173,15 +174,16 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			}
 
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":            resource,
-				"Description":         description,
-				"AmountFormatted":     amountString,
-				"ResourceType":        c.GetString("ResourceType"),
-				"OriginalFilename":    c.GetString("OriginalFilename"),
-				"Title":               c.GetString("Title"),
-				"CoverURL":            c.GetString("CoverURL"),
-				"IsTestnet":           options.Testnet,
-				"PaymentRequirements": paymentRequirements,
+				"Resource":                resource,
+				"Description":             description,
+				"AmountFormatted":         amountString,
+				"ResourceType":            c.GetString("ResourceType"),
+				"OriginalFilename":        c.GetString("OriginalFilename"),
+				"Title":                   c.GetString("Title"),
+				"CoverURL":                c.GetString("CoverURL"),
+				"IsTestnet":               options.Testnet,
+				"PaymentRequirements":     paymentRequirements,
+				"PaymentRequirementsJSON": string(paymentRequirementsJSON),
 			})
 			c.Abort()
 			return
@@ -226,16 +228,17 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			}
 
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":            resource,
-				"Description":         description,
-				"AmountFormatted":     amountString,
-				"ErrorMessage":        response.InvalidReason,
-				"ResourceType":        c.GetString("ResourceType"),
-				"OriginalFilename":    c.GetString("OriginalFilename"),
-				"Title":               c.GetString("Title"),
-				"CoverURL":            c.GetString("CoverURL"),
-				"IsTestnet":           options.Testnet,
-				"PaymentRequirements": paymentRequirements,
+				"Resource":                resource,
+				"Description":             description,
+				"AmountFormatted":         amountString,
+				"ErrorMessage":            response.InvalidReason,
+				"ResourceType":            c.GetString("ResourceType"),
+				"OriginalFilename":        c.GetString("OriginalFilename"),
+				"Title":                   c.GetString("Title"),
+				"CoverURL":                c.GetString("CoverURL"),
+				"IsTestnet":               options.Testnet,
+				"PaymentRequirements":     paymentRequirements,
+				"PaymentRequirementsJSON": string(paymentRequirementsJSON),
 			})
 			c.Abort()
 			return
@@ -271,16 +274,17 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 			}
 
 			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":            resource,
-				"Description":         description,
-				"AmountFormatted":     amountString,
-				"ErrorMessage":        err.Error(),
-				"ResourceType":        c.GetString("ResourceType"),
-				"OriginalFilename":    c.GetString("OriginalFilename"),
-				"Title":               c.GetString("Title"),
-				"CoverURL":            c.GetString("CoverURL"),
-				"IsTestnet":           options.Testnet,
-				"PaymentRequirements": paymentRequirements,
+				"Resource":                resource,
+				"Description":             description,
+				"AmountFormatted":         amountString,
+				"ErrorMessage":            err.Error(),
+				"ResourceType":            c.GetString("ResourceType"),
+				"OriginalFilename":        c.GetString("OriginalFilename"),
+				"Title":                   c.GetString("Title"),
+				"CoverURL":                c.GetString("CoverURL"),
+				"IsTestnet":               options.Testnet,
+				"PaymentRequirements":     paymentRequirements,
+				"PaymentRequirementsJSON": string(paymentRequirementsJSON),
 			})
 			c.Abort()
 			return

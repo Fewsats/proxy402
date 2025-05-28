@@ -56,42 +56,10 @@
     <!-- External CSS -->
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/payment.css">
-
-    <script>
-        try {
-            // Initialize x402 namespace
-            window.x402 = {
-                paymentRequirements: {{.PaymentRequirements}},
-                isTestnet: {{.IsTestnet}},
-                currentUrl: "{{.Resource}}",
-                state: {
-                    publicClient: null,
-                    chain: null,
-                    walletClient: null
-                },
-                config: {
-                    chainConfig: {
-                        "84532": {
-                            usdcAddress: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-                            usdcName: "USDC",
-                        },
-                        "8453": {
-                            usdcAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-                            usdcName: "USDC",
-                        }
-                    },
-                    networkToChainId: {
-                        "base-sepolia": 84532,
-                        "base": 8453
-                    }
-                }
-            };
-            console.log('Payment requirements initialized:', window.x402.paymentRequirements);
-        } catch (error) {
-            console.error('Error initializing x402:', error.message);
-        };
-    </script>
-    <script type="module" src="/static/js/x402.js"></script>
+    <link rel="stylesheet" href="/static/css/wallet.css">
+    
+    <!-- Reown AppKit Wallet Bundle -->
+    <script src="/static/js/wallet-reown-bundle.umd.js"></script>
 </head>
 
 <body>
@@ -141,16 +109,6 @@
                 <strong>Error:</strong> {{.ErrorMessage}}
             </div>
             {{end}}
-            <div id="connect-section">
-                <div class="button-tooltip-container">
-                    <button id="connect-wallet" class="btn" {{if ne .ResourceType "file"}}disabled{{end}}>
-                        Connect Wallet
-                    </button>
-                    {{if ne .ResourceType "file"}}
-                    <div class="tooltip">Only files can be purchased and downloaded through this interface</div>
-                    {{end}}
-                </div>
-            </div>
             <div class="payment-details">
                 {{if eq .ResourceType "file"}}
                 {{if .OriginalFilename}}
@@ -170,10 +128,18 @@
                     <span class="detail-value">${{.AmountFormatted}} USD</span>
                 </div>
             </div>
-            <div id="payment-section" class="hidden">
-                <button id="pay-button" class="btn btn-green">
+            <div class="wallet-buttons button-tooltip-container">
+                <button class="wallet-connect btn btn-primary">
+                    Connect Wallet
+                </button>
+                <button class="wallet-pay btn btn-success" data-payment='{{.PaymentRequirementsJSON}}' {{if ne .ResourceType "file"}}disabled{{end}}>
                     Pay Now
                 </button>
+                {{if ne .ResourceType "file"}}
+                <div class="tooltip" style="text-align: center; margin-top: 10px; font-size: 14px; color: #bbd0ff;">
+                    Only files can be purchased and downloaded through this interface
+                </div>
+                {{end}}
             </div>
             <div id="status" class="status"></div>
             
@@ -192,6 +158,42 @@
         // Initialize Lucide icons
         document.addEventListener("DOMContentLoaded", function() {
             lucide.createIcons();
+        });
+        
+        // Listen for payment responses
+        document.addEventListener('wallet-payment-response', function(evt) {
+            const statusDiv = document.getElementById('status');
+            
+            if (evt.detail.response) {
+                if (evt.detail.success) {
+                    statusDiv.textContent = 'Payment successful! Download will begin shortly...';
+                    statusDiv.className = 'status success';
+                    
+                    // For file downloads, try to get download URL from response
+                    {{if eq .ResourceType "file"}}
+                    evt.detail.response.json().then(data => {
+                        if (data.download_url) {
+                            window.location.href = data.download_url;
+                        } else {
+                            window.location.href = "{{.Resource}}";
+                        }
+                    }).catch(() => {
+                        window.location.href = "{{.Resource}}";
+                    });
+                    {{else}}
+                    // For non-file resources, redirect after short delay
+                    setTimeout(() => {
+                        window.location.href = "{{.Resource}}";
+                    }, 1000);
+                    {{end}}
+                } else {
+                    statusDiv.textContent = `Payment failed: ${evt.detail.response.status} ${evt.detail.response.statusText}`;
+                    statusDiv.className = 'status error';
+                }
+            } else {
+                statusDiv.textContent = `Payment failed: ${evt.detail.error}`;
+                statusDiv.className = 'status error';
+            }
         });
     </script>
 </body>

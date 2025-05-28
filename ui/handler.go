@@ -124,6 +124,7 @@ func (h *UIHandler) SetupRoutes(router *gin.Engine) {
 
 	// Debug endpoints
 	router.GET("/fetch", h.handleDebugPage)
+	router.HEAD("/fetch", h.handleDebugPage) // AppKit does HEADs when initializing
 	router.POST("/fetch/test", h.handleDebugTest)
 }
 

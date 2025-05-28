@@ -1,19 +1,21 @@
-{{if .error}}
-<div class="error">{{.error}}</div>
-{{else}}
-<div class="debug-response-header">
-    <span class="response-title">Response</span>
-    <span class="response-status">{{.status_code}} {{.status_text}}</span>
+<div class="debug-response-area route-details-container">
+    {{if .error}}
+    <div class="error">{{.error}}</div>
+    {{else}}
+    <div class="debug-response-header">
+        <span class="response-title">Response</span>
+        <span class="response-status">{{.status_code}} {{.status_text}}</span>
+    </div>
+    
+    <div class="debug-section">
+        <div class="section-label">Headers:</div>
+        <pre class="section-content">{{range $key, $value := .headers}}{{$key}}: {{$value}}
+    {{end}}</pre>
+    </div>
+    
+    <div class="debug-section">
+        <div class="section-label">Body:</div>
+        <pre id="json-body" class="section-content">{{.body}}</pre>
+    </div>
+    {{end}}
 </div>
-
-<div class="debug-section">
-    <div class="section-label">Headers:</div>
-    <pre class="section-content">{{range $key, $value := .headers}}{{$key}}: {{$value}}
-{{end}}</pre>
-</div>
-
-<div class="debug-section">
-    <div class="section-label">Body:</div>
-    <pre id="json-body" class="section-content">{{.body}}</pre>
-</div>
-{{end}}
