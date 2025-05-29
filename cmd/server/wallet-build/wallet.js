@@ -185,7 +185,6 @@ async function handlePayment(btn, paymentData) {
 }
 
 function getUSDCDomainInfo(network, assetAddress) {
-    // USDC domain info varies by network - TODO: verify actual domain names
     const usdcDomains = {
         "base": {
             "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913": { name: "USD Coin", version: "2" }
