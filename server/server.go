@@ -98,7 +98,20 @@ func (s *Server) SetupRoutes() error {
 
 	// --- Paid Route Proxy ---
 	// This route handles all methods for the dynamic short codes
-	s.router.Any("/:shortCode", paidRouteHandler.HandlePaidRoute)
+	// Add CORS middleware only for this route to allow cross-origin requests
+	s.router.Any("/:shortCode", func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH")
+		c.Header("Access-Control-Allow-Headers", "*")
+		c.Header("Access-Control-Expose-Headers", "*")
+		
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		
+		paidRouteHandler.HandlePaidRoute(c)
+	})
 
 	// Group routes that require authentication
 	authRequired := s.router.Group("/")
