@@ -18,6 +18,8 @@
     <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="/static/js/better-stack-logger.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/wallet.css">
     <style>
@@ -238,6 +240,7 @@
         // Listen for payment responses from wallet
         document.addEventListener('wallet-payment-response', function(evt) {
             console.log('Payment response received:', evt.detail);
+            logInfo('Payment response received', evt.detail);
             
             // Always show curl command if available
             if (evt.detail.curlCommand) {
@@ -300,9 +303,9 @@
         // - format the JSON x402 response
         // - add the payment data to the payment button
         document.addEventListener('htmx:afterSwap', function(evt) {
-            console.log('htmx:afterSwap', evt);
             const jsonBody = document.getElementById('json-body');
-            console.log('jsonBody', jsonBody);
+
+            
             if (!jsonBody) return;
             
             const content = jsonBody.textContent.trim();
@@ -326,6 +329,7 @@
                 }
             } catch (e) {
                 console.log('JSON parsing failed:', e);
+                logWarn('JSON parsing failed', { error: e.message });
             }
         });
 
@@ -340,6 +344,7 @@
                 }, 1000);
             }).catch(err => {
                 console.error('Failed to copy text: ', err);
+                logError('Failed to copy text', err);
             });
         }
     </script>

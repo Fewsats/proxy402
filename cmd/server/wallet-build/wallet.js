@@ -123,7 +123,7 @@ function enableButton(btn) {
 async function handlePayment(btn, paymentData) {
     disableButton(btn);
 
-    console.log('💳 Pay button clicked');
+    logInfo('Pay button clicked', paymentData);
     
     // Check wallet connection
     const account = modal.getAccount();
@@ -143,16 +143,18 @@ async function handlePayment(btn, paymentData) {
     let payment = null;
     try {
         payment = JSON.parse(paymentData);
-        console.log('💳 Processing payment:', payment);
+        logInfo('Processing payment', payment);
         
         // Step 1: Sign the payment
         const signResult = await signPayment(payment, account);
-        
+        logInfo('Sign result', signResult);
+
         // Step 2: Create X402 header
         x402Header = createX402Header(signResult, payment);
-        
+        logInfo('X402 header', x402Header);
+
         // Step 3: Make request with payment
-        console.log('🚀 Making request with payment:', payment);
+        logInfo('Making request with payment', payment);
         const response = await fetch(payment.resource, {
             headers: { 'X-PAYMENT': x402Header }
         });
@@ -168,8 +170,8 @@ async function handlePayment(btn, paymentData) {
         }));
         
     } catch (error) {
-        console.error('❌ Payment failed:', error);
-        
+
+        logError('Payment failed', error);
         // Send event with error
         document.dispatchEvent(new CustomEvent('wallet-payment-response', {
             detail: { 
@@ -197,7 +199,7 @@ function getUSDCDomainInfo(network, assetAddress) {
     
     const domainInfo = usdcDomains[network]?.[assetAddress];
     if (!domainInfo) {
-        console.warn(`Unknown USDC asset: ${assetAddress} on ${network}, using default`);
+        logWarn(`Unknown USDC asset: ${assetAddress} on ${network}, using default`);
         return { name: "USD Coin", version: "2" };
     }
     
@@ -205,7 +207,7 @@ function getUSDCDomainInfo(network, assetAddress) {
 }
 
 async function signPayment(paymentReqs, account) {
-    console.log('✏️ Signing payment...');
+    logInfo('Signing payment...');
     
     // Switch to required network if needed
     await switchNetwork(paymentReqs.network);
@@ -215,7 +217,7 @@ async function signPayment(paymentReqs, account) {
     const currentChainIdHex = await provider.request({ method: 'eth_chainId' });
     const currentChainId = parseInt(currentChainIdHex, 16);
     
-    console.log('🔍 EIP-712 data check:', {
+    logInfo('EIP-712 data check:', {
         account: account.address,
         payTo: paymentReqs.payTo,
         asset: paymentReqs.asset,
@@ -261,7 +263,7 @@ async function signPayment(paymentReqs, account) {
         },
     };
     
-    console.log('📝 Final typed data:', JSON.stringify(typedData, null, 2));
+    logInfo('Final typed data:', JSON.stringify(typedData, null, 2));
     
     // Sign using AppKit's provider
     const signature = await provider.request({
@@ -273,7 +275,7 @@ async function signPayment(paymentReqs, account) {
 }
 
 function createX402Header(signResult, paymentReqs) {
-    console.log('📝 Creating X402 payment header...');
+    logInfo('Creating X402 payment header...');
     
     const payment = {
         x402Version: 1,
@@ -296,18 +298,19 @@ async function switchNetwork(targetNetwork) {
     
     const requiredChainId = networkMap[targetNetwork];
     if (!requiredChainId) {
+        logError(`Unsupported network: ${targetNetwork}`);
         throw new Error(`Unsupported network: ${targetNetwork}`);
     }
     
     const account = modal.getAccount();
-    console.log(`🔍 Network check: target=${targetNetwork}, requiredChainId=${requiredChainId}, currentChainId=${account.chainId}, type=${typeof account.chainId}`);
+    logInfo(`Network check: target=${targetNetwork}, requiredChainId=${requiredChainId}, currentChainId=${account.chainId}, type=${typeof account.chainId}`);
     
     if (Number(account.chainId) === requiredChainId) {
-        console.log('✅ Already on correct network');
+        logInfo('Already on correct network');
         return;
     }
     
-    console.log(`🔄 Switching to network: ${targetNetwork} (${requiredChainId})`);
+    logInfo(`Switching to network: ${targetNetwork} (${requiredChainId})`);
     
     // Use direct provider method instead of AppKit's switchNetwork
     const provider = modal.getWalletProvider();
@@ -343,6 +346,7 @@ async function switchNetwork(targetNetwork) {
                 params: [networks[targetNetwork]],
             });
         } else {
+            logError('Error switching network', error);
             throw error;
         }
     }
@@ -353,18 +357,18 @@ async function switchNetwork(targetNetwork) {
 // ========================================================================
 
 async function initialize() {
-    console.log('🚀 Initializing Reown wallet...');
+    logInfo('Initializing Reown wallet...');
     
     // Initialize AppKit
     if (!initAppKit()) {
-        console.error('❌ Failed to initialize AppKit');
+        logError('Failed to initialize AppKit');
         return;
     }
     
     // Set up button handlers
     setupButtons();
     
-    console.log('✅ Reown wallet ready!');
+    logInfo('Reown wallet ready!');
 }
 
 // ========================================================================
@@ -383,5 +387,3 @@ if (document.readyState === 'loading') {
 } else {
     initialize();
 }
-
-console.log('📦 Reown wallet script loaded');
