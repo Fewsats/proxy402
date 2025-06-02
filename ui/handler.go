@@ -140,8 +140,10 @@ func (h *UIHandler) handleLandingPage(gCtx *gin.Context) {
 
 	// Render landing page for non-authenticated users
 	gCtx.HTML(http.StatusOK, "landing.html", gin.H{
-		"baseURL":           h.getBaseURL(gCtx),
-		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+		"baseURL":             h.getBaseURL(gCtx),
+		"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+		"BetterStackToken":    h.config.BetterStackToken,
+		"BetterStackEndpoint": h.config.BetterStackEndpoint,
 	})
 }
 
@@ -157,9 +159,11 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	user, err := h.userService.GetUserByID(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{
-			"error":             "Unable to fetch user details",
-			"user":              user,
-			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+			"error":               "Unable to fetch user details",
+			"user":                user,
+			"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+			"BetterStackToken":    h.config.BetterStackToken,
+			"BetterStackEndpoint": h.config.BetterStackEndpoint,
 		})
 		return
 	}
@@ -168,9 +172,11 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	dbLinks, err := h.paidRouteService.ListUserRoutes(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "dashboard.html", gin.H{
-			"error":             "Unable to fetch links",
-			"user":              user,
-			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+			"error":               "Unable to fetch links",
+			"user":                user,
+			"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+			"BetterStackToken":    h.config.BetterStackToken,
+			"BetterStackEndpoint": h.config.BetterStackEndpoint,
 		})
 		return
 	}
@@ -220,11 +226,13 @@ func (h *UIHandler) handleDashboard(gCtx *gin.Context) {
 	host := gCtx.Request.Host
 
 	gCtx.HTML(http.StatusOK, "dashboard.html", gin.H{
-		"user":              user,
-		"links":             uiLinks,
-		"host":              host,
-		"baseURL":           baseURL,
-		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+		"user":                user,
+		"links":               uiLinks,
+		"host":                host,
+		"baseURL":             baseURL,
+		"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+		"BetterStackToken":    h.config.BetterStackToken,
+		"BetterStackEndpoint": h.config.BetterStackEndpoint,
 	})
 }
 
@@ -244,19 +252,23 @@ func (h *UIHandler) handleSettings(gCtx *gin.Context) {
 			"userID", userID,
 			"error", err)
 		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
-			"error":             "Unable to fetch user details",
-			"user":              user,
-			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+			"error":               "Unable to fetch user details",
+			"user":                user,
+			"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+			"BetterStackToken":    h.config.BetterStackToken,
+			"BetterStackEndpoint": h.config.BetterStackEndpoint,
 		})
 		return
 	}
 
 	// Pass data to the template
 	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
-		"user":              user,
-		"proxy_secret":      user.Proxy402Secret,
-		"payment_address":   user.PaymentAddress,
-		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+		"user":                user,
+		"proxy_secret":        user.Proxy402Secret,
+		"payment_address":     user.PaymentAddress,
+		"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+		"BetterStackToken":    h.config.BetterStackToken,
+		"BetterStackEndpoint": h.config.BetterStackEndpoint,
 	})
 }
 
@@ -273,20 +285,24 @@ func (h *UIHandler) handleRegenerateSecret(gCtx *gin.Context) {
 	user, err := h.userService.UpdateProxySecret(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
-			"error":             "Failed to regenerate secret",
-			"userID":            userID,
-			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+			"error":               "Failed to regenerate secret",
+			"userID":              userID,
+			"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+			"BetterStackToken":    h.config.BetterStackToken,
+			"BetterStackEndpoint": h.config.BetterStackEndpoint,
 		})
 		return
 	}
 
 	// Return form with success message
 	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
-		"user":              user,
-		"proxy_secret":      user.Proxy402Secret,
-		"payment_address":   user.PaymentAddress,
-		"message":           "Secret regenerated successfully",
-		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+		"user":                user,
+		"proxy_secret":        user.Proxy402Secret,
+		"payment_address":     user.PaymentAddress,
+		"message":             "Secret regenerated successfully",
+		"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+		"BetterStackToken":    h.config.BetterStackToken,
+		"BetterStackEndpoint": h.config.BetterStackEndpoint,
 	})
 }
 
@@ -302,9 +318,11 @@ func (h *UIHandler) handleUpdatePaymentAddress(gCtx *gin.Context) {
 	user, err := h.userService.GetUserByID(gCtx.Request.Context(), userID)
 	if err != nil {
 		gCtx.HTML(http.StatusInternalServerError, "settings.html", gin.H{
-			"error":             "Unable to fetch user details",
-			"user":              users.User{},
-			"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+			"error":               "Unable to fetch user details",
+			"user":                users.User{},
+			"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+			"BetterStackToken":    h.config.BetterStackToken,
+			"BetterStackEndpoint": h.config.BetterStackEndpoint,
 		})
 		return
 	}
@@ -325,9 +343,11 @@ func (h *UIHandler) handleUpdatePaymentAddress(gCtx *gin.Context) {
 
 	// Render updated form
 	gCtx.HTML(http.StatusOK, "settings.html", gin.H{
-		"user":              user,
-		"message":           "Payment address updated successfully",
-		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+		"user":                user,
+		"message":             "Payment address updated successfully",
+		"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+		"BetterStackToken":    h.config.BetterStackToken,
+		"BetterStackEndpoint": h.config.BetterStackEndpoint,
 	})
 }
 

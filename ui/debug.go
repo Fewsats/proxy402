@@ -11,8 +11,10 @@ import (
 // handleDebugPage renders the debug tool page
 func (h *UIHandler) handleDebugPage(gCtx *gin.Context) {
 	gCtx.HTML(http.StatusOK, "debug.html", gin.H{
-		"baseURL":           h.getBaseURL(gCtx),
-		"GoogleAnalyticsID": h.config.GoogleAnalyticsID,
+		"baseURL":             h.getBaseURL(gCtx),
+		"GoogleAnalyticsID":   h.config.GoogleAnalyticsID,
+		"BetterStackToken":    h.config.BetterStackToken,
+		"BetterStackEndpoint": h.config.BetterStackEndpoint,
 	})
 }
 

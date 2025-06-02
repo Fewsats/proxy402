@@ -18,6 +18,16 @@
     <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Better Stack Logger -->
+    <script src="/static/js/better-stack-logger.js"></script>
+    {{if .BetterStackToken}}
+    <script>
+        initBetterStackLogger('{{.BetterStackToken}}', '{{.BetterStackEndpoint}}');
+    </script>
+    {{end}}
+
+    <!-- <script src="/static/js/better-stack-logger.js"></script> -->
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/wallet.css">
     <style>
@@ -300,9 +310,9 @@
         // - format the JSON x402 response
         // - add the payment data to the payment button
         document.addEventListener('htmx:afterSwap', function(evt) {
-            console.log('htmx:afterSwap', evt);
             const jsonBody = document.getElementById('json-body');
-            console.log('jsonBody', jsonBody);
+
+            
             if (!jsonBody) return;
             
             const content = jsonBody.textContent.trim();
