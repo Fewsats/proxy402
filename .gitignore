@@ -36,3 +36,6 @@ pnpm-lock.yaml
 .pnp/
 .pnp.js
 .pnp.cjs
+
+.venv
+.secrets

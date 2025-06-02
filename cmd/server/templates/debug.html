@@ -19,7 +19,15 @@
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Better Stack Logger -->
     <script src="/static/js/better-stack-logger.js"></script>
+    {{if .BetterStackToken}}
+    <script>
+        initBetterStackLogger('{{.BetterStackToken}}', '{{.BetterStackEndpoint}}');
+    </script>
+    {{end}}
+
+    <!-- <script src="/static/js/better-stack-logger.js"></script> -->
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/wallet.css">
     <style>
@@ -240,7 +248,6 @@
         // Listen for payment responses from wallet
         document.addEventListener('wallet-payment-response', function(evt) {
             console.log('Payment response received:', evt.detail);
-            logInfo('Payment response received', evt.detail);
             
             // Always show curl command if available
             if (evt.detail.curlCommand) {
@@ -329,7 +336,6 @@
                 }
             } catch (e) {
                 console.log('JSON parsing failed:', e);
-                logWarn('JSON parsing failed', { error: e.message });
             }
         });
 
@@ -344,7 +350,6 @@
                 }, 1000);
             }).catch(err => {
                 console.error('Failed to copy text: ', err);
-                logError('Failed to copy text', err);
             });
         }
     </script>

@@ -143,12 +143,10 @@ func LoadConfig(logger *slog.Logger) *Config {
 	AppConfig.Auth.GoogleClientSecret = getEnvOrFatal("GOOGLE_CLIENT_SECRET")
 	AppConfig.Auth.GoogleRedirectURL = getEnvOrFatal("GOOGLE_REDIRECT_URL")
 
-	// BetterStack configuration
-	AppConfig.BetterStack.Token = getEnv("BETTERSTACK_TOKEN", "")
-	AppConfig.BetterStack.Endpoint = getEnv("BETTERSTACK_ENDPOINT", "")
-
 	// UI configuration
-	AppConfig.UI.GoogleAnalyticsID = getEnv("GOOGLE_ANALYTICS_ID", AppConfig.UI.GoogleAnalyticsID)
+	AppConfig.UI.GoogleAnalyticsID = getEnv("GOOGLE_ANALYTICS_ID", "")
+	AppConfig.UI.BetterStackToken = getEnv("BETTER_STACK_SOURCE_TOKEN", "")
+	AppConfig.UI.BetterStackEndpoint = getEnv("BETTER_STACK_HOST", "")
 
 	// Cloudflare configuration
 	AppConfig.Cloudflare.Endpoint = getEnv("CLOUDFLARE_R2_ENDPOINT", "")
