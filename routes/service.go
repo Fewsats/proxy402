@@ -70,7 +70,7 @@ func (s *PaidRouteService) CreateURLRoute(ctx context.Context, req *CreatePaidRo
 		IsEnabled:              true,
 		Type:                   req.Type,
 		Credits:                req.Credits,
-		PaymentProtocolVersion: PaymentProtocolVersionV1,
+		PaymentProtocolVersion: PaymentProtocolVersionV2,
 		ResourceType:           "url",
 	}
 
@@ -186,7 +186,7 @@ func (s *PaidRouteService) CreateFileRoute(ctx context.Context, req *CreateFileR
 		IsEnabled:              true,
 		Type:                   req.Type,
 		Credits:                req.Credits,
-		PaymentProtocolVersion: PaymentProtocolVersionV1,
+		PaymentProtocolVersion: PaymentProtocolVersionV2,
 		ResourceType:           "file",
 		OriginalFilename:       &req.OriginalFilename,
 	}

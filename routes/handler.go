@@ -3,6 +3,7 @@ package routes
 import (
 	// Needed for potential body buffering if required later
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,8 +17,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coinbase/x402/go/pkg/coinbasefacilitator"
-	"github.com/coinbase/x402/go/pkg/types"
+	x402core "github.com/coinbase/x402/go"
+	x402http "github.com/coinbase/x402/go/http"
+	x402gin "github.com/coinbase/x402/go/http/gin"
+	x402evmserver "github.com/coinbase/x402/go/mechanisms/evm/exact/server"
 	"github.com/gin-gonic/gin"
 
 	"linkshrink/auth"
@@ -62,6 +65,25 @@ func getRequestScheme(gCtx *gin.Context) string {
 		scheme = "https"
 	}
 	return scheme
+}
+
+func getRoutePaymentVersion(route *PaidRoute) uint16 {
+	version := route.PaymentProtocolVersion
+	if version == 0 {
+		return PaymentProtocolVersionV1
+	}
+	return version
+}
+
+func getPaymentHeaderNameForVersion(version uint16) string {
+	if version == PaymentProtocolVersionV2 {
+		return "PAYMENT-SIGNATURE"
+	}
+	return "X-Payment"
+}
+
+func getPaymentHeaderNameForRoute(route *PaidRoute) string {
+	return getPaymentHeaderNameForVersion(getRoutePaymentVersion(route))
 }
 
 // setDefaultTypeAndCredits sets default values for Type and Credits if not provided.
@@ -278,14 +300,16 @@ func (h *PaidRouteHandler) getAndValidateRoute(gCtx *gin.Context) (*PaidRoute, b
 //   - usedExistingCredit: true if an existing purchase was found and a credit was successfully used.
 //   - proceedToNewPayment: true if a new payment flow should be initiated (e.g., no header, purchase not found, no credits, error using credit).
 func (h *PaidRouteHandler) tryExistingPayment(gCtx *gin.Context, route *PaidRoute) (usedExistingCredit bool, proceedToNewPayment bool) {
-	clientPaymentHeader := gCtx.GetHeader("X-Payment")
+	paymentHeaderName := getPaymentHeaderNameForRoute(route)
+	clientPaymentHeader := gCtx.GetHeader(paymentHeaderName)
 	if clientPaymentHeader == "" {
 		// No header, so must proceed to new payment flow.
 		return false, true
 	}
 
-	h.logger.Debug("Client provided X-Payment header, checking for existing purchase",
-		"shortCode", route.ShortCode, "routeID", route.ID, "clientPaymentHeader", clientPaymentHeader)
+	h.logger.Debug("Client provided payment header, checking for existing purchase",
+		"shortCode", route.ShortCode, "routeID", route.ID,
+		"paymentHeaderName", paymentHeaderName, "clientPaymentHeader", clientPaymentHeader)
 
 	existingPurchase, err := h.purchaseService.GetPurchaseByRouteIDAndPaymentHeader(gCtx.Request.Context(), route.ID, clientPaymentHeader)
 
@@ -343,19 +367,13 @@ func (h *PaidRouteHandler) tryExistingPayment(gCtx *gin.Context, route *PaidRout
 //   - paymentProcessedSuccessfully: true if a new payment was completed and purchase recorded.
 //   - requestHandled: true if a response was sent (e.g., 402, 500 error) and the main handler should stop.
 func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidRoute) (paymentProcessedSuccessfully bool, requestHandled bool) {
-	version := route.PaymentProtocolVersion
-	if version == 0 {
-		version = PaymentProtocolVersionV1
-	}
+	version := getRoutePaymentVersion(route)
 
 	switch version {
 	case PaymentProtocolVersionV1:
 		return h.executeNewPaymentFlowV1(gCtx, route)
 	case PaymentProtocolVersionV2:
-		h.logger.Warn("Route configured for x402 v2, but v2 flow is not implemented yet",
-			"shortCode", route.ShortCode, "routeID", route.ID)
-		gCtx.JSON(http.StatusNotImplemented, gin.H{"error": "x402 v2 payment flow is not available yet"})
-		return false, true
+		return h.executeNewPaymentFlowV2(gCtx, route)
 	default:
 		h.logger.Error("Unsupported payment protocol version",
 			"shortCode", route.ShortCode, "routeID", route.ID, "paymentProtocolVersion", version)
@@ -389,8 +407,6 @@ func (h *PaidRouteHandler) executeNewPaymentFlowV1(gCtx *gin.Context, route *Pai
 		paymentAddress = user.PaymentAddress
 	}
 
-	facilitatorConfig := coinbasefacilitator.CreateFacilitatorConfig(h.config.CDPAPIKeyID, h.config.CDPAPIKeySecret)
-
 	// Set resource type and original filename in the context for use in payment templates
 	gCtx.Set("ResourceType", route.ResourceType)
 	if route.ResourceType == "file" && route.OriginalFilename != nil {
@@ -408,8 +424,8 @@ func (h *PaidRouteHandler) executeNewPaymentFlowV1(gCtx *gin.Context, route *Pai
 		gCtx.Set("CoverURL", *route.CoverImageURL)
 	}
 
-	paymentPayload, settleResponse := x402.Payment(gCtx, priceFloat, paymentAddress,
-		x402.WithFacilitatorConfig(facilitatorConfig),
+	paymentPayloadJSON, settleResponseJSON := x402.Payment(gCtx, priceFloat, paymentAddress,
+		x402.WithFacilitatorURL(h.config.X402FacilitatorURL),
 		x402.WithDescription(fmt.Sprintf("Payment for %s %s", route.Method, accessURL)),
 		x402.WithResource(accessURL),
 		x402.WithTestnet(route.IsTest),
@@ -428,8 +444,8 @@ func (h *PaidRouteHandler) executeNewPaymentFlowV1(gCtx *gin.Context, route *Pai
 	}
 
 	// If we get here, payment verification within x402.Payment succeeded.
-	paymentHeaderForNewPurchase := gCtx.GetHeader("X-Payment")
-	err = h.savePurchaseRecord(gCtx.Request.Context(), route, paymentAddress, paymentPayload, settleResponse, paymentHeaderForNewPurchase)
+	paymentHeaderForNewPurchase := gCtx.GetHeader(getPaymentHeaderNameForRoute(route))
+	err = h.savePurchaseRecordJSON(gCtx.Request.Context(), route, paymentAddress, paymentPayloadJSON, settleResponseJSON, paymentHeaderForNewPurchase)
 	if err != nil {
 		h.logger.Error("Failed to save purchase record after new payment", "shortCode", route.ShortCode, "routeID", route.ID, "error", err)
 		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after payment."})
@@ -452,6 +468,160 @@ func (h *PaidRouteHandler) executeNewPaymentFlowV1(gCtx *gin.Context, route *Pai
 	}
 
 	return true, false // New payment processed successfully, request not yet fully handled (proxying is next).
+}
+
+func (h *PaidRouteHandler) executeNewPaymentFlowV2(gCtx *gin.Context, route *PaidRoute) (paymentProcessedSuccessfully bool, requestHandled bool) {
+	scheme := getRequestScheme(gCtx)
+	accessURL := fmt.Sprintf("%s://%s/%s", scheme, gCtx.Request.Host, route.ShortCode)
+
+	user, err := h.userService.GetUserByID(gCtx.Request.Context(), route.UserID)
+	if err != nil {
+		h.logger.Error("Error fetching user in executeNewPaymentFlowV2", "shortCode", route.ShortCode, "userID", route.UserID, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error processing request for payment."})
+		return false, true
+	}
+
+	paymentAddress := h.config.X402PaymentAddress
+	if user.PaymentAddress != "" {
+		paymentAddress = user.PaymentAddress
+	}
+
+	network := x402core.Network("eip155:8453")
+	if route.IsTest {
+		network = x402core.Network("eip155:84532")
+	}
+
+	routesConfig := x402http.RoutesConfig{
+		"*": {
+			Accepts: []x402http.PaymentOption{
+				{
+					Scheme:            "exact",
+					PayTo:             paymentAddress,
+					Price:             h.priceUtils.FormatPrice(route.Price),
+					Network:           network,
+					MaxTimeoutSeconds: h.config.X402MaxTimeoutSeconds,
+				},
+			},
+			Resource:    accessURL,
+			Description: fmt.Sprintf("Payment for %s %s", route.Method, accessURL),
+		},
+	}
+
+	facilitatorClient := x402http.NewFacilitatorClient(&x402http.FacilitatorConfig{
+		URL: h.config.X402FacilitatorURL,
+	})
+	server := x402http.NewServer(routesConfig,
+		x402core.WithFacilitatorClient(facilitatorClient),
+		x402core.WithSchemeServer(network, x402evmserver.NewExactEvmScheme()),
+	)
+
+	err = server.Initialize(gCtx.Request.Context())
+	if err != nil {
+		h.logger.Error("Failed to initialize x402 v2 server", "shortCode", route.ShortCode, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to initialize payment server"})
+		return false, true
+	}
+
+	processResult := server.ProcessHTTPRequest(gCtx.Request.Context(), x402http.HTTPRequestContext{
+		Adapter: x402gin.NewGinAdapter(gCtx),
+		Path:    gCtx.Request.URL.Path,
+		Method:  gCtx.Request.Method,
+	}, nil)
+
+	switch processResult.Type {
+	case x402http.ResultPaymentError:
+		if processResult.Response == nil {
+			gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Unexpected payment response"})
+			return false, true
+		}
+
+		for key, value := range processResult.Response.Headers {
+			gCtx.Header(key, value)
+		}
+
+		if processResult.Response.IsHTML {
+			body, ok := processResult.Response.Body.(string)
+			if !ok {
+				gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid paywall response"})
+				return false, true
+			}
+			gCtx.Data(processResult.Response.Status, "text/html; charset=utf-8", []byte(body))
+		} else if processResult.Response.Body == nil {
+			gCtx.Status(processResult.Response.Status)
+		} else {
+			gCtx.JSON(processResult.Response.Status, processResult.Response.Body)
+		}
+
+		if processResult.Response.Status == http.StatusPaymentRequired {
+			errIncrement := h.paidRouteService.IncrementAttemptCount(gCtx.Request.Context(), route.ShortCode)
+			if errIncrement != nil {
+				h.logger.Error("Error incrementing attempt count after v2 402", "shortCode", route.ShortCode, "error", errIncrement)
+			}
+		}
+
+		return false, true
+
+	case x402http.ResultPaymentVerified:
+		// Continue below.
+	case x402http.ResultNoPaymentRequired:
+		h.logger.Error("v2 route did not require payment as expected", "shortCode", route.ShortCode, "routeID", route.ID)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal payment configuration error"})
+		return false, true
+	default:
+		h.logger.Error("Unknown x402 v2 payment result", "shortCode", route.ShortCode, "resultType", processResult.Type)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal payment processing error"})
+		return false, true
+	}
+
+	if processResult.PaymentPayload == nil || processResult.PaymentRequirements == nil {
+		h.logger.Error("v2 payment verification succeeded without payload/requirements", "shortCode", route.ShortCode)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal payment verification error"})
+		return false, true
+	}
+
+	settleResponse, err := server.SettlePayment(gCtx.Request.Context(), *processResult.PaymentPayload, *processResult.PaymentRequirements)
+	if err != nil {
+		h.logger.Error("v2 settlement failed", "shortCode", route.ShortCode, "error", err)
+		gCtx.JSON(http.StatusPaymentRequired, gin.H{"error": err.Error(), "x402Version": 2})
+		return false, true
+	}
+
+	settleResponseJSON, err := json.Marshal(settleResponse)
+	if err != nil {
+		h.logger.Error("Failed to encode v2 settle response", "shortCode", route.ShortCode, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after payment settlement."})
+		return false, true
+	}
+	gCtx.Header("PAYMENT-RESPONSE", base64.StdEncoding.EncodeToString(settleResponseJSON))
+
+	paymentPayloadJSON, err := json.Marshal(processResult.PaymentPayload)
+	if err != nil {
+		h.logger.Error("Failed to encode v2 payment payload", "shortCode", route.ShortCode, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after payment verification."})
+		return false, true
+	}
+
+	paymentHeaderForNewPurchase := gCtx.GetHeader(getPaymentHeaderNameForRoute(route))
+	err = h.savePurchaseRecordJSON(gCtx.Request.Context(), route, paymentAddress, paymentPayloadJSON, settleResponseJSON, paymentHeaderForNewPurchase)
+	if err != nil {
+		h.logger.Error("Failed to save purchase record after v2 payment", "shortCode", route.ShortCode, "routeID", route.ID, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after payment."})
+		return false, true
+	}
+
+	err = h.paidRouteService.IncrementPaymentCount(gCtx.Request.Context(), route.ShortCode)
+	if err != nil {
+		h.logger.Error("Failed to increment payment count after v2 payment", "shortCode", route.ShortCode, "error", err)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error after processing payment counts."})
+		return true, true
+	}
+
+	err = h.paidRouteService.IncrementAccessCount(gCtx.Request.Context(), route.ShortCode)
+	if err != nil {
+		h.logger.Error("Failed to increment access count after v2 payment", "shortCode", route.ShortCode, "error", err)
+	}
+
+	return true, false
 }
 
 // proxyRequest sets up and executes the reverse proxy to the target URL.
@@ -698,25 +868,10 @@ func (h *PaidRouteHandler) DeleteUserPaidRoute(gCtx *gin.Context) {
 	gCtx.Status(http.StatusOK)
 }
 
-// savePurchaseRecord is a helper method to save the purchase record in the database.
-func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context,
+func (h *PaidRouteHandler) savePurchaseRecordJSON(gCtx context.Context,
 	route *PaidRoute, paymentAddress string,
-	paymentPayload *types.PaymentPayload,
-	settleResponse *types.SettleResponse, paymentHeader string) error {
-
-	// Convert paymentPayload to JSON
-	paymentPayloadJson, err := json.Marshal(paymentPayload)
-	if err != nil {
-		h.logger.Error("Failed to encode payment payload", "error", err)
-		return fmt.Errorf("failed to encode payment payload: %w", err)
-	}
-
-	// Convert settleResponse to JSON
-	settleResponseJson, err := json.Marshal(settleResponse)
-	if err != nil {
-		h.logger.Error("Failed to encode settle response", "error", err)
-		return fmt.Errorf("failed to encode settle response: %w", err)
-	}
+	paymentPayloadJSON []byte,
+	settleResponseJSON []byte, paymentHeader string) error {
 
 	// Create purchase record
 	purchase := &purchases.Purchase{
@@ -733,12 +888,12 @@ func (h *PaidRouteHandler) savePurchaseRecord(gCtx context.Context,
 		PaidToAddress: paymentAddress,
 
 		PaymentHeader:  paymentHeader,
-		PaymentPayload: paymentPayloadJson,
-		SettleResponse: settleResponseJson,
+		PaymentPayload: paymentPayloadJSON,
+		SettleResponse: settleResponseJSON,
 	}
 	h.logger.Info("Purchase record created", "purchase", fmt.Sprintf("%+v", purchase))
 
-	_, err = h.purchaseService.CreatePurchase(gCtx, purchase)
+	_, err := h.purchaseService.CreatePurchase(gCtx, purchase)
 	if err != nil {
 		h.logger.Error("Failed to save purchase record", "routeID", route.ID, "shortCode", route.ShortCode,
 			"targetURL", route.TargetURL, "method", route.Method, "price", route.Price, "isTest", route.IsTest,

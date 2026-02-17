@@ -1,77 +1,71 @@
 package x402
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
 	"strings"
 
-	"github.com/coinbase/x402/go/pkg/facilitatorclient"
-	"github.com/coinbase/x402/go/pkg/types"
+	x402http "github.com/coinbase/x402/go/http"
+	x402types "github.com/coinbase/x402/go/types"
 	"github.com/gin-gonic/gin"
 )
 
 const x402Version = 1
 
-// PaymentOptions is the options for the PaymentMiddleware.
+// PaymentOptions is the options for the Payment helper.
 type PaymentOptions struct {
 	Description       string
 	MimeType          string
 	MaxTimeoutSeconds int
 	OutputSchema      *json.RawMessage
-	FacilitatorConfig *types.FacilitatorConfig
+	FacilitatorURL    string
 	Testnet           bool
 	Resource          string
 	ResourceRootURL   string
 }
 
-// Options is the type for the options for the PaymentMiddleware.
+// Options is the type for options accepted by Payment.
 type Options func(*PaymentOptions)
 
-// WithDescription is an option for the PaymentMiddleware to set the description.
 func WithDescription(description string) Options {
 	return func(options *PaymentOptions) {
 		options.Description = description
 	}
 }
 
-// WithMimeType is an option for the PaymentMiddleware to set the mime type.
 func WithMimeType(mimeType string) Options {
 	return func(options *PaymentOptions) {
 		options.MimeType = mimeType
 	}
 }
 
-// WithMaxDeadlineSeconds is an option for the PaymentMiddleware to set the max timeout seconds.
 func WithMaxTimeoutSeconds(maxTimeoutSeconds int) Options {
 	return func(options *PaymentOptions) {
 		options.MaxTimeoutSeconds = maxTimeoutSeconds
 	}
 }
 
-// WithOutputSchema is an option for the PaymentMiddleware to set the output schema.
 func WithOutputSchema(outputSchema *json.RawMessage) Options {
 	return func(options *PaymentOptions) {
 		options.OutputSchema = outputSchema
 	}
 }
 
-// WithFacilitatorConfig is an option for the PaymentMiddleware to set the facilitator config.
-func WithFacilitatorConfig(config *types.FacilitatorConfig) Options {
+func WithFacilitatorURL(url string) Options {
 	return func(options *PaymentOptions) {
-		options.FacilitatorConfig = config
+		options.FacilitatorURL = url
 	}
 }
 
-// WithTestnet is an option for the PaymentMiddleware to set the testnet flag.
 func WithTestnet(testnet bool) Options {
 	return func(options *PaymentOptions) {
 		options.Testnet = testnet
 	}
 }
 
-// WithResource is an option for the PaymentMiddleware to set the resource.
 func WithResource(resource string) Options {
 	return func(options *PaymentOptions) {
 		options.Resource = resource
@@ -84,41 +78,26 @@ func WithResourceRootURL(resourceRootURL string) Options {
 	}
 }
 
-// Amount: the decimal denominated amount to charge (ex: 0.01 for 1 cent)
-func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options) (paymentPayload *types.PaymentPayload, settleResponse *types.SettleResponse) {
+// Amount: the decimal denominated amount to charge (ex: 0.01 for 1 cent).
+// Returns marshaled payload and settle response JSON bytes when payment succeeds.
+func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options) (paymentPayloadJSON []byte, settleResponseJSON []byte) {
 	options := &PaymentOptions{
-		FacilitatorConfig: &types.FacilitatorConfig{
-			URL: facilitatorclient.DefaultFacilitatorURL,
-		},
+		FacilitatorURL:    x402http.DefaultFacilitatorURL,
 		MaxTimeoutSeconds: 60,
 		Testnet:           true,
 	}
-
 	for _, opt := range opts {
 		opt(options)
 	}
 
-	// Set the Payment-Protocol header to support other payment protocols
 	c.Header("Payment-Protocol", "X402")
 
-	var (
-		network              = "base"
-		usdcAddress          = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-		facilitatorClient    = facilitatorclient.NewFacilitatorClient(options.FacilitatorConfig)
-		maxAmountRequired, _ = new(big.Float).Mul(amount, big.NewFloat(1e6)).Int(nil)
-	)
-
+	network := "base"
+	usdcAddress := "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 	if options.Testnet {
 		network = "base-sepolia"
 		usdcAddress = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
 	}
-
-	fmt.Println("Payment middleware checking request:", c.Request.URL)
-
-	userAgent := c.GetHeader("User-Agent")
-	acceptHeader := c.GetHeader("Accept")
-	isWebBrowser := strings.Contains(acceptHeader, "text/html") &&
-		(strings.Contains(userAgent, "Mozilla"))
 
 	var resource string
 	if options.Resource == "" {
@@ -127,7 +106,8 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 		resource = options.Resource
 	}
 
-	paymentRequirements := &types.PaymentRequirements{
+	maxAmountRequired, _ := new(big.Float).Mul(amount, big.NewFloat(1e6)).Int(nil)
+	paymentRequirements := x402types.PaymentRequirementsV1{
 		Scheme:            "exact",
 		Network:           network,
 		MaxAmountRequired: maxAmountRequired.String(),
@@ -138,175 +118,143 @@ func Payment(c *gin.Context, amount *big.Float, address string, opts ...Options)
 		MaxTimeoutSeconds: options.MaxTimeoutSeconds,
 		Asset:             usdcAddress,
 		OutputSchema:      options.OutputSchema,
-		Extra:             nil,
 	}
-
-	if err := paymentRequirements.SetUSDCInfo(options.Testnet); err != nil {
-		fmt.Println("failed to set USDC info:", err)
+	if err := setUSDCInfoV1(&paymentRequirements, options.Testnet); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error":       err.Error(),
 			"x402Version": x402Version,
 		})
-		return
+		return nil, nil
 	}
 
-	// Marshal payment requirements to JSON for the frontend
-	paymentRequirementsJSON, err := json.Marshal(paymentRequirements)
-	if err != nil {
-		fmt.Println("Failed to marshal payment requirements:", err)
-		paymentRequirementsJSON = []byte("{}")
+	paymentRequirementsJSON, _ := json.Marshal(paymentRequirements)
+
+	userAgent := c.GetHeader("User-Agent")
+	acceptHeader := c.GetHeader("Accept")
+	isWebBrowser := strings.Contains(acceptHeader, "text/html") && strings.Contains(userAgent, "Mozilla")
+
+	headerValue := c.GetHeader("X-PAYMENT")
+	if headerValue == "" {
+		respondPaymentRequiredV1(c, isWebBrowser, resource, amount, options, paymentRequirements, paymentRequirementsJSON, "X-PAYMENT header is required")
+		return nil, nil
 	}
 
-	payment := c.GetHeader("X-PAYMENT")
-	paymentPayload, err = types.DecodePaymentPayloadFromBase64(payment)
+	decodedPayload, err := base64.StdEncoding.DecodeString(headerValue)
 	if err != nil {
-		// For browser requests, always serve HTML template
-		if isWebBrowser {
-			// Format the amount for display (convert from big.Float to string)
-			amountString := amount.Text('f', 6)
-
-			// Use contextDescription if available, otherwise fall back to options.Description
-			var description string
-			if contextDescription := c.GetString("Description"); contextDescription != "" {
-				description = contextDescription
-			} else {
-				description = options.Description
-			}
-
-			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":                resource,
-				"Description":             description,
-				"AmountFormatted":         amountString,
-				"ResourceType":            c.GetString("ResourceType"),
-				"OriginalFilename":        c.GetString("OriginalFilename"),
-				"Title":                   c.GetString("Title"),
-				"CoverURL":                c.GetString("CoverURL"),
-				"IsTestnet":               options.Testnet,
-				"PaymentRequirements":     paymentRequirements,
-				"PaymentRequirementsJSON": string(paymentRequirementsJSON),
-			})
-			c.Abort()
-			return
-		}
-
-		fmt.Println("Failed to decode X-PAYMENT header:", err)
-		// For API clients, return JSON
-		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
-			"error":       "X-PAYMENT header is required",
-			"accepts":     []*types.PaymentRequirements{paymentRequirements},
-			"x402Version": x402Version,
-		})
-		return
+		respondPaymentRequiredV1(c, isWebBrowser, resource, amount, options, paymentRequirements, paymentRequirementsJSON, "invalid X-PAYMENT header")
+		return nil, nil
 	}
-	paymentPayload.X402Version = x402Version
+	version, err := x402types.DetectVersion(decodedPayload)
+	if err != nil || version != 1 {
+		respondPaymentRequiredV1(c, isWebBrowser, resource, amount, options, paymentRequirements, paymentRequirementsJSON, "invalid x402 version for v1 route")
+		return nil, nil
+	}
 
-	// Verify payment
-	response, err := facilitatorClient.Verify(paymentPayload, paymentRequirements)
+	_, err = x402types.ToPaymentPayloadV1(decodedPayload)
 	if err != nil {
-		fmt.Println("failed to verify", err)
+		respondPaymentRequiredV1(c, isWebBrowser, resource, amount, options, paymentRequirements, paymentRequirementsJSON, "failed to decode payment payload")
+		return nil, nil
+	}
+
+	facilitator := x402http.NewFacilitatorClient(&x402http.FacilitatorConfig{
+		URL: options.FacilitatorURL,
+	})
+	requirementsJSON, err := json.Marshal(paymentRequirements)
+	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 			"error":       err.Error(),
 			"x402Version": x402Version,
 		})
-		return
+		return nil, nil
 	}
 
-	if !response.IsValid {
-		fmt.Println("Invalid payment: ", response.InvalidReason)
-
-		// For invalid payments from browsers, always serve HTML template
-		if isWebBrowser {
-			// Format the amount for display with 6 decimal places
-			amountString := amount.Text('f', 6)
-
-			// Use contextDescription if available, otherwise fall back to options.Description
-			var description string
-			if contextDescription := c.GetString("Description"); contextDescription != "" {
-				description = contextDescription
-			} else {
-				description = options.Description
-			}
-
-			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":                resource,
-				"Description":             description,
-				"AmountFormatted":         amountString,
-				"ErrorMessage":            response.InvalidReason,
-				"ResourceType":            c.GetString("ResourceType"),
-				"OriginalFilename":        c.GetString("OriginalFilename"),
-				"Title":                   c.GetString("Title"),
-				"CoverURL":                c.GetString("CoverURL"),
-				"IsTestnet":               options.Testnet,
-				"PaymentRequirements":     paymentRequirements,
-				"PaymentRequirementsJSON": string(paymentRequirementsJSON),
-			})
-			c.Abort()
-			return
+	verifyResponse, err := facilitator.Verify(c.Request.Context(), decodedPayload, requirementsJSON)
+	if err != nil || verifyResponse == nil || !verifyResponse.IsValid {
+		errMsg := "invalid payment"
+		if err != nil {
+			errMsg = err.Error()
+		} else if verifyResponse != nil && verifyResponse.InvalidReason != "" {
+			errMsg = verifyResponse.InvalidReason
 		}
+		respondPaymentRequiredV1(c, isWebBrowser, resource, amount, options, paymentRequirements, paymentRequirementsJSON, errMsg)
+		return nil, nil
+	}
 
-		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
-			"error":       response.InvalidReason,
-			"accepts":     []*types.PaymentRequirements{paymentRequirements},
+	settleResponse, err := facilitator.Settle(c.Request.Context(), decodedPayload, requirementsJSON)
+	if err != nil || settleResponse == nil || !settleResponse.Success {
+		errMsg := "payment settlement failed"
+		if err != nil {
+			errMsg = err.Error()
+		} else if settleResponse != nil && settleResponse.ErrorReason != "" {
+			errMsg = settleResponse.ErrorReason
+		}
+		respondPaymentRequiredV1(c, isWebBrowser, resource, amount, options, paymentRequirements, paymentRequirementsJSON, errMsg)
+		return nil, nil
+	}
+
+	paymentPayloadJSON = decodedPayload
+	settleResponseJSON, err = json.Marshal(settleResponse)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error":       err.Error(),
 			"x402Version": x402Version,
 		})
-		return
+		return nil, nil
+	}
+	c.Header("X-PAYMENT-RESPONSE", base64.StdEncoding.EncodeToString(settleResponseJSON))
+
+	return paymentPayloadJSON, settleResponseJSON
+}
+
+func setUSDCInfoV1(requirements *x402types.PaymentRequirementsV1, testnet bool) error {
+	usdcInfo := map[string]any{
+		"name":    "USDC",
+		"version": "2",
+	}
+	if !testnet {
+		usdcInfo["name"] = "USD Coin"
 	}
 
-	fmt.Println("Payment verified, proceeding")
-
-	// Settle payment
-	settleResponse, err = facilitatorClient.Settle(paymentPayload, paymentRequirements)
+	extraJSON, err := json.Marshal(usdcInfo)
 	if err != nil {
-		fmt.Println("x402 Abort: Settlement failed:", err)
-		fmt.Println("Settlement failed:", err)
+		return fmt.Errorf("failed to marshal USDC info: %w", err)
+	}
+	raw := json.RawMessage(extraJSON)
+	requirements.Extra = &raw
+	return nil
+}
 
-		// For settlement errors in browsers, always serve HTML template
-		if isWebBrowser {
-			// Format the amount for display with 6 decimal places
-			amountString := amount.Text('f', 6)
-
-			// Use contextDescription if available, otherwise fall back to options.Description
-			var description string
-			if contextDescription := c.GetString("Description"); contextDescription != "" {
-				description = contextDescription
-			} else {
-				description = options.Description
-			}
-
-			c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
-				"Resource":                resource,
-				"Description":             description,
-				"AmountFormatted":         amountString,
-				"ErrorMessage":            err.Error(),
-				"ResourceType":            c.GetString("ResourceType"),
-				"OriginalFilename":        c.GetString("OriginalFilename"),
-				"Title":                   c.GetString("Title"),
-				"CoverURL":                c.GetString("CoverURL"),
-				"IsTestnet":               options.Testnet,
-				"PaymentRequirements":     paymentRequirements,
-				"PaymentRequirementsJSON": string(paymentRequirementsJSON),
-			})
-			c.Abort()
-			return
+func respondPaymentRequiredV1(c *gin.Context, isWebBrowser bool, resource string, amount *big.Float, options *PaymentOptions, requirements x402types.PaymentRequirementsV1, requirementsJSON []byte, errMsg string) {
+	if isWebBrowser {
+		amountString := amount.Text('f', 6)
+		description := options.Description
+		if contextDescription := c.GetString("Description"); contextDescription != "" {
+			description = contextDescription
 		}
 
-		c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
-			"error":       err.Error(),
-			"accepts":     []*types.PaymentRequirements{paymentRequirements},
-			"x402Version": 1,
+		c.HTML(http.StatusPaymentRequired, "payment_required.html", gin.H{
+			"Resource":                resource,
+			"Description":             description,
+			"AmountFormatted":         amountString,
+			"ErrorMessage":            errMsg,
+			"ResourceType":            c.GetString("ResourceType"),
+			"OriginalFilename":        c.GetString("OriginalFilename"),
+			"Title":                   c.GetString("Title"),
+			"CoverURL":                c.GetString("CoverURL"),
+			"IsTestnet":               options.Testnet,
+			"PaymentRequirements":     requirements,
+			"PaymentRequirementsJSON": string(requirementsJSON),
 		})
+		c.Abort()
 		return
 	}
 
-	settleResponseHeader, err := settleResponse.EncodeToBase64String()
-	if err != nil {
-		fmt.Println("Settle Header Encoding failed:", err)
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
+	if errMsg == "" {
+		errMsg = "X-PAYMENT header is required"
 	}
-
-	c.Header("X-PAYMENT-RESPONSE", settleResponseHeader)
-	return
+	c.AbortWithStatusJSON(http.StatusPaymentRequired, gin.H{
+		"error":       errMsg,
+		"accepts":     []x402types.PaymentRequirementsV1{requirements},
+		"x402Version": x402Version,
+	})
 }
