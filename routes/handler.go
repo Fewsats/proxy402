@@ -153,11 +153,12 @@ func (h *PaidRouteHandler) CreateURLRouteHandler(gCtx *gin.Context) {
 
 		AccessURL: accessURL,
 
-		Price:     h.priceUtils.FormatPrice(route.Price),
-		Type:      route.Type,
-		Credits:   route.Credits,
-		IsTest:    route.IsTest,
-		IsEnabled: route.IsEnabled,
+		Price:                  h.priceUtils.FormatPrice(route.Price),
+		Type:                   route.Type,
+		Credits:                route.Credits,
+		PaymentProtocolVersion: route.PaymentProtocolVersion,
+		IsTest:                 route.IsTest,
+		IsEnabled:              route.IsEnabled,
 
 		Title:       route.Title,
 		Description: route.Description,
@@ -342,6 +343,28 @@ func (h *PaidRouteHandler) tryExistingPayment(gCtx *gin.Context, route *PaidRout
 //   - paymentProcessedSuccessfully: true if a new payment was completed and purchase recorded.
 //   - requestHandled: true if a response was sent (e.g., 402, 500 error) and the main handler should stop.
 func (h *PaidRouteHandler) executeNewPaymentFlow(gCtx *gin.Context, route *PaidRoute) (paymentProcessedSuccessfully bool, requestHandled bool) {
+	version := route.PaymentProtocolVersion
+	if version == 0 {
+		version = PaymentProtocolVersionV1
+	}
+
+	switch version {
+	case PaymentProtocolVersionV1:
+		return h.executeNewPaymentFlowV1(gCtx, route)
+	case PaymentProtocolVersionV2:
+		h.logger.Warn("Route configured for x402 v2, but v2 flow is not implemented yet",
+			"shortCode", route.ShortCode, "routeID", route.ID)
+		gCtx.JSON(http.StatusNotImplemented, gin.H{"error": "x402 v2 payment flow is not available yet"})
+		return false, true
+	default:
+		h.logger.Error("Unsupported payment protocol version",
+			"shortCode", route.ShortCode, "routeID", route.ID, "paymentProtocolVersion", version)
+		gCtx.JSON(http.StatusInternalServerError, gin.H{"error": "Unsupported payment protocol version"})
+		return false, true
+	}
+}
+
+func (h *PaidRouteHandler) executeNewPaymentFlowV1(gCtx *gin.Context, route *PaidRoute) (paymentProcessedSuccessfully bool, requestHandled bool) {
 	// Parse route.Price string to *big.Float
 	priceFloat, ok := new(big.Float).SetString(h.priceUtils.FormatPrice(route.Price))
 	if !ok {
@@ -554,12 +577,13 @@ type RouteResponse struct {
 
 	AccessURL string `json:"access_url"`
 
-	Title       *string `json:"title,omitempty"`
-	Description *string `json:"description,omitempty"`
-	CoverURL    *string `json:"cover_url,omitempty"`
-	Price       string  `json:"price"`
-	Type        string  `json:"type"`
-	Credits     uint64  `json:"credits"`
+	Title                  *string `json:"title,omitempty"`
+	Description            *string `json:"description,omitempty"`
+	CoverURL               *string `json:"cover_url,omitempty"`
+	Price                  string  `json:"price"`
+	Type                   string  `json:"type"`
+	Credits                uint64  `json:"credits"`
+	PaymentProtocolVersion uint16  `json:"payment_protocol_version"`
 
 	IsTest    bool `json:"is_test"`
 	IsEnabled bool `json:"is_enabled"`
@@ -614,12 +638,13 @@ func (h *PaidRouteHandler) GetUserPaidRoutes(gCtx *gin.Context) {
 
 			AccessURL: accessURL,
 
-			Title:       route.Title,
-			Description: route.Description,
-			CoverURL:    route.CoverImageURL,
-			Price:       h.priceUtils.FormatPrice(route.Price),
-			Type:        route.Type,
-			Credits:     route.Credits,
+			Title:                  route.Title,
+			Description:            route.Description,
+			CoverURL:               route.CoverImageURL,
+			Price:                  h.priceUtils.FormatPrice(route.Price),
+			Type:                   route.Type,
+			Credits:                route.Credits,
+			PaymentProtocolVersion: route.PaymentProtocolVersion,
 
 			IsTest:    route.IsTest,
 			IsEnabled: route.IsEnabled,

@@ -62,15 +62,16 @@ func (s *PaidRouteService) CreateURLRoute(ctx context.Context, req *CreatePaidRo
 
 	// 3. Create and Save Route (short code will be generated in the store)
 	route := &PaidRoute{
-		TargetURL:    req.TargetURL,
-		Method:       strings.ToUpper(req.Method),
-		Price:        priceInt,
-		IsTest:       req.IsTest,
-		UserID:       userID,
-		IsEnabled:    true,
-		Type:         req.Type,
-		Credits:      req.Credits,
-		ResourceType: "url",
+		TargetURL:              req.TargetURL,
+		Method:                 strings.ToUpper(req.Method),
+		Price:                  priceInt,
+		IsTest:                 req.IsTest,
+		UserID:                 userID,
+		IsEnabled:              true,
+		Type:                   req.Type,
+		Credits:                req.Credits,
+		PaymentProtocolVersion: PaymentProtocolVersionV1,
+		ResourceType:           "url",
 	}
 
 	// Handle title and description if provided
@@ -177,16 +178,17 @@ func (s *PaidRouteService) CreateFileRoute(ctx context.Context, req *CreateFileR
 
 	// Create a new route with resource_type = "file"
 	route := &PaidRoute{
-		TargetURL:        r2Key,
-		Method:           "GET", // Always use GET for file downloads
-		Price:            priceInt,
-		IsTest:           req.IsTest,
-		UserID:           userID,
-		IsEnabled:        true,
-		Type:             req.Type,
-		Credits:          req.Credits,
-		ResourceType:     "file",
-		OriginalFilename: &req.OriginalFilename,
+		TargetURL:              r2Key,
+		Method:                 "GET", // Always use GET for file downloads
+		Price:                  priceInt,
+		IsTest:                 req.IsTest,
+		UserID:                 userID,
+		IsEnabled:              true,
+		Type:                   req.Type,
+		Credits:                req.Credits,
+		PaymentProtocolVersion: PaymentProtocolVersionV1,
+		ResourceType:           "file",
+		OriginalFilename:       &req.OriginalFilename,
 	}
 
 	// Handle title and description if provided

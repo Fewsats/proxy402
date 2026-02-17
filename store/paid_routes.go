@@ -30,6 +30,9 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 	}
 
 	now := s.clock.Now()
+	if route.PaymentProtocolVersion == 0 {
+		route.PaymentProtocolVersion = routes.PaymentProtocolVersionV1
+	}
 
 	// Prepare original_filename for database
 	var originalFilename pgtype.Text
@@ -64,13 +67,14 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 		ResourceType:     route.ResourceType,
 		OriginalFilename: originalFilename,
 
-		UserID:      int64(route.UserID),
-		Title:       title,
-		Description: description,
-		Price:       int32(route.Price),
-		Type:        route.Type,
-		Credits:     int32(route.Credits),
-		CoverUrl:    coverUrl,
+		UserID:                 int64(route.UserID),
+		Title:                  title,
+		Description:            description,
+		Price:                  int32(route.Price),
+		Type:                   route.Type,
+		Credits:                int32(route.Credits),
+		PaymentProtocolVersion: int16(route.PaymentProtocolVersion),
+		CoverUrl:               coverUrl,
 
 		IsTest:    route.IsTest,
 		IsEnabled: route.IsEnabled,
@@ -250,11 +254,12 @@ func convertToPaidRouteModel(dbRoute sqlc.PaidRoute) *routes.PaidRoute {
 		TargetURL: dbRoute.TargetUrl,
 		Method:    dbRoute.Method,
 
-		Price:        uint64(dbRoute.Price),
-		Type:         dbRoute.Type,
-		Credits:      uint64(dbRoute.Credits),
-		UserID:       uint64(dbRoute.UserID),
-		ResourceType: dbRoute.ResourceType,
+		Price:                  uint64(dbRoute.Price),
+		Type:                   dbRoute.Type,
+		Credits:                uint64(dbRoute.Credits),
+		PaymentProtocolVersion: uint16(dbRoute.PaymentProtocolVersion),
+		UserID:                 uint64(dbRoute.UserID),
+		ResourceType:           dbRoute.ResourceType,
 
 		IsTest:    dbRoute.IsTest,
 		IsEnabled: dbRoute.IsEnabled,

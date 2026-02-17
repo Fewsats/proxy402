@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+const (
+	PaymentProtocolVersionV1 uint16 = 1
+	PaymentProtocolVersionV2 uint16 = 2
+)
+
 // PaidRoute represents a configurable, paid API route proxied by the service.
 type PaidRoute struct {
 	ID        uint64 `json:"-"`
@@ -27,12 +32,14 @@ type PaidRoute struct {
 	Description *string `json:"description,omitempty"`
 
 	// Store price as int64 representing base units (USDC * 10^6)
-	Price     uint64 `json:"price"`
-	Type      string `json:"type"` // e.g., "credit", "subscription"
-	Credits   uint64 `json:"credits"`
-	IsTest    bool   `json:"is_test"`
-	UserID    uint64 `json:"-"`
-	IsEnabled bool   `json:"is_enabled"`
+	Price   uint64 `json:"price"`
+	Type    string `json:"type"` // e.g., "credit", "subscription"
+	Credits uint64 `json:"credits"`
+	// PaymentProtocolVersion controls which x402 protocol version is used for this route.
+	PaymentProtocolVersion uint16 `json:"payment_protocol_version"`
+	IsTest                 bool   `json:"is_test"`
+	UserID                 uint64 `json:"-"`
+	IsEnabled              bool   `json:"is_enabled"`
 
 	AttemptCount uint64 `json:"attempt_count"` // Track payment attempts (no payment header provided)
 	PaymentCount uint64 `json:"payment_count"` // Track successful payments (payment for x402)
