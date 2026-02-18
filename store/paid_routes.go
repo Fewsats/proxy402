@@ -31,7 +31,7 @@ func (s *Store) CreateRoute(ctx context.Context, route *routes.PaidRoute) (*rout
 
 	now := s.clock.Now()
 	if route.PaymentProtocolVersion == 0 {
-		route.PaymentProtocolVersion = routes.PaymentProtocolVersionV1
+		route.PaymentProtocolVersion = routes.PaymentProtocolVersionV2
 	}
 
 	// Prepare original_filename for database

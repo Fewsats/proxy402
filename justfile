@@ -39,11 +39,12 @@ status:
 # DATABASE MIGRATIONS
 # ===================
 migrate-up:
-    source .env
-    migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose up
+    test -f .env || (echo ".env file not found (copy .env.example to .env first)" && exit 1)
+    set -a; . ./.env; set +a; migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose up
 
 migrate-down:
-    migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose down 1
+    test -f .env || (echo ".env file not found (copy .env.example to .env first)" && exit 1)
+    set -a; . ./.env; set +a; migrate -path store/sqlc/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSLMODE" -verbose down 1
 
 migrate-create name:
     migrate create -dir store/sqlc/migrations -seq -ext sql {{name}}
@@ -71,9 +72,9 @@ sqlc-check: sqlc
 # DB MISC
 # ===============
 list-tables:
-    source .env
-    docker exec linkshrink_db psql -U $DB_USER -d $DB_NAME -c "\dt;"
+    test -f .env || (echo ".env file not found (copy .env.example to .env first)" && exit 1)
+    set -a; . ./.env; set +a; docker exec linkshrink_db psql -U $DB_USER -d $DB_NAME -c "\dt;"
 
 show-table table="purchases":
-    source .env
-    docker exec linkshrink_db psql -U $DB_USER -d $DB_NAME -t -c "SELECT json_agg(row_to_json(p)) FROM (SELECT * FROM {{table}} ORDER BY id) p;" | jq
+    test -f .env || (echo ".env file not found (copy .env.example to .env first)" && exit 1)
+    set -a; . ./.env; set +a; docker exec linkshrink_db psql -U $DB_USER -d $DB_NAME -t -c "SELECT json_agg(row_to_json(p)) FROM (SELECT * FROM {{table}} ORDER BY id) p;" | jq
